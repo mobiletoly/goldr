@@ -84,7 +84,7 @@ func (r usersCreateRoute) Path() string {
 }
 
 func (r usersFragTableRoute) Path() string {
-	return "/" + "users" + "/" + "frag_table"
+	return "/" + "users" + "/" + "frag-table"
 }
 
 func (r usersSavePreviewRoute) Path() string {

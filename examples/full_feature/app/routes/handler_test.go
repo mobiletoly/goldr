@@ -119,7 +119,7 @@ func TestHandlerGetPages(t *testing.T) {
 }
 
 func TestHandlerGetFragmentPartial(t *testing.T) {
-	recorder := recordRoute(t, http.MethodGet, "/users/frag_table")
+	recorder := recordRoute(t, http.MethodGet, "/users/frag-table")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)

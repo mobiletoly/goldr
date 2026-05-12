@@ -757,11 +757,15 @@ func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 }
 
 func fragmentRoute(fragment routing.ManifestFragment) string {
-	segment := "frag_" + fragment.Name
+	segment := "frag-" + browserPathSegment(fragment.Name)
 	if fragment.RoutePrefix == "/" {
 		return "/" + segment
 	}
 	return fragment.RoutePrefix + "/" + segment
+}
+
+func browserPathSegment(sourceName string) string {
+	return strings.ReplaceAll(sourceName, "_", "-")
 }
 
 func validateRuntimeRoutes(routes []runtimeRoute) error {

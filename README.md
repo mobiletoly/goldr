@@ -26,7 +26,7 @@ app/routes/
     by_id/
       page.go        -> GET /users/{id}
       page.templ     -> user detail HTML
-    frag_table.go    -> GET /users/frag_table
+    frag_table.go    -> GET /users/frag-table
     frag_table.templ -> fragment HTML
     actions.go       -> POST /users/create via PostCreate
 ```
@@ -34,6 +34,9 @@ app/routes/
 Pages define endpoints, layouts wrap pages in their route directory and below,
 fragments are standalone HTMX partials, and actions are ordinary Go handlers
 colocated with the route they mutate.
+
+Static directory underscores become hyphens in browser URLs, so Go-safe source
+names such as `build_info/` can serve stable paths such as `/build-info`.
 
 ## Why goldr
 
@@ -274,6 +277,7 @@ The conventions are Go-native:
 - `frag_*.go` defines an independently renderable HTMX fragment
 - `actions.go` defines colocated mutation handlers such as `PostCreate`
 - `by_id/` maps to a dynamic `{id}` route segment
+- `build_info/` maps to a static `/build-info` browser segment
 
 goldr generates route dispatch in `app/routes/goldr_gen.go` and URL helpers in
 `app/urls/goldr_gen.go`.

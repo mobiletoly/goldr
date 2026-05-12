@@ -278,7 +278,7 @@ func (scanner *scanner) routeSegment(relPath, name string) (routeSegment, bool) 
 		scanner.addProblem(relPath, "static route directories must use lowercase Go-safe names")
 		return routeSegment{}, false
 	default:
-		return routeSegment{pathSegment: name}, true
+		return routeSegment{pathSegment: browserPathSegment(name)}, true
 	}
 }
 
@@ -323,6 +323,10 @@ func routePath(segments []string) string {
 		return "/"
 	}
 	return "/" + strings.Join(segments, "/")
+}
+
+func browserPathSegment(sourceName string) string {
+	return strings.ReplaceAll(sourceName, "_", "-")
 }
 
 func actionRoute(route, segment string) string {

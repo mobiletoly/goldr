@@ -60,7 +60,7 @@ func TestGenerateManifestWritesRouteSurfaceComment(t *testing.T) {
 //   layout    -         /                  layout.go                    -
 //   page      GET,HEAD  /                  page.go                      urls.Root.Path()
 //   action    POST      /users/create      users/actions.go:PostCreate  urls.Users.Create.Path()
-//   fragment  GET,HEAD  /users/frag_table  users/frag_table.go          urls.Users.FragTable.Path()
+//   fragment  GET,HEAD  /users/frag-table  users/frag_table.go          urls.Users.FragTable.Path()
 //   page      GET,HEAD  /users/{id}        users/by_id/page.go          urls.Users.ByID(id).Path()
 
 package routes
@@ -95,6 +95,7 @@ func TestGenerateURLHelpersWritesRouteNodes(t *testing.T) {
 		"package urls",
 		"var Root = newRootRoute()",
 		"var Orgs = newOrgsRoute()",
+		"var Settings = newSettingsRoute()",
 		"var Users = newUsersRoute()",
 		"func BySlug(slug string) bySlugRoute",
 		"func (r rootRoute) Path() string",
@@ -103,6 +104,7 @@ func TestGenerateURLHelpersWritesRouteNodes(t *testing.T) {
 		"func (r usersByIDProfileRoute) Path() string",
 		"func (r orgsByOrgIDUsersByUserIDRoute) Path() string",
 		"FragTable:   newUsersFragTableRoute()",
+		"BuildInfo settingsBuildInfoRoute",
 		"SavePreview usersSavePreviewRoute",
 		"url.PathEscape(id)",
 	} {
@@ -189,6 +191,19 @@ func Page(r *http.Request) goldr.Page {
 	return goldr.Page{Component: templ.NopComponent}
 }
 `)
+	writeTempFile(t, tempDir, "routes/settings/build_info/page.go", `package build_info
+
+import (
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(r *http.Request) goldr.Page {
+	return goldr.Page{Component: templ.NopComponent}
+}
+`)
 	writeTempFile(t, tempDir, "routes/orgs/by_org_id/users/by_user_id/page.go", `package by_user_id
 
 import (
@@ -239,10 +254,11 @@ func TestURLHelpers(t *testing.T) {
 		want string
 	}{
 		{"root", Root.Path(), "/"},
+		{"build info", Settings.BuildInfo.Path(), "/settings/build-info"},
 		{"users", Users.Path(), "/users"},
 		{"create", Users.Create.Path(), "/users/create"},
 		{"save preview", Users.SavePreview.Path(), "/users/save-preview"},
-		{"fragment", Users.FragTable.Path(), "/users/frag_table"},
+		{"fragment", Users.FragTable.Path(), "/users/frag-table"},
 		{"root dynamic", BySlug("x/y").Path(), "/x%2Fy"},
 		{"dynamic", Users.ByID("a/b").Path(), "/users/a%2Fb"},
 		{"dynamic empty", Users.ByID("").Path(), "/users/"},
@@ -578,9 +594,9 @@ func TestHandlerRoutes(t *testing.T) {
 		{"/users", "<root title=\"Users\"><users section=\"users\"><h1>Users</h1></users></root>"},
 		{"/users/42", "<root title=\"User 42\"><users section=\"users\"><user id=\"42\" title=\"User 42\"><h1>User 42</h1></user></users></root>"},
 		{"/users/42%2F43", "<root title=\"User 42/43\"><users section=\"users\"><user id=\"42/43\" title=\"User 42/43\"><h1>User 42/43</h1></user></users></root>"},
-		{"/users/frag_table", "<tbody>Users fragment</tbody>"},
-		{"/users/42/frag_row", "<tr>User 42</tr>"},
-		{"/users/a%20b/frag_row", "<tr>User a b</tr>"},
+		{"/users/frag-table", "<tbody>Users fragment</tbody>"},
+		{"/users/42/frag-row", "<tr>User 42</tr>"},
+		{"/users/a%20b/frag-row", "<tr>User a b</tr>"},
 	}
 	for _, test := range tests {
 		recorder := httptest.NewRecorder()
@@ -596,7 +612,7 @@ func TestHandlerRoutes(t *testing.T) {
 
 func TestHandlerHeadAndErrors(t *testing.T) {
 	head := httptest.NewRecorder()
-	Handler().ServeHTTP(head, httptest.NewRequest(http.MethodHead, "/users/42/frag_row", nil))
+	Handler().ServeHTTP(head, httptest.NewRequest(http.MethodHead, "/users/42/frag-row", nil))
 	if head.Code != http.StatusOK {
 		t.Fatalf("HEAD status = %d, want %d", head.Code, http.StatusOK)
 	}
@@ -617,7 +633,7 @@ func TestHandlerHeadAndErrors(t *testing.T) {
 	}
 
 	method := httptest.NewRecorder()
-	Handler().ServeHTTP(method, httptest.NewRequest(http.MethodPost, "/users/frag_table", nil))
+	Handler().ServeHTTP(method, httptest.NewRequest(http.MethodPost, "/users/frag-table", nil))
 	if method.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("method status = %d, want %d", method.Code, http.StatusMethodNotAllowed)
 	}
@@ -779,6 +795,12 @@ func TestCustomErrorHandlers(t *testing.T) {
 		t.Fatalf("missing = (%d, %q), want custom 404", missing.Code, missing.Body.String())
 	}
 
+	underscoreFragment := httptest.NewRecorder()
+	handler.ServeHTTP(underscoreFragment, httptest.NewRequest(http.MethodGet, "/frag_nil", nil))
+	if underscoreFragment.Code != http.StatusNotFound || underscoreFragment.Body.String() != "custom missing" {
+		t.Fatalf("underscore fragment = (%d, %q), want custom 404", underscoreFragment.Code, underscoreFragment.Body.String())
+	}
+
 	method := httptest.NewRecorder()
 	handler.ServeHTTP(method, httptest.NewRequest(http.MethodPost, "/", nil))
 	if method.Code != http.StatusMethodNotAllowed || method.Body.String() != "allow GET, HEAD" {
@@ -786,7 +808,7 @@ func TestCustomErrorHandlers(t *testing.T) {
 	}
 
 	internal := httptest.NewRecorder()
-	handler.ServeHTTP(internal, httptest.NewRequest(http.MethodGet, "/frag_nil", nil))
+	handler.ServeHTTP(internal, httptest.NewRequest(http.MethodGet, "/frag-nil", nil))
 	if internal.Code != http.StatusInternalServerError || internal.Body.String() != "custom boom" {
 		t.Fatalf("internal = (%d, %q), want custom 500", internal.Code, internal.Body.String())
 	}
@@ -813,7 +835,7 @@ func TestNilErrorHandlersFallBackIndependently(t *testing.T) {
 	}
 
 	internal := httptest.NewRecorder()
-	handler.ServeHTTP(internal, httptest.NewRequest(http.MethodGet, "/frag_nil", nil))
+	handler.ServeHTTP(internal, httptest.NewRequest(http.MethodGet, "/frag-nil", nil))
 	if internal.Code != http.StatusInternalServerError {
 		t.Fatalf("internal status = %d, want %d", internal.Code, http.StatusInternalServerError)
 	}
@@ -893,7 +915,7 @@ func TestGenerateManifestPageFragmentActionDispatch(t *testing.T) {
 		},
 		Actions: []routing.ManifestAction{
 			{Method: "POST", Route: "/users", GoFile: "users/actions.go", Function: "PostIndex", Suffix: "Index"},
-			{Method: "POST", Route: "/users/frag_table", GoFile: "users/actions.go", Function: "PostTable", Suffix: "Table", Segment: "table"},
+			{Method: "POST", Route: "/users/frag-table", GoFile: "users/actions.go", Function: "PostTable", Suffix: "Table", Segment: "table"},
 			{Method: "PATCH", Route: "/users/{id}/profile", Params: []string{"id"}, GoFile: "users/by_id/actions.go", Function: "PatchProfile", Suffix: "Profile", Segment: "profile"},
 		},
 	}
@@ -973,8 +995,8 @@ func TestActionDispatch(t *testing.T) {
 	}{
 		{http.MethodGet, "/users", "users page"},
 		{http.MethodPost, "/users", "users action"},
-		{http.MethodGet, "/users/frag_table", "users fragment"},
-		{http.MethodPost, "/users/frag_table", "table action"},
+		{http.MethodGet, "/users/frag-table", "users fragment"},
+		{http.MethodPost, "/users/frag-table", "table action"},
 		{http.MethodPatch, "/users/42/profile", "profile 42"},
 		{http.MethodPatch, "/users/42%2F43/profile", "profile 42/43"},
 	}
@@ -1085,7 +1107,7 @@ func TestStaticRouteWins(t *testing.T) {
 	}
 
 	fragment := httptest.NewRecorder()
-	Handler().ServeHTTP(fragment, httptest.NewRequest(http.MethodGet, "/users/frag_table", nil))
+	Handler().ServeHTTP(fragment, httptest.NewRequest(http.MethodGet, "/users/frag-table", nil))
 	if fragment.Body.String() != "fragment" {
 		t.Fatalf("fragment body = %q, want fragment", fragment.Body.String())
 	}
@@ -1223,7 +1245,7 @@ import (
 )
 
 func TestFragmentRenderFailures(t *testing.T) {
-	for _, path := range []string{"/frag_nil", "/frag_fail"} {
+	for _, path := range []string{"/frag-nil", "/frag-fail"} {
 		recorder := httptest.NewRecorder()
 		Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
 		if recorder.Code != http.StatusInternalServerError {
@@ -1254,7 +1276,7 @@ func TestGenerateManifestRejectsAmbiguousFragmentRoutes(t *testing.T) {
 	tests := []routing.Manifest{
 		{
 			Pages: []routing.ManifestPage{
-				{Route: "/users/frag_table", Unit: completeUnit("users/frag_table/page.go")},
+				{Route: "/users/frag-table", Unit: completeUnit("users/frag_table/page.go")},
 			},
 			Fragments: []routing.ManifestFragment{
 				{Name: "table", RoutePrefix: "/users", Unit: completeUnit("users/frag_table.go")},
@@ -1479,6 +1501,7 @@ func urlHelperManifest() routing.Manifest {
 		Pages: []routing.ManifestPage{
 			{Route: "/", Unit: completeUnit("page.go")},
 			{Route: "/{slug}", Params: []string{"slug"}, Unit: completeUnit("by_slug/page.go")},
+			{Route: "/settings/build-info", Unit: completeUnit("settings/build_info/page.go")},
 			{Route: "/users", Unit: completeUnit("users/page.go")},
 			{Route: "/users/{id}", Params: []string{"id"}, Unit: completeUnit("users/by_id/page.go")},
 			{Route: "/orgs/{org_id}/users/{user_id}", Params: []string{"org_id", "user_id"}, Unit: completeUnit("orgs/by_org_id/users/by_user_id/page.go")},

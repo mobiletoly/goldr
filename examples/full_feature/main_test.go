@@ -119,7 +119,7 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 		t.Fatalf("settings body = %q, want no canonical link", settingsBody)
 	}
 
-	fragmentRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+"/users/frag_table", nil)
+	fragmentRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+"/users/frag-table", nil)
 	if err != nil {
 		t.Fatalf("NewRequestWithContext() error = %v", err)
 	}

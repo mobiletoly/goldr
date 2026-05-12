@@ -19,7 +19,7 @@ Useful paths:
 /settings
 /users
 /users/42
-/users/frag_table
+/users/frag-table
 /users/save-preview
 /users/create
 ```
@@ -65,7 +65,7 @@ headers, a minimal add-contact form with server-side redisplay errors, and a
 route-rendered custom 404 page. The app shell uses page metadata for document
 title, description, canonical path, and active navigation. The `/users` and
 `/users/42` pages share the users section shell from `users/layout.templ`;
-`/users/frag_table` renders only the fragment partial.
+`/users/frag-table` renders only the fragment partial.
 
 The example fingerprints final static files from
 `examples/full_feature/assets/build/` into `assets/dist/` with

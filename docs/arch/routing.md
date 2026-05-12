@@ -64,6 +64,9 @@ by_<param>/
 
 `<param>` must use the same lowercase Go-safe identifier rule.
 
+Static source identifiers map to browser path segments by replacing `_` with
+`-`. For example, `build_info/` serves `/build-info`.
+
 The scanner validates the forms goldr supports:
 - lowercase static route directories
 - `by_<param>/` dynamic route directories
@@ -104,6 +107,9 @@ page.go
 
 users/page.go
 /users
+
+settings/build_info/page.go
+/settings/build-info
 
 users/by_id/page.go
 /users/{id}
@@ -393,7 +399,7 @@ It reuses the same runtime path helpers as generated dispatch and generated URL
 helpers:
 
 - page paths from the manifest
-- fragment paths using the generated `frag_<name>` route rule
+- fragment paths using the generated `frag-<name>` browser route rule
 - action paths from scanned action metadata
 - runtime path deduplication and validation
 - URL helper tree construction and collision checks
@@ -625,11 +631,11 @@ A manifest fragment route prefix and name map to a public URL:
 ```text
 RoutePrefix: /users
 Name: table
-URL: /users/frag_table
+URL: /users/frag-table
 
 RoutePrefix: /users/{id}
 Name: row
-URL: /users/{id}/frag_row
+URL: /users/{id}/frag-row
 ```
 
 The generated handler calls each matched route package's fragment function:
@@ -644,6 +650,9 @@ Fragment function names are derived from the fragment name:
 table      -> FragTable
 user_row   -> FragUserRow
 ```
+
+Fragment browser path segments use the `frag-` prefix plus the fragment source
+name with `_` replaced by `-`.
 
 Dynamic route params are attached to the request before fragment functions run.
 Application code reads them with `r.PathValue`.
@@ -666,7 +675,7 @@ Content-Type: text/html; charset=utf-8
 
 Generated dispatch rejects ambiguous runtime patterns, including page-fragment
 URL collisions and same-shape dynamic fragment routes such as
-`/users/{id}/frag_row` and `/users/{slug}/frag_row`.
+`/users/{id}/frag-row` and `/users/{slug}/frag-row`.
 
 ## Runtime Action Routing
 

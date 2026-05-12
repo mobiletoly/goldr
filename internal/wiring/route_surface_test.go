@@ -36,7 +36,7 @@ func TestRouteSurfaceRows(t *testing.T) {
 		{Kind: "layout", Path: "/", Source: "layout.go"},
 		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/", Source: "page.go", Helper: "urls.Root.Path()"},
 		{Kind: "action", Methods: []string{"POST"}, Path: "/users/create", Source: "users/actions.go:PostCreate", Helper: "urls.Users.Create.Path()"},
-		{Kind: "fragment", Methods: []string{"GET", "HEAD"}, Path: "/users/frag_table", Source: "users/frag_table.go", Helper: "urls.Users.FragTable.Path()"},
+		{Kind: "fragment", Methods: []string{"GET", "HEAD"}, Path: "/users/frag-table", Source: "users/frag_table.go", Helper: "urls.Users.FragTable.Path()"},
 		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/orgs/{org_id}/users/{user_id}", Params: []string{"org_id", "user_id"}, Source: "orgs/by_org_id/users/by_user_id/page.go", Helper: "urls.Orgs.ByOrgID(orgID).Users.ByUserID(userID).Path()"},
 		{Kind: "layout", Path: "/users", Source: "users/layout.go"},
 		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/users", Source: "users/page.go", Helper: "urls.Users.Path()"},
@@ -120,8 +120,8 @@ func TestBuildRouteLayoutMap(t *testing.T) {
 	if got := users.Pages[0].Route; got != "/users" {
 		t.Fatalf("users page route = %q, want /users", got)
 	}
-	if got := users.Fragments[0].Route; got != "/users/frag_table" {
-		t.Fatalf("users fragment route = %q, want /users/frag_table", got)
+	if got := users.Fragments[0].Route; got != "/users/frag-table" {
+		t.Fatalf("users fragment route = %q, want /users/frag-table", got)
 	}
 	if got := users.Actions[0].Function; got != "PostCreate" {
 		t.Fatalf("users first action = %q, want PostCreate", got)

@@ -592,7 +592,7 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {}
 		{"layout", "-", "/", "-", "layout.go", "-"},
 		{"page", "GET,HEAD", "/", "-", "page.go", "urls.Root.Path()"},
 		{"action", "POST", "/users/create", "-", "users/actions.go:PostCreate", "urls.Users.Create.Path()"},
-		{"fragment", "GET,HEAD", "/users/frag_table", "-", "users/frag_table.go", "urls.Users.FragTable.Path()"},
+		{"fragment", "GET,HEAD", "/users/frag-table", "-", "users/frag_table.go", "urls.Users.FragTable.Path()"},
 		{"page", "GET,HEAD", "/users", "-", "users/page.go", "urls.Users.Path()"},
 		{"page", "GET,HEAD", "/users/{id}", "id", "users/by_id/page.go", "urls.Users.ByID(id).Path()"},
 	}
@@ -635,7 +635,7 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {}
 		{Kind: "layout", Methods: []string{}, Path: "/", Params: []string{}, Source: "layout.go"},
 		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/", Params: []string{}, Source: "page.go", Helper: "urls.Root.Path()"},
 		{Kind: "action", Methods: []string{"POST"}, Path: "/users/create", Params: []string{}, Source: "users/actions.go:PostCreate", Helper: "urls.Users.Create.Path()"},
-		{Kind: "fragment", Methods: []string{"GET", "HEAD"}, Path: "/users/frag_table", Params: []string{}, Source: "users/frag_table.go", Helper: "urls.Users.FragTable.Path()"},
+		{Kind: "fragment", Methods: []string{"GET", "HEAD"}, Path: "/users/frag-table", Params: []string{}, Source: "users/frag_table.go", Helper: "urls.Users.FragTable.Path()"},
 		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/users", Params: []string{}, Source: "users/page.go", Helper: "urls.Users.Path()"},
 		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/users/{id}", Params: []string{"id"}, Source: "users/by_id/page.go", Helper: "urls.Users.ByID(id).Path()"},
 	}
@@ -1116,7 +1116,7 @@ func fullFeatureLayoutMapOutput(t *testing.T) string {
 		"      ├─ page: GET,HEAD /users  " + source("users/page.go"),
 		"      ├─ by_id/",
 		"      │  └─ page: GET,HEAD /users/{id}  params: id  " + source("users/by_id/page.go"),
-		"      ├─ fragment (not wrapped): GET,HEAD /users/frag_table  " + source("users/frag_table.go"),
+		"      ├─ fragment (not wrapped): GET,HEAD /users/frag-table  " + source("users/frag_table.go"),
 		"      ├─ action (not wrapped): POST /users/create  " + source("users/actions.go") + " (PostCreate)",
 		"      └─ action (not wrapped): POST /users/save-preview  " + source("users/actions.go") + " (PostSavePreview)",
 		"",

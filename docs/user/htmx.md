@@ -136,7 +136,7 @@ See package documentation or completion for the full list.
 
 - `hx-get` and `hx-post` in templates
 - `HX-Trigger`, `HX-Retarget`, and `HX-Reswap` in action handlers
-- fragment rendering for `/users/frag_table`
+- fragment rendering for `/users/frag-table`
 - form redisplay from `/users/create`
 
 Run it from the repository root:

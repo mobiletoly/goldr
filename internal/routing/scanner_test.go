@@ -14,6 +14,9 @@ func TestScanPagesAndParams(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root,
 		"page.go",
+		"admin_v1/page.go",
+		"settings/build_info/page.go",
+		"settings/by_build_id/page.go",
 		"users/page.go",
 		"users/by_id/page.go",
 		"orgs/by_org_id/users/by_user_id/page.go",
@@ -28,7 +31,10 @@ func TestScanPagesAndParams(t *testing.T) {
 
 	want := map[string][]string{
 		"/":                              nil,
+		"/admin-v1":                      nil,
 		"/orgs/{org_id}/users/{user_id}": {"org_id", "user_id"},
+		"/settings/{build_id}":           {"build_id"},
+		"/settings/build-info":           nil,
 		"/users":                         nil,
 		"/users/{id}":                    {"id"},
 	}
@@ -42,7 +48,9 @@ func TestScanLayoutsAndFragments(t *testing.T) {
 	writeFiles(t, root,
 		"layout.go",
 		"layout.templ",
+		"settings/build_info/layout.go",
 		"users/layout.go",
+		"users/build_info/frag_build_info.go",
 		"users/frag_table.go",
 		"users/frag_row.go",
 		"users/frag_row.templ",
@@ -52,6 +60,7 @@ func TestScanLayoutsAndFragments(t *testing.T) {
 
 	wantLayouts := []Layout{
 		{RoutePrefix: "/", GoFile: "layout.go", TemplFile: "layout.templ", HasTempl: true},
+		{RoutePrefix: "/settings/build-info", GoFile: "settings/build_info/layout.go"},
 		{RoutePrefix: "/users", GoFile: "users/layout.go"},
 	}
 	if !reflect.DeepEqual(tree.Layouts, wantLayouts) {
@@ -61,6 +70,7 @@ func TestScanLayoutsAndFragments(t *testing.T) {
 	wantFragments := []Fragment{
 		{Name: "row", RoutePrefix: "/users", GoFile: "users/frag_row.go", TemplFile: "users/frag_row.templ", HasTempl: true},
 		{Name: "table", RoutePrefix: "/users", GoFile: "users/frag_table.go"},
+		{Name: "build_info", RoutePrefix: "/users/build-info", GoFile: "users/build_info/frag_build_info.go"},
 	}
 	if !reflect.DeepEqual(tree.Fragments, wantFragments) {
 		t.Fatalf("fragments = %#v, want %#v", tree.Fragments, wantFragments)

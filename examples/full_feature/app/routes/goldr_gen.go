@@ -5,7 +5,7 @@
 //   layout    -         /                    layout.go                         -
 //   page      GET,HEAD  /                    page.go                           urls.Root.Path()
 //   action    POST      /users/create        users/actions.go:PostCreate       urls.Users.Create.Path()
-//   fragment  GET,HEAD  /users/frag_table    users/frag_table.go               urls.Users.FragTable.Path()
+//   fragment  GET,HEAD  /users/frag-table    users/frag_table.go               urls.Users.FragTable.Path()
 //   action    POST      /users/save-preview  users/actions.go:PostSavePreview  urls.Users.SavePreview.Path()
 //   page      GET,HEAD  /settings            settings/page.go                  urls.Settings.Path()
 //   layout    -         /users               users/layout.go                   -
@@ -281,7 +281,7 @@ func goldrDispatchRootStaticUsers(handlers ErrorHandlers, w http.ResponseWriter,
 	case "create":
 		goldrDispatchRootStaticUsersStaticCreate(handlers, w, r, segments)
 		return
-	case "frag_table":
+	case "frag-table":
 		goldrDispatchRootStaticUsersStaticFragTable(handlers, w, r, segments)
 		return
 	case "save-preview":

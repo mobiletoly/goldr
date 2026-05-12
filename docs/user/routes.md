@@ -16,9 +16,10 @@ Route names are Go-native. Do not use JavaScript-style filesystem route syntax.
 `page.go` defines a page route for its directory.
 
 ```text
-app/routes/page.go              -> /
-app/routes/users/page.go        -> /users
-app/routes/users/by_id/page.go  -> /users/{id}
+app/routes/page.go                     -> /
+app/routes/users/page.go               -> /users
+app/routes/settings/build_info/page.go -> /settings/build-info
+app/routes/users/by_id/page.go         -> /users/{id}
 ```
 
 Each page must have a matching `.templ` file and must provide:
@@ -106,7 +107,7 @@ route could both match.
 Fragments use the `frag_` prefix and render standalone partial HTML.
 
 ```text
-app/routes/users/frag_table.go -> /users/frag_table
+app/routes/users/frag_table.go -> /users/frag-table
 ```
 
 Each fragment must have a matching `.templ` file and must provide:
@@ -118,7 +119,7 @@ func FragTable(r *http.Request) templ.Component
 Fragments use route params from their directory prefix:
 
 ```text
-app/routes/users/by_id/frag_row.go -> /users/{id}/frag_row
+app/routes/users/by_id/frag_row.go -> /users/{id}/frag-row
 ```
 
 Fragments render for `GET` and `HEAD`. They are not layout-wrapped.
@@ -274,14 +275,15 @@ Action error responses and static asset error responses are application-owned.
 
 ## Valid Names
 
-Valid route directories are lowercase Go-safe names:
+Valid route directories are lowercase Go-safe names. Static directory
+underscores become hyphens in browser URLs:
 
 ```text
-users/
-admin_v1/
-blog_posts/
-by_id/
-by_user_id/
+users/       -> /users
+admin_v1/    -> /admin-v1
+blog_posts/  -> /blog-posts
+by_id/       -> {id}
+by_user_id/  -> {user_id}
 ```
 
 Invalid names include:

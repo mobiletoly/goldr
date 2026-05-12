@@ -30,13 +30,14 @@ app/routes/
     by_id/
       page.go        -> GET /users/{id}
       page.templ     -> user detail HTML
-    frag_table.go    -> GET /users/frag_table
+    frag_table.go    -> GET /users/frag-table
     frag_table.templ -> fragment HTML
     actions.go       -> POST /users/create via PostCreate
 ```
 
-The route tree uses Go-safe names. Dynamic directories use `by_<param>/`, such
-as `by_id/` for `{id}`.
+The route tree uses Go-safe names. Static directory underscores become hyphens
+in browser URLs, and dynamic directories use `by_<param>/`, such as `by_id/`
+for `{id}`.
 
 ## Render Units
 
@@ -105,7 +106,7 @@ page directory back to the root, so the root layout is outermost.
 Fragments are standalone partials for HTMX swaps.
 
 ```text
-app/routes/users/frag_table.go -> /users/frag_table
+app/routes/users/frag_table.go -> /users/frag-table
 ```
 
 Fragment functions return a templ component:
