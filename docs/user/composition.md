@@ -1,0 +1,96 @@
+# Composition
+
+goldr generated routes are ordinary `http.Handler` values.
+
+Applications own the HTTP server, mux, middleware, static assets, cache
+headers, auth, sessions, CSRF, logging, recovery, and non-route handlers.
+
+## Mux Shape
+
+Use the standard library mux. Register more specific application handlers
+before generated routes:
+
+```go
+mux := http.NewServeMux()
+mux.Handle("/assets/", staticHandler())
+mux.Handle("/", routes.Handler())
+```
+
+`/assets/` is application-owned. It is not part of generated route dispatch and
+does not appear in generated URL helpers.
+
+## Middleware
+
+Wrap generated routes like any other `http.Handler`:
+
+```go
+handler := appHeaders(routes.HandlerWithErrors(routes.ErrorHandlers{
+	NotFound: routes.NotFound,
+}))
+
+mux.Handle("/", handler)
+```
+
+Middleware can handle authentication, sessions, CSRF, logging, recovery,
+security headers, request IDs, or other application concerns.
+
+goldr does not provide a framework middleware stack. Keeping middleware as
+plain `net/http` keeps behavior explicit and lets applications use ordinary Go
+libraries.
+
+## Static Assets
+
+Keep assets outside `app/routes` and serve them through an application handler:
+
+```go
+//go:embed public/*
+var publicFiles embed.FS
+
+func staticHandler() http.Handler {
+	public, err := fs.Sub(publicFiles, "public")
+	if err != nil {
+		panic(err)
+	}
+	return http.StripPrefix("/assets/", http.FileServer(http.FS(public)))
+}
+```
+
+Register the asset handler before generated routes:
+
+```go
+mux.Handle("/assets/", staticHandler())
+mux.Handle("/", routes.Handler())
+```
+
+Static asset errors are application-owned. Generated error hooks apply only to
+generated route dispatch.
+
+## Cache Headers
+
+Cache policy is application-owned:
+
+```go
+func staticCache(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=60")
+		next.ServeHTTP(w, r)
+	})
+}
+```
+
+Applications with fingerprinted assets can choose stronger caching policies.
+goldr does not infer fingerprinting or asset cache rules.
+
+## Custom Error Pages
+
+Generated route dispatch supports optional error hooks:
+
+```go
+mux.Handle("/", routes.HandlerWithErrors(routes.ErrorHandlers{
+	NotFound: routes.NotFound,
+}))
+```
+
+Use these hooks for generated route dispatch errors such as unmatched routes or
+method mismatches. Action handlers and static asset handlers own their own
+errors.

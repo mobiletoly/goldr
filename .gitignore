@@ -1,0 +1,24 @@
+# Go build outputs
+/goldr
+/goldr.exe
+*.test
+
+# Coverage and profiling
+coverage.out
+*.coverprofile
+*.prof
+
+# Local temporary files
+/tmp/
+/.cache/
+.drymint/
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+AGENTS.md
+docs/spec/

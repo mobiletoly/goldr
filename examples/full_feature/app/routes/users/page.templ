@@ -1,0 +1,44 @@
+package users
+
+import (
+	"github.com/mobiletoly/goldr/bind"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
+)
+
+templ PageView(form bind.Form, contacts []Contact) {
+	<section>
+		<h1>[app/routes/users/page.templ] - User Directory</h1>
+		@DirectoryView(form, contacts)
+	</section>
+}
+
+templ DirectoryView(form bind.Form, contacts []Contact) {
+	<section id="users-directory">
+		<form method="post" hx-post={ urls.Users.Create.Path() } hx-target="#users-directory" hx-swap="outerHTML">
+			<div>
+				<label for="contact-name">Name</label>
+				<input id="contact-name" name="name" value={ form.Value("name") }/>
+				if form.HasFieldError("name") {
+					<p id="contact-name-error">{ form.FieldError("name") }</p>
+				}
+			</div>
+			<div>
+				<label for="contact-status">Status</label>
+				<select id="contact-status" name="status">
+					if form.Value("status") == "Inactive" {
+						<option value="Active">Active</option>
+						<option value="Inactive" selected>Inactive</option>
+					} else {
+						<option value="Active" selected>Active</option>
+						<option value="Inactive">Inactive</option>
+					}
+				</select>
+				if form.HasFieldError("status") {
+					<p id="contact-status-error">{ form.FieldError("status") }</p>
+				}
+			</div>
+			<button type="submit">Add contact</button>
+		</form>
+		@FragTableView(contacts)
+	</section>
+}

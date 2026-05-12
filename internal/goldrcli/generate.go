@@ -1,0 +1,289 @@
+// Copyright 2026 Toly Pochkin
+// SPDX-License-Identifier: Apache-2.0
+
+package goldrcli
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/mobiletoly/goldr/internal/goldrcli/appfs"
+	"github.com/mobiletoly/goldr/internal/routing"
+	"github.com/mobiletoly/goldr/internal/wiring"
+	"github.com/urfave/cli/v3"
+)
+
+const (
+	generateRootFlag  = "root"
+	generateCheckFlag = "check"
+)
+
+type generateOptions struct {
+	root  string
+	check bool
+}
+
+type generatedFile struct {
+	path    string
+	content []byte
+}
+
+type appPaths struct {
+	root            string
+	routesDir       string
+	routeImportPath string
+}
+
+func generateCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "generate",
+		Usage:     "generate goldr route and URL files",
+		UsageText: "goldr generate [--root <dir>] [--check]",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        generateRootFlag,
+				Value:       ".",
+				Usage:       "app root directory",
+				HideDefault: false,
+			},
+			&cli.BoolFlag{
+				Name:        generateCheckFlag,
+				Usage:       "check generated files without writing",
+				HideDefault: true,
+			},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runGenerate(ctx, generateOptions{
+				root:  cmd.String(generateRootFlag),
+				check: cmd.Bool(generateCheckFlag),
+			})
+		},
+	}
+}
+
+func runGenerate(ctx context.Context, options generateOptions) error {
+	files, err := generateFiles(ctx, options.root)
+	if err != nil {
+		return fmt.Errorf("goldr generate: %w", err)
+	}
+
+	if options.check {
+		if err := checkGeneratedFiles(files); err != nil {
+			return fmt.Errorf("goldr generate: %w", err)
+		}
+		return nil
+	}
+
+	for _, file := range files {
+		if err := writeGeneratedFile(file); err != nil {
+			return fmt.Errorf("goldr generate: %w", err)
+		}
+	}
+	return nil
+}
+
+func generateFiles(ctx context.Context, root string) ([]generatedFile, error) {
+	paths, err := appPathsForRoot(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+
+	tree, err := routing.Scan(paths.routesDir)
+	if err != nil {
+		return nil, err
+	}
+	manifest := routing.BuildManifest(*tree)
+
+	return generateManifestFiles(paths, manifest)
+}
+
+func appPathsForRoot(ctx context.Context, root string) (appPaths, error) {
+	appRoot, err := appfs.ResolveExistingDir(root)
+	if err != nil {
+		return appPaths{}, fmt.Errorf("resolve --root %q: %w", root, err)
+	}
+
+	paths, err := appPathsForResolvedRoot(ctx, appRoot)
+	if err != nil {
+		return appPaths{}, err
+	}
+	if err := appfs.RequireDir(paths.routesDir); err != nil {
+		return appPaths{}, err
+	}
+	return paths, nil
+}
+
+func appPathsForResolvedRoot(ctx context.Context, appRoot string) (appPaths, error) {
+	routesDir := appfs.RoutesDir(appRoot)
+	routeImportPath, err := routeRootImportPath(ctx, appRoot, routesDir)
+	if err != nil {
+		return appPaths{}, err
+	}
+
+	return appPaths{
+		root:            appRoot,
+		routesDir:       routesDir,
+		routeImportPath: routeImportPath,
+	}, nil
+}
+
+func generateManifestFiles(paths appPaths, manifest routing.Manifest) ([]generatedFile, error) {
+	routesFile, err := generateRouteManifestFile(paths, manifest)
+	if err != nil {
+		return nil, err
+	}
+
+	urlsFile, err := generateURLHelperFile(paths, manifest)
+	if err != nil {
+		return nil, err
+	}
+
+	return []generatedFile{
+		routesFile,
+		urlsFile,
+	}, nil
+}
+
+func generateRouteManifestFile(paths appPaths, manifest routing.Manifest) (generatedFile, error) {
+	source, err := wiring.GenerateManifest(manifest, wiring.GenerateOptions{
+		PackageName:         "routes",
+		RouteRootImportPath: paths.routeImportPath,
+	})
+	if err != nil {
+		return generatedFile{}, err
+	}
+	return generatedFile{path: filepath.Join(paths.routesDir, wiring.GeneratedFileName), content: source}, nil
+}
+
+func generateURLHelperFile(paths appPaths, manifest routing.Manifest) (generatedFile, error) {
+	source, err := wiring.GenerateURLHelpers(manifest, wiring.GenerateURLOptions{
+		PackageName: "urls",
+	})
+	if err != nil {
+		return generatedFile{}, err
+	}
+	return generatedFile{path: filepath.Join(paths.root, "app", "urls", wiring.URLGeneratedFileName), content: source}, nil
+}
+
+func routeRootImportPath(ctx context.Context, appRoot string, routesDir string) (string, error) {
+	goModPath, err := goModPath(ctx, appRoot)
+	if err != nil {
+		return "", err
+	}
+	moduleRoot := filepath.Dir(goModPath)
+
+	modulePath, err := modulePathFromGoMod(goModPath)
+	if err != nil {
+		return "", err
+	}
+
+	relRoutesDir, err := filepath.Rel(moduleRoot, routesDir)
+	if err != nil {
+		return "", err
+	}
+	if relRoutesDir == ".." || strings.HasPrefix(relRoutesDir, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("route root %s is outside module root %s", routesDir, moduleRoot)
+	}
+
+	return path.Join(modulePath, filepath.ToSlash(relRoutesDir)), nil
+}
+
+func goModPath(ctx context.Context, appRoot string) (string, error) {
+	command := exec.CommandContext(ctx, "go", "env", "GOMOD")
+	command.Dir = appRoot
+
+	output, err := command.Output()
+	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return "", errors.New("go executable not found")
+		}
+		return "", fmt.Errorf("go env GOMOD: %w", err)
+	}
+
+	goMod := strings.TrimSpace(string(output))
+	if goMod == "" || goMod == os.DevNull {
+		return "", fmt.Errorf("could not find go.mod for --root %s", appRoot)
+	}
+
+	resolved, err := filepath.EvalSymlinks(goMod)
+	if err != nil {
+		return "", fmt.Errorf("resolve go.mod %s: %w", goMod, err)
+	}
+	return resolved, nil
+}
+
+func modulePathFromGoMod(goModPath string) (string, error) {
+	file, err := os.Open(goModPath)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "module") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "module" {
+			continue
+		}
+		modulePath := fields[1]
+		if unquoted, err := strconv.Unquote(modulePath); err == nil {
+			modulePath = unquoted
+		}
+		if modulePath == "" {
+			return "", fmt.Errorf("empty module path in %s", goModPath)
+		}
+		return modulePath, nil
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	return "", fmt.Errorf("module directive not found in %s", goModPath)
+}
+
+func writeGeneratedFile(file generatedFile) error {
+	existing, err := os.ReadFile(file.path)
+	if err == nil && bytes.Equal(existing, file.content) {
+		return nil
+	}
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(file.path), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(file.path, file.content, 0644)
+}
+
+func checkGeneratedFiles(files []generatedFile) error {
+	var stale []string
+	for _, file := range files {
+		existing, err := os.ReadFile(file.path)
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			stale = append(stale, fmt.Sprintf("%s is missing", file.path))
+		case err != nil:
+			return err
+		case !bytes.Equal(existing, file.content):
+			stale = append(stale, fmt.Sprintf("%s is stale", file.path))
+		}
+	}
+	if len(stale) > 0 {
+		return errors.New(strings.Join(stale, "\n"))
+	}
+	return nil
+}

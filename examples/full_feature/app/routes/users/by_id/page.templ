@@ -1,0 +1,22 @@
+package by_id
+
+templ PageView(id string, name string, status string, found bool) {
+	<section>
+		if found {
+			<h1>[app/routes/users/{ id }/page.templ] - { name }</h1>
+			<dl>
+				<div>
+					<dt>Status</dt>
+					<dd>{ status }</dd>
+				</div>
+				<div>
+					<dt>Route id</dt>
+					<dd>{ id }</dd>
+				</div>
+			</dl>
+		} else {
+			<h1>[app/routes/users/{ id }/page.templ] - Unknown contact</h1>
+			<p>No contact found for route id { id }.</p>
+		}
+	</section>
+}

@@ -1,0 +1,42 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+  relative-path-mode: gomod
+
+linters:
+  default: none
+  enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - copyloopvar
+    - durationcheck
+    - errcheck
+    - errorlint
+    - exptostd
+    - govet
+    - ineffassign
+    - makezero
+    - misspell
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - noctx
+    - nolintlint
+    - recvcheck
+    - staticcheck
+    - thelper
+    - tparallel
+    - unconvert
+    - unused
+    - usestdlibvars
+  exclusions:
+    rules:
+      - path: ^internal/goldrcli/
+        linters:
+          - errcheck
+        text: "Error return value of `fmt\\.Fprint"

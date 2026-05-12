@@ -1,0 +1,20 @@
+package users
+
+import "github.com/mobiletoly/goldr/examples/full_feature/app/urls"
+
+templ LayoutView(child templ.Component) {
+	<section data-layout="users">
+		<header>
+			<p>[app/routes/users/layout.templ] - people section shell</p>
+			<nav aria-label="Users">
+				<a href={ urls.Users.Path() }>Directory</a>
+				<a href={ urls.Users.ByID("42").Path() }>Featured user</a>
+			</nav>
+		</header>
+		<aside>
+			<p>Active accounts</p>
+			<p>3 users</p>
+		</aside>
+		@child
+	</section>
+}

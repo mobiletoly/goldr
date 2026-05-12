@@ -1,0 +1,25 @@
+package users
+
+import "github.com/mobiletoly/goldr/examples/full_feature/app/urls"
+
+templ FragTableView(contacts []Contact) {
+	<section id="users-table">
+		<h2>[app/routes/users/frag_table.templ] - User Table Fragment</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Status</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, contact := range contacts {
+					<tr>
+						<td><a href={ urls.Users.ByID(contact.ID).Path() }>{ contact.Name }</a></td>
+						<td>{ contact.Status }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</section>
+}
