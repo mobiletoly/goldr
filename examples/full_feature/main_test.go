@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mobiletoly/goldr/examples/full_feature/assets"
 	"github.com/mobiletoly/goldr/hx"
 )
 
@@ -206,7 +207,7 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 		t.Fatalf("create body = %q", createBody)
 	}
 
-	assetRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+"/assets/app.css", nil)
+	assetRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+assets.Path("app.css"), nil)
 	if err != nil {
 		t.Fatalf("NewRequestWithContext(asset) error = %v", err)
 	}
@@ -225,8 +226,8 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 	if got := assetResponse.Header.Get("Content-Type"); !strings.HasPrefix(got, "text/css") {
 		t.Fatalf("asset content-type = %q, want text/css", got)
 	}
-	if got := assetResponse.Header.Get("Cache-Control"); got != "public, max-age=60" {
-		t.Fatalf("asset Cache-Control = %q, want %q", got, "public, max-age=60")
+	if got := assetResponse.Header.Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+		t.Fatalf("asset Cache-Control = %q, want %q", got, "public, max-age=31536000, immutable")
 	}
 
 	missingRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+"/missing", nil)

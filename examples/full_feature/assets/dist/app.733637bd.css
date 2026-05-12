@@ -1,0 +1,62 @@
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  background: #f8fafc;
+  color: #0f172a;
+  line-height: 1.5;
+}
+
+a {
+  color: #1d4ed8;
+}
+
+.app-header {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+}
+
+.app-title {
+  color: #0f172a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.app-nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.app-nav a {
+  color: #334155;
+  text-decoration: none;
+}
+
+.app-nav a:hover {
+  color: #1d4ed8;
+}
+
+.app-nav a[aria-current="page"] {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.app-main,
+section {
+  padding: 1rem;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border-bottom: 1px solid #cbd5e1;
+  padding: 0.5rem;
+  text-align: left;
+}

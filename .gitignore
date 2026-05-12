@@ -12,6 +12,8 @@ coverage.out
 /tmp/
 /.cache/
 .drymint/
+drymint/
+drymint.toml
 
 # Editor and OS files
 .DS_Store

@@ -19,6 +19,8 @@ Then use the references:
 
 - [Routes](routes.md) - filesystem conventions and runtime behavior.
 - [CLI](cli.md) - `goldr init`, `check`, `generate`, and `routes`.
+- [Assets](assets.md) - fingerprinted static files, cache headers, and
+  app-owned asset tooling.
 - [HTMX](htmx.md) - visible `hx-*` attributes and response headers.
 - [Forms](forms.md) - form parsing, validation errors, and redisplay.
 - [Composition](composition.md) - mux, middleware, static assets, and app-owned
@@ -30,7 +32,7 @@ Use `getting-started.md` when you want to create the smallest working goldr app.
 
 Use `examples/full_feature/` when you want to see a larger app that combines
 pages, nested layouts, fragments, actions, forms, URL helpers, custom errors,
-middleware, and static assets.
+middleware, and fingerprinted static assets.
 
 From the repository root:
 

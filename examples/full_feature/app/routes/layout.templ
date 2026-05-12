@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/full_feature/assets"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
 )
 
@@ -15,7 +16,7 @@ templ LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Comp
 			if metadata.Description != "" {
 				<meta name="description" content={ metadata.Description }/>
 			}
-			<link rel="stylesheet" href="/assets/app.css"/>
+			<link rel="stylesheet" href={ assets.Path("app.css") }/>
 			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 		</head>
 		<body>

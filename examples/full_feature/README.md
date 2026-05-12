@@ -36,6 +36,7 @@ Inspect the route surface from the repository root:
 go run ./cmd/goldr routes list --root examples/full_feature
 go run ./cmd/goldr routes layouts --root examples/full_feature
 go run ./cmd/goldr routes list --root examples/full_feature --json
+go run ./cmd/goldr assets list --root examples/full_feature
 ```
 
 Regenerate goldr-owned route and URL files from the repository root:
@@ -66,11 +67,15 @@ title, description, canonical path, and active navigation. The `/users` and
 `/users/42` pages share the users section shell from `users/layout.templ`;
 `/users/frag_table` renders only the fragment partial.
 
-The example serves embedded static files from `examples/full_feature/public/`
-under `/assets/`. The asset handler is registered before generated routes and
-sets a conservative `Cache-Control` header in application code. Generated
-route dispatch is wrapped with a tiny app-owned middleware that sets
-`X-Content-Type-Options: nosniff`. The root layout links `/assets/app.css`.
+The example fingerprints final static files from
+`examples/full_feature/assets/build/` into `assets/dist/` with
+`goldr assets dist`. The generated `assets` package provides `assets.Path` for
+the root layout and `assets.FS()` for the app-owned `/assets/` handler. The
+asset handler is registered before generated routes and sets immutable cache
+headers in application code. Generated route dispatch is wrapped with a tiny
+app-owned middleware that sets `X-Content-Type-Options: nosniff`.
+
+For the broader asset workflow, read `docs/user/assets.md`.
 
 Post to `/users/save-preview` to see `HX-Trigger`, `HX-Retarget`, and
 `HX-Reswap` response headers from `users.PostSavePreview` in

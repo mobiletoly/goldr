@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mobiletoly/goldr/examples/full_feature/assets"
 	"github.com/mobiletoly/goldr/hx"
 )
 
@@ -107,7 +108,7 @@ func TestHandlerGetPages(t *testing.T) {
 				}
 			}
 			if test.wantCSS {
-				for _, want := range []string{`src="https://unpkg.com/htmx.org@2.0.4"`, `href="/assets/app.css"`} {
+				for _, want := range []string{`src="https://unpkg.com/htmx.org@2.0.4"`, `href="` + assets.Path("app.css") + `"`} {
 					if !strings.Contains(body, want) {
 						t.Fatalf("body = %q, want %q", body, want)
 					}

@@ -11,6 +11,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
+	"github.com/mobiletoly/goldr/examples/full_feature/assets"
 )
 
 func LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Component) templ.Component {
@@ -41,7 +42,7 @@ func LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Compo
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(pageTitle(metadata))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 14, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 15, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -59,7 +60,7 @@ func LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Compo
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(metadata.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 16, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 17, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -70,33 +71,46 @@ func LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Compo
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<link rel=\"stylesheet\" href=\"/assets/app.css\"><script src=\"https://unpkg.com/htmx.org@2.0.4\" defer></script></head><body><header class=\"app-header\"><a class=\"app-title\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<link rel=\"stylesheet\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 templ.SafeURL
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Root.Path())
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(assets.Path("app.css"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 23, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 19, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\">Goldr Example</a><nav class=\"app-nav\" aria-label=\"Primary\"><a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><script src=\"https://unpkg.com/htmx.org@2.0.4\" defer></script></head><body><header class=\"app-header\"><a class=\"app-title\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 templ.SafeURL
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Users.Path())
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Root.Path())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 25, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 24, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\">Goldr Example</a><nav class=\"app-nav\" aria-label=\"Primary\"><a href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 templ.SafeURL
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Users.Path())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 26, Col: 32}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -104,20 +118,20 @@ func LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Compo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, ">Users</a> <a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, ">Users</a> <a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var6 templ.SafeURL
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Settings.Path())
+		var templ_7745c5c3_Var7 templ.SafeURL
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Settings.Path())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 26, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/layout.templ`, Line: 27, Col: 35}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -125,7 +139,7 @@ func LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Compo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, ">Settings</a></nav></header><main class=\"app-main\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, ">Settings</a></nav></header><main class=\"app-main\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -133,7 +147,7 @@ func LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Compo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</main></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</main></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

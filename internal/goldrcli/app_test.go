@@ -823,6 +823,10 @@ func TestRunRoutesListHelpShowsRootFlag(t *testing.T) {
 	requireGoldrOutputContains(t, []string{"routes", "list", "--help"}, "goldr routes list [--root <dir>] [--json]", "--root string", "--json")
 }
 
+func TestRunAssetsShowsSubcommandHelp(t *testing.T) {
+	requireGoldrOutputContains(t, []string{"assets"}, "goldr assets <command> [options]", "dist", "check", "clean", "list")
+}
+
 func requireGoldrOutputContains(t *testing.T, args []string, wants ...string) {
 	t.Helper()
 

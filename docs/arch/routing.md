@@ -526,8 +526,11 @@ Generated error hooks apply only inside generated route dispatch. They do not
 customize errors returned by application-owned static asset handlers or other
 handlers mounted beside generated routes.
 
-goldr should not add a middleware stack, static asset pipeline, fingerprinting
-system, or generated static asset URL helpers without a separate spec.
+The `goldr assets` command fingerprints final static files and generates an
+asset manifest package, but applications still own static handler registration
+and cache policy. Goldr should not add a middleware stack, broad asset
+pipeline, deployment integration, or automatic asset injection without a
+separate spec.
 
 ## Runtime Page Routing
 

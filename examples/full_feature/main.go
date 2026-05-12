@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"embed"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -15,12 +13,10 @@ import (
 	"time"
 
 	"github.com/mobiletoly/goldr/examples/full_feature/app/routes"
+	"github.com/mobiletoly/goldr/examples/full_feature/assets"
 )
 
 const defaultAddr = "127.0.0.1:8080"
-
-//go:embed public/*
-var publicFiles embed.FS
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -70,11 +66,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 
 func exampleHandler() http.Handler {
 	mux := http.NewServeMux()
-	public, err := fs.Sub(publicFiles, "public")
-	if err != nil {
-		panic(err)
-	}
-	mux.Handle("/assets/", staticCache(http.StripPrefix("/assets/", http.FileServer(http.FS(public)))))
+	mux.Handle("/assets/", staticCache(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.FS())))))
 	mux.Handle("/", appHeaders(routes.HandlerWithErrors(routes.ErrorHandlers{
 		NotFound: routes.NotFound,
 	})))
@@ -90,7 +82,7 @@ func appHeaders(next http.Handler) http.Handler {
 
 func staticCache(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=60")
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		next.ServeHTTP(w, r)
 	})
 }

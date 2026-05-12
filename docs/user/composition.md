@@ -43,15 +43,10 @@ libraries.
 Keep assets outside `app/routes` and serve them through an application handler:
 
 ```go
-//go:embed public/*
-var publicFiles embed.FS
+import "myapp/assets"
 
 func staticHandler() http.Handler {
-	public, err := fs.Sub(publicFiles, "public")
-	if err != nil {
-		panic(err)
-	}
-	return http.StripPrefix("/assets/", http.FileServer(http.FS(public)))
+	return http.StripPrefix("/assets/", http.FileServer(http.FS(assets.FS())))
 }
 ```
 
@@ -64,6 +59,16 @@ mux.Handle("/", routes.Handler())
 
 Static asset errors are application-owned. Generated error hooks apply only to
 generated route dispatch.
+
+When using `goldr assets dist`, templates can reference the generated path
+explicitly:
+
+```templ
+<link rel="stylesheet" href={ assets.Path("app.css") }/>
+```
+
+Read [Assets](assets.md) for the full fingerprinting workflow and asset-tool
+integration.
 
 ## Cache Headers
 
@@ -78,8 +83,14 @@ func staticCache(next http.Handler) http.Handler {
 }
 ```
 
-Applications with fingerprinted assets can choose stronger caching policies.
-goldr does not infer fingerprinting or asset cache rules.
+Applications with fingerprinted assets can choose stronger caching policies:
+
+```go
+w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+```
+
+Apply long immutable cache headers only to fingerprinted assets, not dynamic
+pages, private fragments, or action responses.
 
 ## Custom Error Pages
 

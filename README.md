@@ -4,8 +4,9 @@ goldr is a server-first Go framework for building web/HTMX applications.
 
 It gives Go projects a predictable filesystem route tree, page layouts,
 fragments, action handlers, generated route wiring, and generated URL helpers.
-The application still owns its `net/http` server, middleware, static assets,
-auth, data access, and deployment.
+It also includes small final-file asset fingerprinting for production cache
+safety. The application still owns its `net/http` server, middleware, static
+asset handlers, auth, data access, and deployment.
 
 goldr is v0. APIs and conventions may change before v1.
 
@@ -47,6 +48,7 @@ With goldr:
 - forms and mutations use ordinary Go handlers
 - generated URL helpers remove hard-coded paths
 - generated route wiring stays inspectable
+- final static files can be fingerprinted without adopting an asset pipeline
 
 goldr intentionally avoids SPA routing, hydration, virtual DOM, framework-owned
 client state, and hidden runtime registration.
@@ -314,11 +316,13 @@ Inspect the route surface:
 ```bash
 go run ./cmd/goldr routes list --root examples/full_feature
 go run ./cmd/goldr routes layouts --root examples/full_feature
+go run ./cmd/goldr assets list --root examples/full_feature
 go run ./cmd/goldr check --root examples/full_feature
 ```
 
 The example shows pages, nested layouts, fragments, actions, forms, generated
-URL helpers, custom errors, middleware, and static assets in one small app.
+URL helpers, custom errors, middleware, and fingerprinted static assets in one
+small app.
 
 ## Documentation
 
@@ -326,6 +330,7 @@ URL helpers, custom errors, middleware, and static assets in one small app.
 - [Getting Started](docs/user/getting-started.md)
 - [Routes](docs/user/routes.md)
 - [CLI](docs/user/cli.md)
+- [Assets](docs/user/assets.md)
 - [HTMX](docs/user/htmx.md)
 - [Forms](docs/user/forms.md)
 - [Composition](docs/user/composition.md)

@@ -142,6 +142,41 @@ GOLDR006 app/routes/goldr_gen.go is stale
 
 `goldr check` does not run templ generation, tests, or the application server.
 
+## Assets
+
+`goldr assets` fingerprints final static files that your app already built.
+It does not compile CSS, bundle JavaScript, upload to a CDN, or register static
+handlers. For the full workflow, read [Assets](assets.md).
+
+Build fingerprinted files from `assets/build` into `assets/dist`:
+
+```bash
+goldr assets dist
+goldr assets dist --root examples/full_feature
+```
+
+Verify asset output without writing:
+
+```bash
+goldr assets check
+```
+
+Remove stale goldr-managed fingerprinted files:
+
+```bash
+goldr assets clean
+```
+
+List the current manifest:
+
+```bash
+goldr assets list
+goldr assets list --json
+```
+
+`goldr check` stays route-focused. Run `goldr assets check` explicitly in CI
+when fingerprinted assets are part of the app.
+
 ## Routes List
 
 `goldr routes list` prints the route surface goldr sees:

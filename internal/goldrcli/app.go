@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 
+	cliassets "github.com/mobiletoly/goldr/internal/goldrcli/assets"
 	"github.com/mobiletoly/goldr/internal/goldrcli/routes"
 	"github.com/urfave/cli/v3"
 )
@@ -51,6 +52,7 @@ func New(version string) *cli.Command {
 			initCommand(),
 			checkCommand(),
 			generateCommand(),
+			cliassets.Command(),
 			routes.Command(),
 			{
 				Name:  "help",
