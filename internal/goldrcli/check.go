@@ -33,9 +33,10 @@ type checkOptions struct {
 
 func checkCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "check",
-		Usage:     "check goldr route tree and generated files",
-		UsageText: "goldr check [--root <dir>]",
+		Name:        "check",
+		Usage:       "check goldr route tree and generated files",
+		UsageText:   "goldr check [--root <dir>]",
+		Description: checkDescription,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        checkRootFlag,
@@ -51,6 +52,12 @@ func checkCommand() *cli.Command {
 		},
 	}
 }
+
+const checkDescription = `Read-only validation for app/routes and goldr-owned generated files.
+
+Checks route naming, page/layout/fragment file pairs, action conventions, generated route dispatch readiness, generated URL helper readiness, and generated-file freshness.
+
+Run after go tool templ generate and go tool goldr generate. This command does not run tests, start the app, or write files.`
 
 func runCheck(ctx context.Context, options checkOptions) error {
 	paths, err := appPathsForRoot(ctx, options.root)

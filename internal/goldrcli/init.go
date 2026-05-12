@@ -23,9 +23,10 @@ type initOptions struct {
 
 func initCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "init",
-		Usage:     "initialize goldr app structure",
-		UsageText: "goldr init [--root <dir>]",
+		Name:        "init",
+		Usage:       "initialize goldr app structure",
+		UsageText:   "goldr init [--root <dir>]",
+		Description: initDescription,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        initRootFlag,
@@ -41,6 +42,18 @@ func initCommand() *cli.Command {
 		},
 	}
 }
+
+const initDescription = `Creates the minimal app/routes and app/urls skeleton for an existing Go module.
+
+Writes:
+  app/routes/page.go
+  app/routes/page.templ
+  app/routes/layout.go
+  app/routes/layout.templ
+  app/routes/goldr_gen.go
+  app/urls/goldr_gen.go
+
+Does not create go.mod, write main.go, run templ generation, or start a server.`
 
 func runInit(ctx context.Context, options initOptions) error {
 	paths, err := initAppPathsForRoot(ctx, options.root)

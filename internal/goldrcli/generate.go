@@ -45,9 +45,10 @@ type appPaths struct {
 
 func generateCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "generate",
-		Usage:     "generate goldr route and URL files",
-		UsageText: "goldr generate [--root <dir>] [--check]",
+		Name:        "generate",
+		Usage:       "generate goldr route and URL files",
+		UsageText:   "goldr generate [--root <dir>] [--check]",
+		Description: generateDescription,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        generateRootFlag,
@@ -69,6 +70,15 @@ func generateCommand() *cli.Command {
 		},
 	}
 }
+
+const generateDescription = `Scans app/routes and writes goldr-owned generated files:
+  app/routes/goldr_gen.go
+  app/urls/goldr_gen.go
+
+Run templ separately before this command when .templ files changed:
+  go tool templ generate
+
+Use --check in CI to verify generated files without writing. This command does not run templ generation.`
 
 func runGenerate(ctx context.Context, options generateOptions) error {
 	files, err := generateFiles(ctx, options.root)

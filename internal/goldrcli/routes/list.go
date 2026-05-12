@@ -21,9 +21,10 @@ type listOptions struct {
 
 func listCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "list",
-		Usage:     "list route surface",
-		UsageText: "goldr routes list [--root <dir>] [--json]",
+		Name:        "list",
+		Usage:       "list route surface",
+		UsageText:   "goldr routes list [--root <dir>] [--json]",
+		Description: listDescription,
 		Flags: []cli.Flag{
 			rootStringFlag(),
 			&cli.BoolFlag{
@@ -40,6 +41,10 @@ func listCommand() *cli.Command {
 		},
 	}
 }
+
+const listDescription = `Prints the pages, layouts, fragments, actions, paths, params, source files, and generated URL helper expressions goldr sees.
+
+Use --json when scripts or agents need a stable route inventory before editing.`
 
 func runList(_ context.Context, options listOptions, writer io.Writer) error {
 	_, manifest, err := scanRouteManifest(options.root)

@@ -84,9 +84,10 @@ type stateAsset struct {
 // Command returns the goldr assets command group.
 func Command() *cli.Command {
 	return &cli.Command{
-		Name:      "assets",
-		Usage:     "fingerprint final static assets",
-		UsageText: "goldr assets <command> [options]",
+		Name:        "assets",
+		Usage:       "fingerprint final static assets",
+		UsageText:   "goldr assets <command> [options]",
+		Description: assetsDescription,
 		Commands: []*cli.Command{
 			distCommand(),
 			checkCommand(),
@@ -99,47 +100,71 @@ func Command() *cli.Command {
 	}
 }
 
+const assetsDescription = `Fingerprints final browser-ready files only:
+  assets/build -> assets/dist
+  assets/goldr_assets_gen.go
+
+Goldr does not compile Tailwind, run npm, bundle JavaScript, minify files, optimize images, upload to a CDN, or register static handlers.
+
+Use "go tool goldr assets dist" to write fingerprinted files, then "go tool goldr assets check" in CI.`
+
 func distCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "dist",
-		Usage:     "build fingerprinted asset distribution",
-		UsageText: "goldr assets dist [--root <dir>]",
-		Flags:     []cli.Flag{rootStringFlag()},
+		Name:        "dist",
+		Usage:       "build fingerprinted asset distribution",
+		UsageText:   "goldr assets dist [--root <dir>]",
+		Description: assetsDistDescription,
+		Flags:       []cli.Flag{rootStringFlag()},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return runDist(options{root: cmd.String(rootFlag)})
 		},
 	}
 }
 
+const assetsDistDescription = `Reads final files from assets/build, copies them to assets/dist with content hashes in their filenames, and writes assets/goldr_assets_gen.go.
+
+This is a final safe-cache step. It does not run asset compilers, bundlers, minifiers, or deployment tools.`
+
 func checkCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "check",
-		Usage:     "check fingerprinted asset distribution",
-		UsageText: "goldr assets check [--root <dir>]",
-		Flags:     []cli.Flag{rootStringFlag()},
+		Name:        "check",
+		Usage:       "check fingerprinted asset distribution",
+		UsageText:   "goldr assets check [--root <dir>]",
+		Description: assetsCheckDescription,
+		Flags:       []cli.Flag{rootStringFlag()},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return runCheck(options{root: cmd.String(rootFlag)})
 		},
 	}
 }
 
+const assetsCheckDescription = `Read-only verification for fingerprinted assets.
+
+Fails if assets/dist, assets/goldr_assets_gen.go, or assets/.goldr/assets.json is missing or stale for the current files in assets/build.`
+
 func cleanCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "clean",
-		Usage:     "remove stale goldr-managed asset files",
-		UsageText: "goldr assets clean [--root <dir>]",
-		Flags:     []cli.Flag{rootStringFlag()},
+		Name:        "clean",
+		Usage:       "remove stale goldr-managed asset files",
+		UsageText:   "goldr assets clean [--root <dir>]",
+		Description: assetsCleanDescription,
+		Flags:       []cli.Flag{rootStringFlag()},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return runClean(options{root: cmd.String(rootFlag)})
 		},
 	}
 }
 
+const assetsCleanDescription = `Removes stale files that goldr can prove it manages from assets/dist.
+
+Clean is fail-closed: it uses goldr asset state and does not delete arbitrary files from assets/dist.`
+
 func listCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "list",
-		Usage:     "list fingerprinted assets",
-		UsageText: "goldr assets list [--root <dir>] [--json]",
+		Name:        "list",
+		Usage:       "list fingerprinted assets",
+		UsageText:   "goldr assets list [--root <dir>] [--json]",
+		Description: assetsListDescription,
 		Flags: []cli.Flag{
 			rootStringFlag(),
 			&cli.BoolFlag{
@@ -156,6 +181,10 @@ func listCommand() *cli.Command {
 		},
 	}
 }
+
+const assetsListDescription = `Lists the manifest goldr would generate from assets/build.
+
+Use --json when scripts or agents need stable machine-readable asset metadata.`
 
 func rootStringFlag() *cli.StringFlag {
 	return &cli.StringFlag{

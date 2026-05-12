@@ -11,16 +11,18 @@ HTML, and HTMX stays visible in the markup.
 Read these first:
 
 1. [Getting Started](getting-started.md) - build a minimal app by hand, then
-   see where `goldr init` fits.
+   see where `go tool goldr init` fits.
 2. [Concepts](concepts.md) - learn pages, layouts, fragments, actions, render
    units, generated handlers, and URL helpers.
 
 Then use the references:
 
 - [Routes](routes.md) - filesystem conventions and runtime behavior.
-- [CLI](cli.md) - `goldr init`, `check`, `generate`, and `routes`.
+- [CLI](cli.md) - app-local `go tool goldr` commands.
 - [Assets](assets.md) - fingerprinted static files, cache headers, and
   app-owned asset tooling.
+- [Coding Agents](coding-agents.md) - copyable `AGENTS.md` guidance for coding
+  agents working inside goldr applications.
 - [HTMX](htmx.md) - visible `hx-*` attributes and response headers.
 - [Forms](forms.md) - form parsing, validation errors, and redisplay.
 - [Composition](composition.md) - mux, middleware, static assets, and app-owned

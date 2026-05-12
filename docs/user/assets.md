@@ -32,13 +32,13 @@ your app or your asset tool.
 After your app-owned asset tool writes final files into `assets/build`, run:
 
 ```bash
-goldr assets dist
+go tool goldr assets dist
 ```
 
 From another directory, pass the app root:
 
 ```bash
-goldr assets dist --root examples/full_feature
+go tool goldr assets dist --root examples/full_feature
 ```
 
 Goldr copies each file into `assets/dist` with a content hash in the filename
@@ -131,7 +131,7 @@ private or no-store cache policy.
 Use `check` in CI or before committing:
 
 ```bash
-goldr assets check
+go tool goldr assets check
 ```
 
 `check` verifies that `assets/dist`, `assets/goldr_assets_gen.go`, and
@@ -141,14 +141,14 @@ not write files.
 List the current manifest:
 
 ```bash
-goldr assets list
-goldr assets list --json
+go tool goldr assets list
+go tool goldr assets list --json
 ```
 
 Remove stale Goldr-managed dist files:
 
 ```bash
-goldr assets clean
+go tool goldr assets clean
 ```
 
 `clean` is fail-closed. It deletes only stale files proven by
@@ -170,12 +170,12 @@ Example direct CLI flow:
 
 ```bash
 npx @tailwindcss/cli -i ./assets/src/app.css -o ./assets/build/app.css
-goldr assets dist
+go tool goldr assets dist
 ```
 
 For local development, run the Tailwind CLI in watch mode if you want it to
-keep `assets/build/app.css` current, and run `goldr assets dist` when you want
-fresh fingerprinted output.
+keep `assets/build/app.css` current, and run `go tool goldr assets dist` when
+you want fresh fingerprinted output.
 
 Tailwind also publishes a standalone CLI for projects that do not want Node or
 npm in the app. In either case, Goldr only sees the final CSS file in
@@ -189,14 +189,14 @@ A typical CI sequence is:
 # app-owned asset build step, if needed
 npx @tailwindcss/cli -i ./assets/src/app.css -o ./assets/build/app.css
 
-goldr assets check
-goldr generate --check
-goldr check
+go tool goldr assets check
+go tool goldr generate --check
+go tool goldr check
 go test ./...
 ```
 
 If you use a different asset tool, replace only the first command. Keep
-`goldr assets check` after the tool that writes `assets/build`.
+`go tool goldr assets check` after the tool that writes `assets/build`.
 
 ## What Goldr Does Not Do
 

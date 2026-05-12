@@ -20,6 +20,7 @@ func New(version string) *cli.Command {
 		Name:            "goldr",
 		Usage:           "server-first Go framework for HTMX applications",
 		UsageText:       "goldr <command>",
+		Description:     rootDescription,
 		Version:         version,
 		HideVersion:     true,
 		HideHelpCommand: true,
@@ -74,6 +75,17 @@ func New(version string) *cli.Command {
 
 	return cmd
 }
+
+const rootDescription = `Goldr apps keep route source under app/routes and generate ordinary Go files for route dispatch and URL helpers.
+
+Common workflow:
+  go tool templ generate
+  go tool goldr generate
+  go tool goldr check
+  go test ./...
+
+Use "go tool goldr routes" to inspect the route tree before editing routes.
+Use "go tool goldr assets" only for final static files that already exist in assets/build.`
 
 // Run executes the root command and converts urfave exit errors into process exit codes.
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer, version string) int {

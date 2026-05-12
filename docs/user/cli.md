@@ -3,10 +3,19 @@
 The `goldr` command initializes, validates, generates, and inspects goldr app
 route trees.
 
+In an application module, prefer the app-local tool form:
+
+```bash
+go tool goldr <command>
+```
+
+The usage text still shows the underlying command name, such as
+`goldr generate`.
+
 Use `--root` when running a command from outside the application root:
 
 ```bash
-goldr check --root examples/full_feature
+go tool goldr check --root examples/full_feature
 ```
 
 `--root` points to the application root. goldr reads `<root>/app/routes` and
@@ -17,18 +26,18 @@ writes generated files under `<root>/app/routes` and `<root>/app/urls`.
 Print help:
 
 ```bash
-goldr
-goldr help
-goldr --help
-goldr -h
+go tool goldr
+go tool goldr help
+go tool goldr --help
+go tool goldr -h
 ```
 
 Print the version:
 
 ```bash
-goldr version
-goldr --version
-goldr -version
+go tool goldr version
+go tool goldr --version
+go tool goldr -version
 ```
 
 During v0 development, local builds print:
@@ -42,7 +51,7 @@ goldr dev
 `goldr init` creates the minimal route skeleton for an existing Go module:
 
 ```bash
-goldr init
+go tool goldr init
 ```
 
 It creates:
@@ -62,7 +71,7 @@ write `main.go`, run templ, or start a server.
 Use `--root` from outside the application root:
 
 ```bash
-goldr init --root ./hello-goldr
+go tool goldr init --root ./hello-goldr
 ```
 
 For a manual first-app walkthrough, read [Getting Started](getting-started.md).
@@ -72,7 +81,7 @@ For a manual first-app walkthrough, read [Getting Started](getting-started.md).
 `goldr generate` scans `app/routes` and writes goldr-owned generated files:
 
 ```bash
-goldr generate
+go tool goldr generate
 ```
 
 Generated files:
@@ -85,8 +94,8 @@ app/urls/goldr_gen.go
 Use `--check` in CI or before committing generated files:
 
 ```bash
-goldr generate --check
-goldr generate --root examples/full_feature --check
+go tool goldr generate --check
+go tool goldr generate --root examples/full_feature --check
 ```
 
 Check mode compares generated output with files on disk, reports stale or
@@ -96,8 +105,8 @@ missing generated files, and exits non-zero without writing.
 `.templ` files change:
 
 ```bash
-go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
-goldr generate
+go tool templ generate
+go tool goldr generate
 ```
 
 ## Check
@@ -106,8 +115,8 @@ goldr generate
 writing files:
 
 ```bash
-goldr check
-goldr check --root examples/full_feature
+go tool goldr check
+go tool goldr check --root examples/full_feature
 ```
 
 It checks:
@@ -151,39 +160,39 @@ handlers. For the full workflow, read [Assets](assets.md).
 Build fingerprinted files from `assets/build` into `assets/dist`:
 
 ```bash
-goldr assets dist
-goldr assets dist --root examples/full_feature
+go tool goldr assets dist
+go tool goldr assets dist --root examples/full_feature
 ```
 
 Verify asset output without writing:
 
 ```bash
-goldr assets check
+go tool goldr assets check
 ```
 
 Remove stale goldr-managed fingerprinted files:
 
 ```bash
-goldr assets clean
+go tool goldr assets clean
 ```
 
 List the current manifest:
 
 ```bash
-goldr assets list
-goldr assets list --json
+go tool goldr assets list
+go tool goldr assets list --json
 ```
 
-`goldr check` stays route-focused. Run `goldr assets check` explicitly in CI
-when fingerprinted assets are part of the app.
+`goldr check` stays route-focused. Run `go tool goldr assets check`
+explicitly in CI when fingerprinted assets are part of the app.
 
 ## Routes List
 
 `goldr routes list` prints the route surface goldr sees:
 
 ```bash
-goldr routes list
-goldr routes list --root examples/full_feature
+go tool goldr routes list
+go tool goldr routes list --root examples/full_feature
 ```
 
 Columns:
@@ -199,8 +208,8 @@ as `-`.
 Use `--json` for machine-readable output:
 
 ```bash
-goldr routes list --json
-goldr routes list --root examples/full_feature --json
+go tool goldr routes list --json
+go tool goldr routes list --root examples/full_feature --json
 ```
 
 JSON rows include `kind`, `methods`, `path`, `params`, `source`, and `helper`.
@@ -210,8 +219,8 @@ JSON rows include `kind`, `methods`, `path`, `params`, `source`, and `helper`.
 `goldr routes layouts` prints the layout inheritance map:
 
 ```bash
-goldr routes layouts
-goldr routes layouts --root examples/full_feature
+go tool goldr routes layouts
+go tool goldr routes layouts --root examples/full_feature
 ```
 
 The output shows where layouts start, which pages inherit them, and which
@@ -226,9 +235,9 @@ or `TERM=dumb`.
 `goldr routes explain` explains one browser URL or HTMX request path:
 
 ```bash
-goldr routes explain /users/7
-goldr routes explain --root examples/full_feature http://127.0.0.1:8080/users/7
-goldr routes explain --root examples/full_feature --method POST /users/create
+go tool goldr routes explain /users/7
+go tool goldr routes explain --root examples/full_feature http://127.0.0.1:8080/users/7
+go tool goldr routes explain --root examples/full_feature --method POST /users/create
 ```
 
 It accepts full URLs and absolute paths. Query strings and fragments are

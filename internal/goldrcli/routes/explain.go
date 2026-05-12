@@ -26,9 +26,10 @@ type explainOptions struct {
 
 func explainCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "explain",
-		Usage:     "explain which route matches a URL or path",
-		UsageText: "goldr routes explain [--root <dir>] [--method <method>] <url-or-path>",
+		Name:        "explain",
+		Usage:       "explain which route matches a URL or path",
+		UsageText:   "goldr routes explain [--root <dir>] [--method <method>] <url-or-path>",
+		Description: explainDescription,
 		Flags: []cli.Flag{
 			rootStringFlag(),
 			&cli.StringFlag{
@@ -50,6 +51,10 @@ func explainCommand() *cli.Command {
 		},
 	}
 }
+
+const explainDescription = `Explains one browser URL or HTMX request path against the generated route surface.
+
+Accepts full URLs or absolute paths. Query strings and fragments are ignored for route matching. Use --method when debugging actions or method mismatches.`
 
 func runExplain(_ context.Context, options explainOptions, writer io.Writer) error {
 	escapedPath, err := explainTargetPath(options.target)

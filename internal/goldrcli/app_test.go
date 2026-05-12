@@ -36,8 +36,21 @@ func TestRunHelp(t *testing.T) {
 			if !strings.Contains(stdout, "init") {
 				t.Fatalf("stdout = %q, want init command", stdout)
 			}
+			for _, want := range []string{
+				"Common workflow:",
+				"go tool templ generate",
+				"go tool goldr generate",
+				"go tool goldr check",
+				"go test ./...",
+				`Use "go tool goldr routes" to inspect the route tree before editing routes.`,
+				`Use "go tool goldr assets" only for final static files`,
+			} {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("stdout = %q, want %q", stdout, want)
+				}
+			}
 			for _, futureCommand := range []string{"new", "dev", "build"} {
-				if strings.Contains(stdout, futureCommand) {
+				if strings.Contains(stdout, "\n   "+futureCommand+" ") {
 					t.Fatalf("stdout = %q, must not mention future command %q", stdout, futureCommand)
 				}
 			}
@@ -60,6 +73,32 @@ func TestRunInitHelp(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
+}
+
+func TestRunGenerateHelpExplainsGeneratedFilesAndTemplBoundary(t *testing.T) {
+	requireGoldrOutputContains(
+		t,
+		[]string{"generate", "--help"},
+		"app/routes/goldr_gen.go",
+		"app/urls/goldr_gen.go",
+		"Run templ separately",
+		"go tool templ generate",
+		"does not run templ generation",
+	)
+}
+
+func TestRunCheckHelpExplainsReadOnlyScope(t *testing.T) {
+	requireGoldrOutputContains(
+		t,
+		[]string{"check", "--help"},
+		"Read-only validation",
+		"route naming",
+		"generated-file freshness",
+		"go tool templ generate",
+		"go tool goldr generate",
+		"does not run tests",
+		"or write files",
+	)
 }
 
 func TestRunVersion(t *testing.T) {
@@ -816,15 +855,57 @@ func runGoldrDeterministic(t *testing.T, label string, args ...string) string {
 }
 
 func TestRunRoutesShowsSubcommandHelp(t *testing.T) {
-	requireGoldrOutputContains(t, []string{"routes"}, "goldr routes <command> [options]", "list", "layouts", "explain")
+	requireGoldrOutputContains(
+		t,
+		[]string{"routes"},
+		"goldr routes <command> [options]",
+		"Read-only inspection",
+		"Use before editing routes",
+		"go tool goldr routes explain /users/7",
+		"do not write generated files",
+		"list",
+		"layouts",
+		"explain",
+	)
 }
 
 func TestRunRoutesListHelpShowsRootFlag(t *testing.T) {
-	requireGoldrOutputContains(t, []string{"routes", "list", "--help"}, "goldr routes list [--root <dir>] [--json]", "--root string", "--json")
+	requireGoldrOutputContains(
+		t,
+		[]string{"routes", "list", "--help"},
+		"goldr routes list [--root <dir>] [--json]",
+		"generated URL helper expressions",
+		"stable route inventory",
+		"--root string",
+		"--json",
+	)
 }
 
 func TestRunAssetsShowsSubcommandHelp(t *testing.T) {
-	requireGoldrOutputContains(t, []string{"assets"}, "goldr assets <command> [options]", "dist", "check", "clean", "list")
+	requireGoldrOutputContains(
+		t,
+		[]string{"assets"},
+		"goldr assets <command> [options]",
+		"assets/build -> assets/dist",
+		"Goldr does not compile Tailwind",
+		"go tool goldr assets dist",
+		"go tool goldr assets check",
+		"dist",
+		"check",
+		"clean",
+		"list",
+	)
+}
+
+func TestRunAssetsDistHelpExplainsFinalFileBoundary(t *testing.T) {
+	requireGoldrOutputContains(
+		t,
+		[]string{"assets", "dist", "--help"},
+		"Reads final files from assets/build",
+		"assets/goldr_assets_gen.go",
+		"final safe-cache step",
+		"does not run asset compilers",
+	)
 }
 
 func requireGoldrOutputContains(t *testing.T, args []string, wants ...string) {

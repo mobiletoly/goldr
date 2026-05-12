@@ -1,25 +1,24 @@
 # Getting Started
 
 This guide builds the smallest useful goldr app manually. Manual setup comes
-first so the project shape is visible. `goldr init` is available as a shortcut
-after the manual path.
+first so the project shape is visible. `go tool goldr init` is available as a
+shortcut after the manual path.
 
 ## Install
 
-Install the CLI:
-
-```bash
-go install github.com/mobiletoly/goldr/cmd/goldr@latest
-```
-
-Create a module and add goldr plus templ:
+Create a module and add goldr, templ, and app-local CLI tools:
 
 ```bash
 mkdir hello-goldr
 cd hello-goldr
 go mod init example.com/hello-goldr
 go get github.com/mobiletoly/goldr github.com/a-h/templ@v0.3.1020
+go get -tool github.com/mobiletoly/goldr/cmd/goldr@latest
+go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020
 ```
+
+Run goldr and templ with `go tool goldr` and `go tool templ`. This keeps the
+tool versions pinned in the application module.
 
 ## Add The HTTP Server
 
@@ -158,9 +157,9 @@ are not layout-wrapped.
 Generate templ output, generate goldr route wiring, validate, and run:
 
 ```bash
-go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
-goldr generate
-goldr check
+go tool templ generate
+go tool goldr generate
+go tool goldr check
 go run .
 ```
 
@@ -173,9 +172,9 @@ http://127.0.0.1:8080
 After route or template edits, use the same loop:
 
 ```bash
-go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
-goldr generate
-goldr check
+go tool templ generate
+go tool goldr generate
+go tool goldr check
 go run .
 ```
 
@@ -184,7 +183,7 @@ go run .
 `goldr init` creates the minimal route skeleton for an existing Go module:
 
 ```bash
-goldr init
+go tool goldr init
 ```
 
 It creates:
@@ -204,8 +203,15 @@ start a server.
 Use `--root` when running from outside the application root:
 
 ```bash
-goldr init --root ./hello-goldr
+go tool goldr init --root ./hello-goldr
 ```
 
 `--root` points to the application root. goldr still uses
 `<root>/app/routes` and `<root>/app/urls`.
+
+## Coding Agents
+
+If you use a coding agent in a goldr app, add goldr-specific instructions to
+the app's `AGENTS.md`. See [Coding Agents](coding-agents.md) for a copyable
+block that explains the route tree, generated files, HTMX conventions, assets,
+and validation commands.

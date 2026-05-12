@@ -20,9 +20,10 @@ type layoutsOptions struct {
 
 func layoutsCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "layouts",
-		Usage:     "show route layout map",
-		UsageText: "goldr routes layouts [--root <dir>]",
+		Name:        "layouts",
+		Usage:       "show route layout map",
+		UsageText:   "goldr routes layouts [--root <dir>]",
+		Description: layoutsDescription,
 		Flags: []cli.Flag{
 			rootStringFlag(),
 		},
@@ -33,6 +34,10 @@ func layoutsCommand() *cli.Command {
 		},
 	}
 }
+
+const layoutsDescription = `Shows the layout inheritance map for app/routes.
+
+Pages inherit matching layouts above them. Fragments and actions are reported separately because they are not layout-wrapped.`
 
 func runLayouts(_ context.Context, options layoutsOptions, writer io.Writer) error {
 	paths, manifest, err := scanRouteManifest(options.root)

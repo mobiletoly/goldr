@@ -55,14 +55,20 @@ client state, and hidden runtime registration.
 
 ## Install
 
-Install the CLI:
+Goldr applications use Go and [templ](https://github.com/a-h/templ). The current module targets Go
+1.26.
+
+Add goldr, templ, and app-local CLI tools to your module:
 
 ```bash
-go install github.com/mobiletoly/goldr/cmd/goldr@latest
+go get github.com/mobiletoly/goldr github.com/a-h/templ@v0.3.1020
+go get -tool github.com/mobiletoly/goldr/cmd/goldr@latest
+go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020
 ```
 
-goldr applications use Go and [templ](https://github.com/a-h/templ). The current module targets Go
-1.26.
+Then run goldr and templ with `go tool goldr` and `go tool templ`. This keeps
+the commands versioned with the application. If you prefer a global convenience
+binary, `go install github.com/mobiletoly/goldr/cmd/goldr@latest` also works.
 
 ## Quick Start
 
@@ -73,6 +79,8 @@ mkdir hello-goldr
 cd hello-goldr
 go mod init example.com/hello-goldr
 go get github.com/mobiletoly/goldr github.com/a-h/templ@v0.3.1020
+go get -tool github.com/mobiletoly/goldr/cmd/goldr@latest
+go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020
 ```
 
 Add `main.go`:
@@ -190,9 +198,9 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 Generate templ output, generate goldr route wiring, validate, and run:
 
 ```bash
-go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
-goldr generate
-goldr check
+go tool templ generate
+go tool goldr generate
+go tool goldr check
 go run .
 ```
 
@@ -205,9 +213,9 @@ http://127.0.0.1:8080
 After route or template edits, the normal loop is:
 
 ```bash
-go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
-goldr generate
-goldr check
+go tool templ generate
+go tool goldr generate
+go tool goldr check
 go run .
 ```
 
@@ -216,7 +224,7 @@ go run .
 `goldr init` can create the minimal route skeleton for an existing Go module:
 
 ```bash
-goldr init
+go tool goldr init
 ```
 
 It creates:
@@ -331,6 +339,7 @@ small app.
 - [Routes](docs/user/routes.md)
 - [CLI](docs/user/cli.md)
 - [Assets](docs/user/assets.md)
+- [Coding Agents](docs/user/coding-agents.md)
 - [HTMX](docs/user/htmx.md)
 - [Forms](docs/user/forms.md)
 - [Composition](docs/user/composition.md)

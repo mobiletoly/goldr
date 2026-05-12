@@ -60,8 +60,8 @@ mux.Handle("/", routes.Handler())
 Static asset errors are application-owned. Generated error hooks apply only to
 generated route dispatch.
 
-When using `goldr assets dist`, templates can reference the generated path
-explicitly:
+When using `go tool goldr assets dist`, templates can reference the generated
+path explicitly:
 
 ```templ
 <link rel="stylesheet" href={ assets.Path("app.css") }/>

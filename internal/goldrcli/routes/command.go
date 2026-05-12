@@ -24,9 +24,10 @@ type routeTreePaths struct {
 
 func Command() *cli.Command {
 	return &cli.Command{
-		Name:      "routes",
-		Usage:     "inspect goldr routes",
-		UsageText: "goldr routes <command> [options]",
+		Name:        "routes",
+		Usage:       "inspect goldr routes",
+		UsageText:   "goldr routes <command> [options]",
+		Description: routesDescription,
 		Commands: []*cli.Command{
 			listCommand(),
 			layoutsCommand(),
@@ -37,6 +38,15 @@ func Command() *cli.Command {
 		},
 	}
 }
+
+const routesDescription = `Read-only inspection for the app/routes filesystem route tree.
+
+Use before editing routes:
+  go tool goldr routes list
+  go tool goldr routes layouts
+  go tool goldr routes explain /users/7
+
+These commands do not write generated files. Run "go tool goldr generate" after route changes.`
 
 func rootStringFlag() *cli.StringFlag {
 	return &cli.StringFlag{
