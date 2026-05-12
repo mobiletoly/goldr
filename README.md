@@ -59,7 +59,8 @@ Install the CLI:
 go install github.com/mobiletoly/goldr/cmd/goldr@latest
 ```
 
-goldr applications use Go and templ. The current module targets Go 1.26.
+goldr applications use Go and [templ](https://github.com/a-h/templ). The current module targets Go
+1.26.
 
 ## Quick Start
 
@@ -292,11 +293,11 @@ Handlers that need HTMX response headers can use the small `hx` package:
 
 ```go
 func PostCreate(w http.ResponseWriter, r *http.Request) {
-	hx.Retarget(w, "#users-table")
-	hx.Reswap(w, "outerHTML")
-	hx.Trigger(w, "user:created")
+hx.Retarget(w, "#users-table")
+hx.Reswap(w, "outerHTML")
+hx.Trigger(w, "user:created")
 
-	_ = UsersTable().Render(r.Context(), w)
+_ = UsersTable().Render(r.Context(), w)
 }
 ```
 
@@ -328,9 +329,6 @@ URL helpers, custom errors, middleware, and static assets in one small app.
 - [HTMX](docs/user/htmx.md)
 - [Forms](docs/user/forms.md)
 - [Composition](docs/user/composition.md)
-
-Contributors should also read [AGENTS.md](AGENTS.md) and the
-[code review pattern catalog](docs/arch/code-review.md).
 
 ## License
 
