@@ -76,23 +76,3 @@ to a CDN, or register static handlers.
 
 If the application already has an `AGENTS.md`, merge the goldr section into the
 existing file instead of replacing project-specific rules.
-
-For a fresh app, the most important commands for an agent to know are:
-
-```bash
-go tool templ generate
-go tool goldr generate
-go tool goldr check
-go test ./...
-```
-
-For apps with fingerprinted assets, add:
-
-```bash
-go tool goldr assets dist
-go tool goldr assets check
-```
-
-Keep app-specific wrappers if the project already has them. For example, a
-project may use `make check`, `task generate`, or `scripts/check-all.sh` to run
-the same underlying steps.
