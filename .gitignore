@@ -24,4 +24,5 @@ coverage.out
 *~
 
 /AGENTS.md
-/docs/spec/
+/docs/spec/*.md
+!/docs/spec/README.md

@@ -38,7 +38,7 @@ func LayoutView(child templ.Component) templ.Component {
 		var templ_7745c5c3_Var2 templ.SafeURL
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Users.Path())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/users/layout.templ`, Line: 10, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/layout.templ`, Line: 10, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -51,7 +51,7 @@ func LayoutView(child templ.Component) templ.Component {
 		var templ_7745c5c3_Var3 templ.SafeURL
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Users.ByID("42").Path())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `examples/full_feature/app/routes/users/layout.templ`, Line: 11, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/layout.templ`, Line: 11, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
