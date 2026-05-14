@@ -178,6 +178,15 @@ go tool goldr check
 go run .
 ```
 
+For live reload during development, use:
+
+```bash
+go tool goldr dev
+```
+
+For the full workflow, including assets and Tailwind, read
+[Live Reload](live-reload.md).
+
 ## Optional Scaffold
 
 `goldr init` creates the minimal route skeleton for an existing Go module:

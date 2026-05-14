@@ -1,0 +1,174 @@
+// Copyright 2026 Toly Pochkin
+// SPDX-License-Identifier: Apache-2.0
+
+package goldrcli
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"testing"
+)
+
+func TestDevTemplArgsUseProxyWatchAndWrapper(t *testing.T) {
+	config := devConfig{
+		root:        filepath.Join("tmp", "goldr-app"),
+		appURL:      "http://127.0.0.1:8080",
+		proxyBind:   "127.0.0.1",
+		proxyPort:   7331,
+		wrapperPath: filepath.Join("tmp", "goldr-dev-wrapper"),
+	}
+
+	args := templArgs(config)
+
+	want := []string{
+		"tool",
+		"templ",
+		"generate",
+		"-path", config.root,
+		"-watch",
+		"-watch-pattern", devWatchPattern(),
+		"-ignore-pattern", devIgnorePattern(),
+		"-proxy", config.appURL,
+		"-proxybind", config.proxyBind,
+		"-proxyport", strconv.Itoa(config.proxyPort),
+		"-open-browser=false",
+		"-cmd", config.wrapperPath,
+	}
+	if strings.Join(args, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("templ args = %#v, want %#v", args, want)
+	}
+}
+
+func TestDevWatchPatternIncludesRoutesTemplatesAndAssetBuild(t *testing.T) {
+	pattern := devWatchPattern()
+	for _, want := range []string{
+		`.go$`,
+		`.templ$`,
+		`assets`,
+		`build`,
+	} {
+		if !strings.Contains(pattern, want) {
+			t.Fatalf("watch pattern = %q, want %q", pattern, want)
+		}
+	}
+}
+
+func TestDevIgnorePatternExcludesGoldrGeneratedOutputs(t *testing.T) {
+	pattern := devIgnorePattern()
+	for _, want := range []string{
+		`app`,
+		`routes`,
+		`urls`,
+		`goldr_gen\.go`,
+		`assets`,
+		`goldr_assets_gen\.go`,
+		`dist`,
+		`\.goldr`,
+	} {
+		if !strings.Contains(pattern, want) {
+			t.Fatalf("ignore pattern = %q, want %q", pattern, want)
+		}
+	}
+}
+
+func TestDevWrapperRunsGoldrGenerateAssetsDistThenAppCommand(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell wrapper content is Unix-specific")
+	}
+	root := t.TempDir()
+	config := devConfig{
+		root:            root,
+		goldrExecutable: filepath.Join(root, "bin", "goldr test"),
+		command:         `go run . --message "hello dev"`,
+	}
+
+	wrapper, err := writeUnixDevWrapper(config)
+	if err != nil {
+		t.Fatalf("writeUnixDevWrapper() error = %v", err)
+	}
+	defer func() {
+		_ = os.Remove(wrapper)
+	}()
+
+	source := readFile(t, wrapper)
+	for _, want := range []string{
+		"#!/bin/sh",
+		"set -eu",
+		shellQuote(config.goldrExecutable) + " generate --root " + shellQuote(root),
+		"if [ -d " + shellQuote(filepath.Join(root, "assets", "build")) + " ]; then",
+		shellQuote(config.goldrExecutable) + " assets dist --root " + shellQuote(root),
+		"cd " + shellQuote(root),
+		"exec /bin/sh -c " + shellQuote(config.command),
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("wrapper = %q, want %q", source, want)
+		}
+	}
+}
+
+func TestResolveDevConfigRejectsInvalidOptionsBeforeTemplLookup(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "app/routes/page.go", "package routes\n")
+	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
+
+	tests := []struct {
+		name string
+		opts devOptions
+		want string
+	}{
+		{
+			name: "bad app url",
+			opts: devOptions{
+				root:      root,
+				appURL:    "ftp://127.0.0.1:8080",
+				proxyAddr: defaultDevProxyAddr,
+				command:   defaultDevCommand,
+			},
+			want: "--app-url must use http or https",
+		},
+		{
+			name: "bad proxy",
+			opts: devOptions{
+				root:      root,
+				appURL:    defaultDevAppURL,
+				proxyAddr: "127.0.0.1",
+				command:   defaultDevCommand,
+			},
+			want: "invalid --proxy-addr",
+		},
+		{
+			name: "empty command",
+			opts: devOptions{
+				root:      root,
+				appURL:    defaultDevAppURL,
+				proxyAddr: defaultDevProxyAddr,
+				command:   "  ",
+			},
+			want: "--cmd must not be empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := resolveDevConfig(context.Background(), tt.opts)
+			if err == nil {
+				t.Fatal("resolveDevConfig() error = nil, want error")
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("resolveDevConfig() error = %q, want %q", err.Error(), tt.want)
+			}
+		})
+	}
+}
+
+func TestDevShellQuote(t *testing.T) {
+	got := shellQuote(`it's fine`)
+	if got != `'it'"'"'s fine'` {
+		t.Fatalf("shellQuote() = %q", got)
+	}
+}

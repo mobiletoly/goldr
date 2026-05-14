@@ -42,6 +42,7 @@ func TestRunHelp(t *testing.T) {
 				"go tool goldr generate",
 				"go tool goldr check",
 				"go test ./...",
+				"dev",
 				`Use "go tool goldr routes" to inspect the route tree before editing routes.`,
 				`Use "go tool goldr assets" only for final static files`,
 			} {
@@ -49,7 +50,7 @@ func TestRunHelp(t *testing.T) {
 					t.Fatalf("stdout = %q, want %q", stdout, want)
 				}
 			}
-			for _, futureCommand := range []string{"new", "dev", "build"} {
+			for _, futureCommand := range []string{"new", "build"} {
 				if strings.Contains(stdout, "\n   "+futureCommand+" ") {
 					t.Fatalf("stdout = %q, must not mention future command %q", stdout, futureCommand)
 				}
@@ -59,6 +60,19 @@ func TestRunHelp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRunDevHelpExplainsProductionFaithfulLoop(t *testing.T) {
+	requireGoldrOutputContains(
+		t,
+		[]string{"dev", "--help"},
+		"goldr dev [--root <dir>] [--app-url <url>] [--proxy-addr <host:port>] [--cmd <command>]",
+		"templ watch mode",
+		"assets.Path",
+		"assets.FS",
+		"assets/build",
+		"not assets/src",
+	)
 }
 
 func TestRunInitHelp(t *testing.T) {

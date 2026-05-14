@@ -19,6 +19,8 @@ Then use the references:
 
 - [Routes](routes.md) - filesystem conventions and runtime behavior.
 - [CLI](cli.md) - app-local `go tool goldr` commands.
+- [Live Reload](live-reload.md) - `goldr dev`, browser reload, assets, and
+  Tailwind workflows.
 - [Assets](assets.md) - fingerprinted static files, cache headers, and
   app-owned asset tooling.
 - [Coding Agents](coding-agents.md) - copyable `AGENTS.md` guidance for coding

@@ -35,7 +35,7 @@ After your app-owned asset tool writes final files into `assets/build`, run:
 go tool goldr assets dist
 ```
 
-From another directory, pass the app root:
+Or from another directory, pass the app root:
 
 ```bash
 go tool goldr assets dist --root examples/full_feature
@@ -174,8 +174,9 @@ go tool goldr assets dist
 ```
 
 For local development, run the Tailwind CLI in watch mode if you want it to
-keep `assets/build/app.css` current, and run `go tool goldr assets dist` when
-you want fresh fingerprinted output.
+keep `assets/build/app.css` current. `goldr dev` can then watch `assets/build`
+and keep fingerprinted output current. For the full workflow, read
+[Live Reload](live-reload.md).
 
 Tailwind also publishes a standalone CLI for projects that do not want Node or
 npm in the app. In either case, Goldr only sees the final CSS file in
@@ -210,7 +211,6 @@ Goldr assets intentionally avoids:
 - package manager integration
 - CDN upload or invalidation
 - object storage integration
-- dev servers and hot reload
 - automatic layout injection
 
 The app owns those choices. Goldr only makes production-safe cached asset paths

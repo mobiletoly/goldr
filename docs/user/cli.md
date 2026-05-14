@@ -109,6 +109,25 @@ go tool templ generate
 go tool goldr generate
 ```
 
+## Dev
+
+`goldr dev` runs a local live-reload loop using templ watch mode:
+
+```bash
+go tool goldr dev
+```
+
+It keeps route generation, templ generation, production-faithful asset
+fingerprinting, app restart, and browser reload moving together. For the full
+workflow, read [Live Reload](live-reload.md).
+
+Use flags when the app command, app URL, or proxy address differs from the
+defaults:
+
+```bash
+go tool goldr dev --cmd "go run ./cmd/web" --app-url http://127.0.0.1:3000 --proxy-addr 127.0.0.1:7331
+```
+
 ## Check
 
 `goldr check` validates the route tree and generated-file freshness without
