@@ -230,6 +230,36 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 		t.Fatalf("asset Cache-Control = %q, want %q", got, "public, max-age=31536000, immutable")
 	}
 
+	jsRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+assets.Path("app.js"), nil)
+	if err != nil {
+		t.Fatalf("NewRequestWithContext(js) error = %v", err)
+	}
+	jsResponse, err := client.Do(jsRequest)
+	if err != nil {
+		t.Fatalf("Do(js) error = %v", err)
+	}
+	defer func() {
+		if err := jsResponse.Body.Close(); err != nil {
+			t.Errorf("Close(js) error = %v", err)
+		}
+	}()
+	if jsResponse.StatusCode != http.StatusOK {
+		t.Fatalf("js status = %d, want %d", jsResponse.StatusCode, http.StatusOK)
+	}
+	if got := jsResponse.Header.Get("Content-Type"); !strings.Contains(got, "javascript") {
+		t.Fatalf("js content-type = %q, want javascript", got)
+	}
+	if got := jsResponse.Header.Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+		t.Fatalf("js Cache-Control = %q, want %q", got, "public, max-age=31536000, immutable")
+	}
+	jsBody, err := io.ReadAll(jsResponse.Body)
+	if err != nil {
+		t.Fatalf("ReadAll(js) error = %v", err)
+	}
+	if !strings.Contains(string(jsBody), `dataset.goldrJs = "ready"`) {
+		t.Fatalf("js body = %q", jsBody)
+	}
+
 	missingRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+"/missing", nil)
 	if err != nil {
 		t.Fatalf("NewRequestWithContext(missing) error = %v", err)

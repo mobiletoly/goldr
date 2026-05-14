@@ -71,9 +71,11 @@ The example fingerprints final static files from
 `examples/full_feature/assets/build/` into `assets/dist/` with
 `goldr assets dist`. The generated `assets` package provides `assets.Path` for
 the root layout and `assets.FS()` for the app-owned `/assets/` handler. The
-asset handler is registered before generated routes and sets immutable cache
-headers in application code. Generated route dispatch is wrapped with a tiny
-app-owned middleware that sets `X-Content-Type-Options: nosniff`.
+example includes browser-ready CSS and JavaScript under `assets/build`; Goldr
+fingerprints both without owning a CSS or JavaScript pipeline. The asset
+handler is registered before generated routes and sets immutable cache headers
+in application code. Generated route dispatch is wrapped with a tiny app-owned
+middleware that sets `X-Content-Type-Options: nosniff`.
 
 For the broader asset workflow, read `docs/user/assets.md`.
 

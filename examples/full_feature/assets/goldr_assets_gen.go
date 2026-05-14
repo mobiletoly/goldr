@@ -24,6 +24,12 @@ var manifest = map[string]Asset{
 		Hash: "733637bd",
 		Size: 801,
 	},
+	"app.js": {
+		Name: "app.js",
+		Path: "/assets/app.3f3c2b00.js",
+		Hash: "3f3c2b00",
+		Size: 166,
+	},
 }
 
 func Path(name string) string {

@@ -44,13 +44,14 @@ go tool goldr assets dist --root examples/full_feature
 Goldr copies each file into `assets/dist` with a content hash in the filename
 and writes `assets/goldr_assets_gen.go`.
 
-Example:
+Examples:
 
 ```text
 assets/build/app.css -> assets/dist/app.733637bd.css
+assets/build/app.js  -> assets/dist/app.3f3c2b00.js
 ```
 
-The logical asset name remains `app.css`.
+The logical asset names remain `app.css` and `app.js`.
 
 ## Use Assets In Templates
 
@@ -66,6 +67,7 @@ templ Layout(child templ.Component) {
 	<html>
 		<head>
 			<link rel="stylesheet" href={ assets.Path("app.css") }/>
+			<script src={ assets.Path("app.js") } defer></script>
 		</head>
 		<body>
 			@child
@@ -75,7 +77,8 @@ templ Layout(child templ.Component) {
 ```
 
 `assets.Path("app.css")` returns the fingerprinted URL path, such as
-`/assets/app.733637bd.css`. Unknown asset names panic, which is useful for
+`/assets/app.733637bd.css`. `assets.Path("app.js")` works the same way for
+browser-ready JavaScript. Unknown asset names panic, which is useful for
 template bugs that should fail loudly during development.
 
 Use `assets.Lookup(name)` when application code needs a non-panic check.
@@ -181,6 +184,26 @@ and keep fingerprinted output current. For the full workflow, read
 Tailwind also publishes a standalone CLI for projects that do not want Node or
 npm in the app. In either case, Goldr only sees the final CSS file in
 `assets/build`.
+
+## JavaScript And TypeScript
+
+Goldr treats JavaScript like any other final browser-ready asset. Put plain
+JavaScript directly in `assets/build`, or run app-owned TypeScript and bundling
+tools so their final output lands there:
+
+```text
+assets/src/app.ts -> app-owned tool -> assets/build/app.js
+```
+
+Then reference the generated path from templates:
+
+```templ
+<script src={ assets.Path("app.js") } defer></script>
+```
+
+Goldr does not run TypeScript, bundle JavaScript, or own client-side state. It
+only fingerprints the final file and makes the production-safe URL available to
+the app.
 
 ## CI Flow
 
