@@ -86,7 +86,7 @@ func TestDevWrapperRunsGoldrGenerateAssetsDistThenAppCommand(t *testing.T) {
 		command:         `go run . --message "hello dev"`,
 	}
 
-	wrapper, err := writeUnixDevWrapper(config)
+	wrapper, err := writeUnixDevWrapper(config, t.TempDir())
 	if err != nil {
 		t.Fatalf("writeUnixDevWrapper() error = %v", err)
 	}
@@ -107,6 +107,96 @@ func TestDevWrapperRunsGoldrGenerateAssetsDistThenAppCommand(t *testing.T) {
 		if !strings.Contains(source, want) {
 			t.Fatalf("wrapper = %q, want %q", source, want)
 		}
+	}
+}
+
+func TestDevWrapperTempDirSkipsWhitespacePath(t *testing.T) {
+	parent := t.TempDir()
+	if devPathHasWhitespace(parent) {
+		t.Skipf("test temp directory contains whitespace: %s", parent)
+	}
+	spaced := filepath.Join(parent, "tmp with spaces")
+	clean := filepath.Join(parent, "tmp")
+	if err := os.Mkdir(spaced, 0755); err != nil {
+		t.Fatalf("mkdir spaced temp dir: %v", err)
+	}
+	if err := os.Mkdir(clean, 0755); err != nil {
+		t.Fatalf("mkdir clean temp dir: %v", err)
+	}
+
+	got, err := selectDevWrapperTempDir([]string{spaced, clean})
+	if err != nil {
+		t.Fatalf("selectDevWrapperTempDir() error = %v", err)
+	}
+	if got != clean {
+		t.Fatalf("selectDevWrapperTempDir() = %q, want %q", got, clean)
+	}
+}
+
+func TestWriteDevWrapperUsesSpaceFreeTempDir(t *testing.T) {
+	parent := t.TempDir()
+	if devPathHasWhitespace(parent) {
+		t.Skipf("test temp directory contains whitespace: %s", parent)
+	}
+	spaced := filepath.Join(parent, "tmp with spaces")
+	clean := filepath.Join(parent, "tmp")
+	if err := os.Mkdir(spaced, 0755); err != nil {
+		t.Fatalf("mkdir spaced temp dir: %v", err)
+	}
+	if err := os.Mkdir(clean, 0755); err != nil {
+		t.Fatalf("mkdir clean temp dir: %v", err)
+	}
+	config := devConfig{
+		root:            parent,
+		goldrExecutable: filepath.Join(parent, "goldr"),
+		command:         "go run .",
+	}
+
+	wrapper, err := writeDevWrapperInTempDirs(config, []string{spaced, clean})
+	if err != nil {
+		t.Fatalf("writeDevWrapperInTempDirs() error = %v", err)
+	}
+	defer func() {
+		_ = os.Remove(wrapper)
+	}()
+
+	if devPathHasWhitespace(wrapper) {
+		t.Fatalf("wrapper path = %q, want no whitespace", wrapper)
+	}
+	if !strings.HasPrefix(wrapper, clean+string(os.PathSeparator)) {
+		t.Fatalf("wrapper path = %q, want under %q", wrapper, clean)
+	}
+}
+
+func TestWriteDevWrapperSkipsWhitespaceTMPDIR(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TMPDIR fallback behavior is Unix-specific")
+	}
+	if _, err := os.Stat("/tmp"); err != nil {
+		t.Skipf("/tmp is not available: %v", err)
+	}
+	parent := t.TempDir()
+	spaced := filepath.Join(parent, "tmp with spaces")
+	if err := os.Mkdir(spaced, 0755); err != nil {
+		t.Fatalf("mkdir spaced temp dir: %v", err)
+	}
+	t.Setenv("TMPDIR", spaced)
+	config := devConfig{
+		root:            parent,
+		goldrExecutable: filepath.Join(parent, "goldr"),
+		command:         "go run .",
+	}
+
+	wrapper, err := writeDevWrapper(config)
+	if err != nil {
+		t.Fatalf("writeDevWrapper() error = %v", err)
+	}
+	defer func() {
+		_ = os.Remove(wrapper)
+	}()
+
+	if devPathHasWhitespace(wrapper) {
+		t.Fatalf("wrapper path = %q, want no whitespace", wrapper)
 	}
 }
 

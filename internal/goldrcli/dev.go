@@ -249,14 +249,53 @@ func devIgnorePattern() string {
 }
 
 func writeDevWrapper(config devConfig) (string, error) {
-	if runtime.GOOS == "windows" {
-		return writeWindowsDevWrapper(config)
-	}
-	return writeUnixDevWrapper(config)
+	return writeDevWrapperInTempDirs(config, devWrapperTempDirCandidates())
 }
 
-func writeUnixDevWrapper(config devConfig) (string, error) {
-	file, err := os.CreateTemp("", "goldr-dev-*.sh")
+func writeDevWrapperInTempDirs(config devConfig, candidates []string) (string, error) {
+	tempDir, err := selectDevWrapperTempDir(candidates)
+	if err != nil {
+		return "", err
+	}
+	if runtime.GOOS == "windows" {
+		return writeWindowsDevWrapper(config, tempDir)
+	}
+	return writeUnixDevWrapper(config, tempDir)
+}
+
+func devWrapperTempDirCandidates() []string {
+	candidates := []string{os.TempDir()}
+	if runtime.GOOS == "windows" {
+		if systemDrive := os.Getenv("SystemDrive"); systemDrive != "" {
+			candidates = append(candidates, filepath.Join(systemDrive+`\`, "Temp"))
+		}
+	} else {
+		candidates = append(candidates, "/tmp", "/var/tmp")
+	}
+	return candidates
+}
+
+func selectDevWrapperTempDir(candidates []string) (string, error) {
+	seen := make(map[string]bool)
+	for _, candidate := range candidates {
+		if candidate == "" || devPathHasWhitespace(candidate) || seen[candidate] {
+			continue
+		}
+		seen[candidate] = true
+		info, err := os.Stat(candidate)
+		if err == nil && info.IsDir() {
+			return candidate, nil
+		}
+	}
+	return "", errors.New("could not find a space-free temp directory for the dev wrapper; set TMPDIR to a path without whitespace")
+}
+
+func devPathHasWhitespace(path string) bool {
+	return strings.ContainsAny(path, " \t\n\r\v\f")
+}
+
+func writeUnixDevWrapper(config devConfig, tempDir string) (string, error) {
+	file, err := os.CreateTemp(tempDir, "goldr-dev-*.sh")
 	if err != nil {
 		return "", fmt.Errorf("create dev wrapper: %w", err)
 	}
@@ -289,8 +328,8 @@ func writeUnixDevWrapper(config devConfig) (string, error) {
 	return path, nil
 }
 
-func writeWindowsDevWrapper(config devConfig) (string, error) {
-	file, err := os.CreateTemp("", "goldr-dev-*.cmd")
+func writeWindowsDevWrapper(config devConfig, tempDir string) (string, error) {
+	file, err := os.CreateTemp(tempDir, "goldr-dev-*.cmd")
 	if err != nil {
 		return "", fmt.Errorf("create dev wrapper: %w", err)
 	}
