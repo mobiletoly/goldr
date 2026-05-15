@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/mobiletoly/goldr/internal/goldrcli/appfs"
+	cliassets "github.com/mobiletoly/goldr/internal/goldrcli/assets"
 	"github.com/mobiletoly/goldr/internal/goldrcli/scandiag"
 	"github.com/mobiletoly/goldr/internal/renderunit"
 	"github.com/mobiletoly/goldr/internal/routing"
@@ -27,6 +28,7 @@ const (
 	checkCodeURLGenerate    = "GOLDR005"
 	checkCodeGeneratedFiles = "GOLDR006"
 	checkCodeTemplGenerated = "GOLDR007"
+	checkCodeAssets         = "GOLDR008"
 )
 
 type checkOptions struct {
@@ -55,11 +57,11 @@ func checkCommand() *cli.Command {
 	}
 }
 
-const checkDescription = `Read-only validation for app/routes, templ output, and generated files.
+const checkDescription = `Read-only validation for app/routes, templ output, generated files, and Goldr-managed assets.
 
-Checks route naming, page/layout/fragment file pairs, action conventions, generated route dispatch readiness, generated URL helper readiness, templ-generated file freshness, and goldr-generated file freshness.
+Checks route naming, page/layout/fragment file pairs, action conventions, generated route dispatch readiness, generated URL helper readiness, templ-generated file freshness, goldr-generated file freshness, and Goldr-managed asset freshness when asset outputs exist.
 
-Run after go tool templ generate and go tool goldr generate. This command runs templ check mode but does not run tests, start the app, or write files.`
+Run after go tool templ generate, go tool goldr generate, and go tool goldr assets dist when assets are used. This command runs templ check mode but does not run tests, start the app, or write files.`
 
 func runCheck(ctx context.Context, options checkOptions) error {
 	paths, err := appPathsForRoot(ctx, options.root)
@@ -88,6 +90,9 @@ func runCheck(ctx context.Context, options checkOptions) error {
 
 	if err := checkGeneratedFiles(generatedFiles); err != nil {
 		return fmt.Errorf("goldr check: %w", checkMultilineCodeError(checkCodeGeneratedFiles, err))
+	}
+	if err := checkManagedAssets(paths.root); err != nil {
+		return fmt.Errorf("goldr check: %w", err)
 	}
 	return nil
 }
@@ -123,6 +128,21 @@ func checkTemplGeneratedFiles(ctx context.Context, root string) error {
 		message.WriteString(trimmed)
 	}
 	return checkMultilineCodeError(checkCodeTemplGenerated, errors.New(message.String()))
+}
+
+func checkManagedAssets(root string) error {
+	hasAssets, err := cliassets.HasManagedOutputs(root)
+	if err != nil {
+		return checkCodeError(checkCodeAssets, err)
+	}
+	if !hasAssets {
+		return nil
+	}
+	if err := cliassets.Check(root); err != nil {
+		message := fmt.Errorf("Goldr-managed assets are not current; run go tool goldr assets dist\n%w", err)
+		return checkMultilineCodeError(checkCodeAssets, message)
+	}
+	return nil
 }
 
 func checkRenderUnitError(routesDir string, err error) error {

@@ -131,7 +131,8 @@ go tool goldr dev --cmd "go run ./cmd/web" --app-url http://127.0.0.1:3000 --pro
 ## Check
 
 `goldr check` validates the route tree and generated-file freshness without
-writing files:
+writing files. When Goldr-managed asset output exists, it also validates asset
+freshness:
 
 ```bash
 go tool goldr check
@@ -146,6 +147,8 @@ It checks:
 - URL helper generation readiness
 - freshness of templ-generated files
 - freshness of `app/routes/goldr_gen.go` and `app/urls/goldr_gen.go`
+- freshness of `assets/dist`, `assets/goldr_assets_gen.go`, and
+  `assets/.goldr/assets.json` when Goldr-managed asset output exists
 
 It prints nothing and exits `0` when the app is clean. It reports diagnostics
 to stderr and exits non-zero when validation fails. It requires the app-local
@@ -162,6 +165,7 @@ Diagnostic categories:
 | `GOLDR005` | Generated URL helpers are not ready. |
 | `GOLDR006` | A goldr-owned generated file is missing or stale. |
 | `GOLDR007` | templ is unavailable, or a templ-generated file is missing or stale. |
+| `GOLDR008` | Goldr-managed asset output is missing or stale. |
 
 Examples:
 
@@ -170,10 +174,12 @@ app/routes/Users: GOLDR002 static route directories must use lowercase Go-safe n
 app/routes/page.go: GOLDR003 page /: missing matching .templ file
 GOLDR006 app/routes/goldr_gen.go is stale
 GOLDR007 templ generated files are not up to date; run go tool templ generate
+GOLDR008 Goldr-managed assets are not current; run go tool goldr assets dist
 ```
 
-`goldr check` runs templ check mode. It does not write templ output, run tests,
-or start the application server.
+`goldr check` runs templ check mode and asset check mode when asset output is
+present. It does not write templ output, write asset output, run tests, or
+start the application server.
 
 ## Assets
 
@@ -207,8 +213,8 @@ go tool goldr assets list
 go tool goldr assets list --json
 ```
 
-`goldr check` stays route-focused. Run `go tool goldr assets check`
-explicitly in CI when fingerprinted assets are part of the app.
+`goldr check` includes asset freshness when Goldr-managed asset output exists.
+Run `go tool goldr assets check` when you want the asset-only check.
 
 ## Routes List
 

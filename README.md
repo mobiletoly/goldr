@@ -211,8 +211,8 @@ go tool goldr check
 go run .
 ```
 
-`goldr check` verifies both Goldr-owned generated files and templ-generated
-files are current. It does not write either one.
+`goldr check` verifies Goldr-owned generated files, templ-generated files, and
+Goldr-managed asset outputs are current. It does not write them.
 
 Open:
 

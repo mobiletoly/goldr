@@ -110,8 +110,10 @@ func TestRunCheckHelpExplainsReadOnlyScope(t *testing.T) {
 		"route naming",
 		"goldr-generated file freshness",
 		"templ-generated file freshness",
+		"Goldr-managed asset freshness",
 		"go tool templ generate",
 		"go tool goldr generate",
+		"go tool goldr assets dist",
 		"does not run tests",
 		"or write files",
 	)
@@ -494,6 +496,49 @@ func TestRunCheckCleanApp(t *testing.T) {
 	requireRunSuccess(t, "generate", "--root", root)
 	runTemplGenerate(t, root)
 	requireRunSuccess(t, "check", "--root", root)
+}
+
+func TestRunCheckSkipsAssetsWhenOnlyBuildExists(t *testing.T) {
+	root := tempGenerateApp(t)
+	requireRunSuccess(t, "generate", "--root", root)
+	runTemplGenerate(t, root)
+	writeFile(t, root, "assets/build/app.css", "body {}\n")
+
+	requireRunSuccess(t, "check", "--root", root)
+}
+
+func TestRunCheckValidatesManagedAssets(t *testing.T) {
+	root := tempGenerateApp(t)
+	requireRunSuccess(t, "generate", "--root", root)
+	runTemplGenerate(t, root)
+	writeFile(t, root, "assets/build/app.css", "body {}\n")
+	requireRunSuccess(t, "assets", "dist", "--root", root)
+
+	requireRunSuccess(t, "check", "--root", root)
+}
+
+func TestRunCheckReportsStaleManagedAssets(t *testing.T) {
+	root := tempGenerateApp(t)
+	requireRunSuccess(t, "generate", "--root", root)
+	runTemplGenerate(t, root)
+	writeFile(t, root, "assets/build/app.css", "body {}\n")
+	requireRunSuccess(t, "assets", "dist", "--root", root)
+	writeFile(t, root, "assets/build/app.css", "body { color: black; }\n")
+
+	requireCheckFailureContains(t, root, "goldr check:", checkCodeAssets, "Goldr-managed assets are not current", "go tool goldr assets dist", "assets/dist/app.", "is missing")
+}
+
+func TestRunCheckReportsMissingManagedAssetState(t *testing.T) {
+	root := tempGenerateApp(t)
+	requireRunSuccess(t, "generate", "--root", root)
+	runTemplGenerate(t, root)
+	writeFile(t, root, "assets/build/app.css", "body {}\n")
+	requireRunSuccess(t, "assets", "dist", "--root", root)
+	if err := os.Remove(filepath.Join(root, "assets", ".goldr", "assets.json")); err != nil {
+		t.Fatalf("Remove(asset state) error = %v", err)
+	}
+
+	requireCheckFailureContains(t, root, "goldr check:", checkCodeAssets, "Goldr-managed assets are not current", "assets/.goldr/assets.json", "is missing")
 }
 
 func TestRunCheckReportsRootResolutionProblems(t *testing.T) {

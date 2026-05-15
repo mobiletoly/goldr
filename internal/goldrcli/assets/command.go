@@ -229,12 +229,41 @@ func runDist(options options) error {
 }
 
 func runCheck(options options) error {
-	paths, records, err := buildAssetManifest(options.root)
-	if err != nil {
+	if err := Check(options.root); err != nil {
 		return fmt.Errorf("goldr assets check: %w", err)
 	}
+	return nil
+}
+
+// HasManagedOutputs reports whether root has Goldr-managed asset outputs.
+func HasManagedOutputs(root string) (bool, error) {
+	paths, err := assetPathsForRoot(root)
+	if err != nil {
+		return false, err
+	}
+
+	for _, name := range []string{paths.generatedFile, paths.stateFile} {
+		_, err := os.Stat(name)
+		switch {
+		case err == nil:
+			return true, nil
+		case errors.Is(err, os.ErrNotExist):
+			continue
+		default:
+			return false, err
+		}
+	}
+	return false, nil
+}
+
+// Check verifies that Goldr-managed asset outputs are current.
+func Check(root string) error {
+	paths, records, err := buildAssetManifest(root)
+	if err != nil {
+		return err
+	}
 	if err := appfs.RequireDir(paths.distDir); err != nil {
-		return fmt.Errorf("goldr assets check: %w", err)
+		return err
 	}
 
 	var stale []string
@@ -244,7 +273,7 @@ func runCheck(options options) error {
 		case errors.Is(err, os.ErrNotExist):
 			stale = append(stale, fmt.Sprintf("%s is missing", record.Dist))
 		case err != nil:
-			return fmt.Errorf("goldr assets check: %w", err)
+			return err
 		case !bytes.Equal(existing, record.Content):
 			stale = append(stale, fmt.Sprintf("%s is stale", record.Dist))
 		}
@@ -252,16 +281,16 @@ func runCheck(options options) error {
 
 	source, err := generateAssetsSource(records)
 	if err != nil {
-		return fmt.Errorf("goldr assets check: %w", err)
+		return err
 	}
 	if err := checkFile(paths.generatedFile, source, &stale); err != nil {
-		return fmt.Errorf("goldr assets check: %w", err)
+		return err
 	}
 	if err := checkStateFile(paths, records, &stale); err != nil {
-		return fmt.Errorf("goldr assets check: %w", err)
+		return err
 	}
 	if len(stale) > 0 {
-		return fmt.Errorf("goldr assets check: %s", strings.Join(stale, "\n"))
+		return errors.New(strings.Join(stale, "\n"))
 	}
 	return nil
 }
