@@ -58,8 +58,12 @@ client state, and hidden runtime registration.
 
 ## Install
 
-Goldr applications use Go and [templ](https://github.com/a-h/templ). The current module targets Go
-1.26.
+Goldr applications use Go and [templ](https://github.com/a-h/templ). During v0,
+templ is Goldr's render contract: route functions return templ components, and
+`.templ` files own HTML rendering. Goldr owns the filesystem route model,
+generated route wiring, URL helpers, and validation around that workflow.
+
+The current module targets Go 1.26.
 
 Add goldr, templ, and app-local CLI tools to your module:
 

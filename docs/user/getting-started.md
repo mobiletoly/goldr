@@ -17,6 +17,10 @@ go get -tool github.com/mobiletoly/goldr/cmd/goldr@latest
 go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020
 ```
 
+During v0, templ is Goldr's render contract. Route functions return templ
+components, `.templ` files render HTML, and Goldr owns the route tree,
+generated wiring, URL helpers, and validation around that workflow.
+
 Run goldr and templ with `go tool goldr` and `go tool templ`. This keeps the
 tool versions pinned in the application module.
 
