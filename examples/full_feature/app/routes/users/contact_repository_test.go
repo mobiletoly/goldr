@@ -37,7 +37,7 @@ func TestContactRepositoryAddsContacts(t *testing.T) {
 		{ID: "42", Name: "Ada Lovelace", Status: "Active"},
 	})
 
-	contact := repository.Add("Hedy Lamarr", "Inactive")
+	contact := repository.Add("Hedy Lamarr", "Inactive", "hedy.txt")
 
 	if contact.ID != "43" {
 		t.Fatalf("contact ID = %q, want 43", contact.ID)
@@ -47,6 +47,9 @@ func TestContactRepositoryAddsContacts(t *testing.T) {
 	}
 	if contact.Status != "Inactive" {
 		t.Fatalf("contact status = %q, want Inactive", contact.Status)
+	}
+	if contact.AvatarFilename != "hedy.txt" {
+		t.Fatalf("contact avatar filename = %q, want hedy.txt", contact.AvatarFilename)
 	}
 	if _, ok := repository.ByID("43"); !ok {
 		t.Fatal("ByID(43) ok = false, want true")

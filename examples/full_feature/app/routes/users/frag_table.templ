@@ -10,6 +10,7 @@ templ FragTableView(contacts []Contact) {
 				<tr>
 					<th>Name</th>
 					<th>Status</th>
+					<th>Avatar</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -17,6 +18,11 @@ templ FragTableView(contacts []Contact) {
 					<tr>
 						<td><a href={ urls.Users.ByID(contact.ID).Path() }>{ contact.Name }</a></td>
 						<td>{ contact.Status }</td>
+						if contact.AvatarFilename != "" {
+							<td>{ contact.AvatarFilename }</td>
+						} else {
+							<td>None</td>
+						}
 					</tr>
 				}
 			</tbody>

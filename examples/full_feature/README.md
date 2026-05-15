@@ -61,7 +61,7 @@ The example demonstrates root, settings, nested static, and dynamic page
 runtime dispatch, page metadata passed explicitly to layouts, root-to-leaf
 layout wrapping, a standalone users table fragment for HTMX swaps, generated
 URL helpers from `app/urls`, generated action routes that set HTMX response
-headers, a minimal add-contact form with server-side redisplay errors, and a
+headers, a multipart add-contact form with server-side redisplay errors, and a
 route-rendered custom 404 page. The app shell uses page metadata for document
 title, description, canonical path, and active navigation. The `/users` and
 `/users/42` pages share the users section shell from `users/layout.templ`;
@@ -83,6 +83,7 @@ Post to `/users/save-preview` to see `HX-Trigger`, `HX-Retarget`, and
 `HX-Reswap` response headers from `users.PostSavePreview` in
 `app/routes/users/actions.go`.
 
-Post to `/users/create` with URL-encoded `name` and `status` fields to see
-form parsing, field-error redisplay, and successful HTMX replacement from
-`users.PostCreate` in `app/routes/users/actions.go`.
+Post to `/users/create` with multipart `name`, `status`, and optional `avatar`
+fields to see form parsing, app-owned request-size limiting, field-error
+redisplay with `422`, optional upload filename display, and successful HTMX
+replacement from `users.PostCreate` in `app/routes/users/actions.go`.

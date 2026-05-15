@@ -5,6 +5,7 @@ package bind
 
 import (
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"slices"
@@ -14,6 +15,7 @@ var ErrNilRequest = errors.New("nil request")
 
 type Form struct {
 	values url.Values
+	files  map[string][]*multipart.FileHeader
 	errors FieldErrors
 }
 
@@ -27,6 +29,19 @@ func ParseForm(r *http.Request) (Form, error) {
 	return Form{values: cloneValues(r.Form)}, nil
 }
 
+func ParseMultipartForm(r *http.Request, maxMemory int64) (Form, error) {
+	if r == nil {
+		return Form{}, ErrNilRequest
+	}
+	if err := r.ParseMultipartForm(maxMemory); err != nil {
+		return Form{}, err
+	}
+	return Form{
+		values: cloneMultipartValues(r),
+		files:  cloneFiles(r.MultipartForm),
+	}, nil
+}
+
 func (f Form) Value(name string) string {
 	values := f.values[name]
 	if len(values) == 0 {
@@ -37,6 +52,22 @@ func (f Form) Value(name string) string {
 
 func (f Form) Values(name string) []string {
 	return slices.Clone(f.values[name])
+}
+
+func (f Form) File(name string) (multipart.File, *multipart.FileHeader, error) {
+	headers := f.files[name]
+	if len(headers) == 0 {
+		return nil, nil, http.ErrMissingFile
+	}
+	file, err := headers[0].Open()
+	if err != nil {
+		return nil, nil, err
+	}
+	return file, headers[0], nil
+}
+
+func (f Form) Files(name string) []*multipart.FileHeader {
+	return slices.Clone(f.files[name])
 }
 
 func (f Form) WithErrors(errors FieldErrors) Form {
@@ -110,6 +141,31 @@ func cloneValues(values url.Values) url.Values {
 	}
 	copied := make(url.Values, len(values))
 	for key, value := range values {
+		copied[key] = slices.Clone(value)
+	}
+	return copied
+}
+
+func cloneMultipartValues(r *http.Request) url.Values {
+	var values url.Values
+	if r.MultipartForm != nil {
+		values = cloneValues(r.MultipartForm.Value)
+	}
+	for key, queryValues := range r.URL.Query() {
+		if values == nil {
+			values = make(url.Values)
+		}
+		values[key] = append(values[key], queryValues...)
+	}
+	return values
+}
+
+func cloneFiles(form *multipart.Form) map[string][]*multipart.FileHeader {
+	if form == nil || len(form.File) == 0 {
+		return nil
+	}
+	copied := make(map[string][]*multipart.FileHeader, len(form.File))
+	for key, value := range form.File {
 		copied[key] = slices.Clone(value)
 	}
 	return copied

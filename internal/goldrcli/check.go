@@ -139,7 +139,7 @@ func checkManagedAssets(root string) error {
 		return nil
 	}
 	if err := cliassets.Check(root); err != nil {
-		message := fmt.Errorf("Goldr-managed assets are not current; run go tool goldr assets dist\n%w", err)
+		message := fmt.Errorf("goldr-managed assets are not current; run go tool goldr assets dist\n%w", err)
 		return checkMultilineCodeError(checkCodeAssets, message)
 	}
 	return nil

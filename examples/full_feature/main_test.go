@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mobiletoly/goldr/examples/full_feature/assets"
+	"github.com/mobiletoly/goldr/examples/full_feature/internal/testmultipart"
 	"github.com/mobiletoly/goldr/hx"
 )
 
@@ -179,11 +180,17 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 		t.Fatalf("helper body = %q", helperBody)
 	}
 
-	createRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://"+listener.Addr().String()+"/users/create", strings.NewReader("name=Hedy+Lamarr&status=Inactive"))
+	createBodyReader, createContentType := testmultipart.Body(t, map[string]string{
+		"name":   "Hedy Lamarr",
+		"status": "Inactive",
+	}, map[string]testmultipart.Upload{
+		"avatar": {Filename: "hedy.txt", Content: "example avatar"},
+	})
+	createRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://"+listener.Addr().String()+"/users/create", createBodyReader)
 	if err != nil {
 		t.Fatalf("NewRequestWithContext(create) error = %v", err)
 	}
-	createRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	createRequest.Header.Set("Content-Type", createContentType)
 	createResponse, err := client.Do(createRequest)
 	if err != nil {
 		t.Fatalf("Do(create) error = %v", err)
@@ -204,6 +211,9 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 		t.Fatalf("ReadAll(create) error = %v", err)
 	}
 	if !strings.Contains(string(createBody), "Hedy Lamarr") {
+		t.Fatalf("create body = %q", createBody)
+	}
+	if !strings.Contains(string(createBody), "hedy.txt") {
 		t.Fatalf("create body = %q", createBody)
 	}
 

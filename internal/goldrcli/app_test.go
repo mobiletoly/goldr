@@ -525,7 +525,7 @@ func TestRunCheckReportsStaleManagedAssets(t *testing.T) {
 	requireRunSuccess(t, "assets", "dist", "--root", root)
 	writeFile(t, root, "assets/build/app.css", "body { color: black; }\n")
 
-	requireCheckFailureContains(t, root, "goldr check:", checkCodeAssets, "Goldr-managed assets are not current", "go tool goldr assets dist", "assets/dist/app.", "is missing")
+	requireCheckFailureContains(t, root, "goldr check:", checkCodeAssets, "goldr-managed assets are not current", "go tool goldr assets dist", "assets/dist/app.", "is missing")
 }
 
 func TestRunCheckReportsMissingManagedAssetState(t *testing.T) {
@@ -538,7 +538,7 @@ func TestRunCheckReportsMissingManagedAssetState(t *testing.T) {
 		t.Fatalf("Remove(asset state) error = %v", err)
 	}
 
-	requireCheckFailureContains(t, root, "goldr check:", checkCodeAssets, "Goldr-managed assets are not current", "assets/.goldr/assets.json", "is missing")
+	requireCheckFailureContains(t, root, "goldr check:", checkCodeAssets, "goldr-managed assets are not current", "assets/.goldr/assets.json", "is missing")
 }
 
 func TestRunCheckReportsRootResolutionProblems(t *testing.T) {
@@ -1282,7 +1282,7 @@ func readRepoFile(t *testing.T, name string) string {
 func runTemplGenerate(t *testing.T, root string) {
 	t.Helper()
 
-	command := exec.Command("go", "tool", "templ", "generate", "-path", ".")
+	command := exec.CommandContext(context.Background(), "go", "tool", "templ", "generate", "-path", ".")
 	command.Dir = root
 	output, err := command.CombinedOutput()
 	if err != nil {

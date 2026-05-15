@@ -6,9 +6,10 @@ import (
 )
 
 type Contact struct {
-	ID     string
-	Name   string
-	Status string
+	ID             string
+	Name           string
+	Status         string
+	AvatarFilename string
 }
 
 type contactRepository struct {
@@ -36,8 +37,8 @@ func ContactByID(id string) (Contact, bool) {
 	return contacts.ByID(id)
 }
 
-func AddContact(name, status string) Contact {
-	return contacts.Add(name, status)
+func AddContact(name, status, avatarFilename string) Contact {
+	return contacts.Add(name, status, avatarFilename)
 }
 
 func resetContactsForTest() {
@@ -69,14 +70,15 @@ func (repository *contactRepository) ByID(id string) (Contact, bool) {
 	return Contact{}, false
 }
 
-func (repository *contactRepository) Add(name, status string) Contact {
+func (repository *contactRepository) Add(name, status, avatarFilename string) Contact {
 	repository.mu.Lock()
 	defer repository.mu.Unlock()
 
 	contact := Contact{
-		ID:     strconv.Itoa(repository.nextID()),
-		Name:   name,
-		Status: status,
+		ID:             strconv.Itoa(repository.nextID()),
+		Name:           name,
+		Status:         status,
+		AvatarFilename: avatarFilename,
 	}
 	repository.contacts = append(repository.contacts, contact)
 	return contact

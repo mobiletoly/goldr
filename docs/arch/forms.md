@@ -6,11 +6,23 @@ It does not own:
 - application validation rules
 - persistence
 - CSRF policy
-- multipart upload behavior
+- upload storage, validation, scanning, or size policy
 - client-side state
 
 `bind.ParseForm` delegates parsing to `http.Request.ParseForm` and copies parsed
 values before returning a `Form`.
+
+`bind.ParseMultipartForm` delegates parsing to
+`http.Request.ParseMultipartForm`, copies parsed text values, and carries
+standard library multipart file headers in the same `Form` value. File access
+returns `multipart.File` and `*multipart.FileHeader`; Goldr does not wrap
+uploads in a custom object type.
+
+The multipart boundary is deliberately narrow. `bind` owns enough parsing and
+carrier behavior for multipart submissions to use the same value/error
+redisplay flow as URL-encoded forms. Applications still own
+`http.MaxBytesReader` limits, allowed file types, content inspection, copying,
+storage, cleanup policy, and all business validation.
 
 `bind.FieldErrors` is a small redisplay carrier. It supports zero-value use and
 multiple messages per field, but it is not a validation framework.
