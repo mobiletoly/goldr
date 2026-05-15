@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 
 	"github.com/mobiletoly/goldr/internal/goldrcli/appfs"
@@ -25,6 +26,7 @@ const (
 	checkCodeRouteGenerate  = "GOLDR004"
 	checkCodeURLGenerate    = "GOLDR005"
 	checkCodeGeneratedFiles = "GOLDR006"
+	checkCodeTemplGenerated = "GOLDR007"
 )
 
 type checkOptions struct {
@@ -53,11 +55,11 @@ func checkCommand() *cli.Command {
 	}
 }
 
-const checkDescription = `Read-only validation for app/routes and goldr-owned generated files.
+const checkDescription = `Read-only validation for app/routes, templ output, and generated files.
 
-Checks route naming, page/layout/fragment file pairs, action conventions, generated route dispatch readiness, generated URL helper readiness, and generated-file freshness.
+Checks route naming, page/layout/fragment file pairs, action conventions, generated route dispatch readiness, generated URL helper readiness, templ-generated file freshness, and goldr-generated file freshness.
 
-Run after go tool templ generate and go tool goldr generate. This command does not run tests, start the app, or write files.`
+Run after go tool templ generate and go tool goldr generate. This command runs templ check mode but does not run tests, start the app, or write files.`
 
 func runCheck(ctx context.Context, options checkOptions) error {
 	paths, err := appPathsForRoot(ctx, options.root)
@@ -75,25 +77,52 @@ func runCheck(ctx context.Context, options checkOptions) error {
 		return fmt.Errorf("goldr check: %w", checkRenderUnitError(paths.routesDir, err))
 	}
 
-	if err := checkGeneratedManifestFiles(paths, manifest); err != nil {
+	generatedFiles, err := checkGeneratedManifestReadiness(paths, manifest)
+	if err != nil {
 		return fmt.Errorf("goldr check: %w", err)
+	}
+
+	if err := checkTemplGeneratedFiles(ctx, paths.root); err != nil {
+		return fmt.Errorf("goldr check: %w", err)
+	}
+
+	if err := checkGeneratedFiles(generatedFiles); err != nil {
+		return fmt.Errorf("goldr check: %w", checkMultilineCodeError(checkCodeGeneratedFiles, err))
 	}
 	return nil
 }
 
-func checkGeneratedManifestFiles(paths appPaths, manifest routing.Manifest) error {
+func checkGeneratedManifestReadiness(paths appPaths, manifest routing.Manifest) ([]generatedFile, error) {
 	routesFile, err := generateRouteManifestFile(paths, manifest)
 	if err != nil {
-		return checkCodeError(checkCodeRouteGenerate, err)
+		return nil, checkCodeError(checkCodeRouteGenerate, err)
 	}
 	urlsFile, err := generateURLHelperFile(paths, manifest)
 	if err != nil {
-		return checkCodeError(checkCodeURLGenerate, err)
+		return nil, checkCodeError(checkCodeURLGenerate, err)
 	}
-	if err := checkGeneratedFiles([]generatedFile{routesFile, urlsFile}); err != nil {
-		return checkMultilineCodeError(checkCodeGeneratedFiles, err)
+	return []generatedFile{routesFile, urlsFile}, nil
+}
+
+func checkTemplGeneratedFiles(ctx context.Context, root string) error {
+	if err := checkTemplTool(ctx, root); err != nil {
+		return checkCodeError(checkCodeTemplGenerated, err)
 	}
-	return nil
+
+	command := exec.CommandContext(ctx, "go", "tool", "templ", "generate", "-check", "-path", ".")
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+
+	var message strings.Builder
+	message.WriteString("templ generated files are not up to date; run go tool templ generate")
+	if trimmed := strings.TrimSpace(string(output)); trimmed != "" {
+		message.WriteString("\n")
+		message.WriteString(trimmed)
+	}
+	return checkMultilineCodeError(checkCodeTemplGenerated, errors.New(message.String()))
 }
 
 func checkRenderUnitError(routesDir string, err error) error {

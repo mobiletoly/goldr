@@ -206,10 +206,12 @@ func checkTemplTool(ctx context.Context, root string) error {
 	command.Stdout = io.Discard
 	command.Stderr = io.Discard
 	if err := command.Run(); err != nil {
-		return fmt.Errorf("go tool templ is not available; add it with: go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020")
+		return fmt.Errorf("go tool templ is not available; add it with: %s", templToolInstallCommand)
 	}
 	return nil
 }
+
+const templToolInstallCommand = "go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020"
 
 func templArgs(config devConfig) []string {
 	return []string{

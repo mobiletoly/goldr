@@ -163,6 +163,9 @@ go tool goldr check
 go run .
 ```
 
+`goldr check` verifies both Goldr-owned generated files and templ-generated
+files are current. It does not write either one.
+
 Open:
 
 ```text

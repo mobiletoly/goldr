@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -107,7 +108,8 @@ func TestRunCheckHelpExplainsReadOnlyScope(t *testing.T) {
 		[]string{"check", "--help"},
 		"Read-only validation",
 		"route naming",
-		"generated-file freshness",
+		"goldr-generated file freshness",
+		"templ-generated file freshness",
 		"go tool templ generate",
 		"go tool goldr generate",
 		"does not run tests",
@@ -168,8 +170,7 @@ func TestRunUnknownCommand(t *testing.T) {
 
 func TestRunInitCreatesStarterApp(t *testing.T) {
 	root := t.TempDir()
-	goMod := "module example.com/initapp\n\ngo 1.26.3\n"
-	writeFile(t, root, "go.mod", goMod)
+	goMod := writeTemplToolModule(t, root, "example.com/initapp")
 
 	code, stdout, stderr := runGoldr(t, "init", "--root", root)
 
@@ -218,6 +219,7 @@ func TestRunInitCreatesStarterApp(t *testing.T) {
 		}
 	}
 
+	runTemplGenerate(t, root)
 	requireRunSuccess(t, "check", "--root", root)
 
 	code, routesOut, routesErr := runGoldr(t, "routes", "list", "--root", root)
@@ -490,6 +492,7 @@ func TestRunCheckCleanApp(t *testing.T) {
 	root := tempGenerateApp(t)
 
 	requireRunSuccess(t, "generate", "--root", root)
+	runTemplGenerate(t, root)
 	requireRunSuccess(t, "check", "--root", root)
 }
 
@@ -512,6 +515,7 @@ func TestRunCheckReportsStaleAndMissingGeneratedFiles(t *testing.T) {
 	root := tempGenerateApp(t)
 
 	requireRunSuccess(t, "generate", "--root", root)
+	runTemplGenerate(t, root)
 	if err := os.WriteFile(filepath.Join(root, "app", "routes", "goldr_gen.go"), []byte("stale"), 0644); err != nil {
 		t.Fatalf("WriteFile(stale routes) error = %v", err)
 	}
@@ -520,6 +524,23 @@ func TestRunCheckReportsStaleAndMissingGeneratedFiles(t *testing.T) {
 	}
 
 	requireCheckFailureContains(t, root, "goldr check:", checkCodeGeneratedFiles, "app/routes/goldr_gen.go", "is stale", "app/urls/goldr_gen.go", "is missing")
+}
+
+func TestRunCheckReportsMissingTemplTool(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "go.mod", "module example.com/notempltool\n\ngo 1.26.3\n")
+	writeFile(t, root, "app/routes/page.go", "package routes\n")
+	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
+
+	requireCheckFailureContains(t, root, "goldr check:", checkCodeTemplGenerated, "go tool templ is not available", templToolInstallCommand)
+}
+
+func TestRunCheckReportsStaleTemplGeneratedFiles(t *testing.T) {
+	root := tempGenerateApp(t)
+
+	requireRunSuccess(t, "generate", "--root", root)
+
+	requireCheckFailureContains(t, root, "goldr check:", checkCodeTemplGenerated, "templ generated files are not up to date", "go tool templ generate", "generated files are not up to date")
 }
 
 func TestRunCheckReportsInvalidRouteNames(t *testing.T) {
@@ -1163,7 +1184,7 @@ func tempGenerateApp(t *testing.T) string {
 	t.Helper()
 
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/generateapp\n\ngo 1.26.3\n")
+	writeTemplToolModule(t, root, "example.com/generateapp")
 	writeFile(t, root, "app/routes/page.go", `package routes
 
 import (
@@ -1187,6 +1208,41 @@ func Page(_ *http.Request) goldr.Page { return goldr.Page{Component: PageView()}
 `)
 	writeFile(t, root, "app/routes/settings/page.templ", "package settings\n\ntempl PageView() {<h1>Settings</h1>}\n")
 	return root
+}
+
+func writeTemplToolModule(t *testing.T, root string, module string) string {
+	t.Helper()
+
+	goMod := readRepoFile(t, "go.mod")
+	const repoModule = "module github.com/mobiletoly/goldr"
+	if !strings.HasPrefix(goMod, repoModule+"\n") {
+		t.Fatalf("repo go.mod = %q, want module header %q", goMod, repoModule)
+	}
+	goMod = strings.Replace(goMod, repoModule, "module "+module, 1)
+	writeFile(t, root, "go.mod", goMod)
+	writeFile(t, root, "go.sum", readRepoFile(t, "go.sum"))
+	return goMod
+}
+
+func readRepoFile(t *testing.T, name string) string {
+	t.Helper()
+
+	content, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(name)))
+	if err != nil {
+		t.Fatalf("ReadFile(repo %s) error = %v", name, err)
+	}
+	return string(content)
+}
+
+func runTemplGenerate(t *testing.T, root string) {
+	t.Helper()
+
+	command := exec.Command("go", "tool", "templ", "generate", "-path", ".")
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go tool templ generate error = %v\n%s", err, output)
+	}
 }
 
 func writeFile(t *testing.T, root string, name string, content string) {

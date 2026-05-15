@@ -144,10 +144,12 @@ It checks:
 - page, layout, and fragment `.go` / `.templ` pairs
 - route dispatch generation readiness
 - URL helper generation readiness
+- freshness of templ-generated files
 - freshness of `app/routes/goldr_gen.go` and `app/urls/goldr_gen.go`
 
 It prints nothing and exits `0` when the app is clean. It reports diagnostics
-to stderr and exits non-zero when validation fails.
+to stderr and exits non-zero when validation fails. It requires the app-local
+templ tool added with `go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020`.
 
 Diagnostic categories:
 
@@ -159,6 +161,7 @@ Diagnostic categories:
 | `GOLDR004` | Generated route dispatch is not ready. |
 | `GOLDR005` | Generated URL helpers are not ready. |
 | `GOLDR006` | A goldr-owned generated file is missing or stale. |
+| `GOLDR007` | templ is unavailable, or a templ-generated file is missing or stale. |
 
 Examples:
 
@@ -166,9 +169,11 @@ Examples:
 app/routes/Users: GOLDR002 static route directories must use lowercase Go-safe names
 app/routes/page.go: GOLDR003 page /: missing matching .templ file
 GOLDR006 app/routes/goldr_gen.go is stale
+GOLDR007 templ generated files are not up to date; run go tool templ generate
 ```
 
-`goldr check` does not run templ generation, tests, or the application server.
+`goldr check` runs templ check mode. It does not write templ output, run tests,
+or start the application server.
 
 ## Assets
 

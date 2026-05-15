@@ -49,6 +49,9 @@ go tool goldr check
 go test ./...
 ```
 
+`goldr check` also runs templ check mode, so stale or missing `*_templ.go`
+files fail the loop without rewriting files.
+
 If this app has project-specific scripts, use those scripts instead of the raw
 commands above.
 
