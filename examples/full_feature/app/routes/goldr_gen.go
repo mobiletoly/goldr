@@ -15,7 +15,6 @@
 package routes
 
 import (
-	"bytes"
 	"net/http"
 	"net/url"
 	"strings"
@@ -71,7 +70,7 @@ type goldrRenderUnit struct {
 type ErrorHandlers struct {
 	NotFound            http.HandlerFunc
 	MethodNotAllowed    http.HandlerFunc
-	InternalServerError http.HandlerFunc
+	InternalServerError func(http.ResponseWriter, *http.Request, error)
 }
 
 var goldrGeneratedManifest = goldrManifest{
@@ -183,17 +182,23 @@ func HandlerWithErrors(handlers ErrorHandlers) http.Handler {
 func goldrDispatchRoot(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 0 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
+			// page GET,HEAD /
+			// expected in file: app/routes/page.go
+			// expected function: func Page(*http.Request) goldr.Page { ... }
 			page := Page(r)
 			component := page.Component
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			layoutContext := goldr.LayoutContext{Metadata: page.Metadata}
 			layoutContext.Child = component
+			// layout /
+			// expected in file: app/routes/layout.go
+			// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 			component = Layout(r, layoutContext)
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			goldrWriteResponse(handlers, w, r, component)
@@ -221,17 +226,23 @@ func goldrDispatchRootStaticSettings(handlers ErrorHandlers, w http.ResponseWrit
 	}
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
+			// page GET,HEAD /settings
+			// expected in file: app/routes/settings/page.go
+			// expected function: func Page(*http.Request) goldr.Page { ... }
 			page := goldrroute_settings.Page(r)
 			component := page.Component
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			layoutContext := goldr.LayoutContext{Metadata: page.Metadata}
 			layoutContext.Child = component
+			// layout /
+			// expected in file: app/routes/layout.go
+			// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 			component = Layout(r, layoutContext)
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			goldrWriteResponse(handlers, w, r, component)
@@ -251,23 +262,32 @@ func goldrDispatchRootStaticUsers(handlers ErrorHandlers, w http.ResponseWriter,
 	}
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
+			// page GET,HEAD /users
+			// expected in file: app/routes/users/page.go
+			// expected function: func Page(*http.Request) goldr.Page { ... }
 			page := goldrroute_users.Page(r)
 			component := page.Component
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			layoutContext := goldr.LayoutContext{Metadata: page.Metadata}
 			layoutContext.Child = component
+			// layout /users
+			// expected in file: app/routes/users/layout.go
+			// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 			component = goldrroute_users.Layout(r, layoutContext)
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			layoutContext.Child = component
+			// layout /
+			// expected in file: app/routes/layout.go
+			// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 			component = Layout(r, layoutContext)
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			goldrWriteResponse(handlers, w, r, component)
@@ -302,6 +322,9 @@ func goldrDispatchRootStaticUsersStaticCreate(handlers ErrorHandlers, w http.Res
 	}
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
+			// action POST /users/create
+			// expected in file: app/routes/users/actions.go
+			// expected function: func PostCreate(http.ResponseWriter, *http.Request) { ... }
 			goldrroute_users.PostCreate(w, r)
 			return
 		}
@@ -319,9 +342,12 @@ func goldrDispatchRootStaticUsersStaticFragTable(handlers ErrorHandlers, w http.
 	}
 	if len(segments) == 2 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
+			// fragment GET,HEAD /users/frag-table
+			// expected in file: app/routes/users/frag_table.go
+			// expected function: func FragTable(*http.Request) templ.Component { ... }
 			component := goldrroute_users.FragTable(r)
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			goldrWriteResponse(handlers, w, r, component)
@@ -341,6 +367,9 @@ func goldrDispatchRootStaticUsersStaticSavePreview(handlers ErrorHandlers, w htt
 	}
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
+			// action POST /users/save-preview
+			// expected in file: app/routes/users/actions.go
+			// expected function: func PostSavePreview(http.ResponseWriter, *http.Request) { ... }
 			goldrroute_users.PostSavePreview(w, r)
 			return
 		}
@@ -364,23 +393,32 @@ func goldrDispatchRootStaticUsersParamID(handlers ErrorHandlers, w http.Response
 		}
 		r.SetPathValue("id", goldrParam0)
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
+			// page GET,HEAD /users/{id}
+			// expected in file: app/routes/users/by_id/page.go
+			// expected function: func Page(*http.Request) goldr.Page { ... }
 			page := goldrroute_users_by_id.Page(r)
 			component := page.Component
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			layoutContext := goldr.LayoutContext{Metadata: page.Metadata}
 			layoutContext.Child = component
+			// layout /users
+			// expected in file: app/routes/users/layout.go
+			// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 			component = goldrroute_users.Layout(r, layoutContext)
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			layoutContext.Child = component
+			// layout /
+			// expected in file: app/routes/layout.go
+			// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 			component = Layout(r, layoutContext)
 			if component == nil {
-				goldrInternalServerError(handlers, w, r)
+				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
 			goldrWriteResponse(handlers, w, r, component)
@@ -409,9 +447,9 @@ func goldrMethodNotAllowed(handlers ErrorHandlers, w http.ResponseWriter, r *htt
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 
-func goldrInternalServerError(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request) {
+func goldrInternalServerError(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, err error) {
 	if handlers.InternalServerError != nil {
-		handlers.InternalServerError(w, r)
+		handlers.InternalServerError(w, r, err)
 		return
 	}
 	http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -433,15 +471,10 @@ func goldrPathParam(segment string) (string, bool) {
 }
 
 func goldrWriteResponse(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, component templ.Component) {
-	var body bytes.Buffer
-	if err := component.Render(r.Context(), &body); err != nil {
-		goldrInternalServerError(handlers, w, r)
+	response, err := goldr.Render(r, component)
+	if err != nil {
+		goldrInternalServerError(handlers, w, r, err)
 		return
 	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if r.Method == http.MethodHead {
-		return
-	}
-	_, _ = body.WriteTo(w)
+	_ = response.Write(w, r)
 }

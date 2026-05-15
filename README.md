@@ -318,15 +318,21 @@ templ DirectoryView() {
 }
 ```
 
-Handlers that need HTMX response headers can use the small `hx` package:
+Handlers that need HTMX response headers can use the small `hx` package after
+`goldr.Render` has buffered the templ response:
 
 ```go
 func PostCreate(w http.ResponseWriter, r *http.Request) {
-hx.Retarget(w, "#users-table")
-hx.Reswap(w, "outerHTML")
-hx.Trigger(w, "user:created")
+	response, err := goldr.Render(r, UsersTable())
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 
-_ = UsersTable().Render(r.Context(), w)
+	hx.Retarget(w, "#users-table")
+	hx.Reswap(w, "outerHTML")
+	hx.Trigger(w, "user:created")
+	_ = response.Write(w, r)
 }
 ```
 

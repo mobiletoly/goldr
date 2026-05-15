@@ -70,6 +70,46 @@ package routes
 	}
 }
 
+func TestGenerateManifestWritesCallSiteComments(t *testing.T) {
+	source := trimGeneratedLineIndent(generateOK(t, routing.Manifest{
+		Pages: []routing.ManifestPage{
+			{Route: "/users", Unit: completeUnit("users/page.go")},
+		},
+		Layouts: []routing.ManifestLayout{
+			{RoutePrefix: "/users", Unit: completeUnit("users/layout.go")},
+		},
+		Fragments: []routing.ManifestFragment{
+			{Name: "table", RoutePrefix: "/users", Unit: completeUnit("users/frag_table.go")},
+		},
+		Actions: []routing.ManifestAction{
+			{Method: "POST", Route: "/users/save-preview", GoFile: "users/actions.go", Function: "PostSavePreview"},
+		},
+	}))
+
+	for _, want := range []string{
+		`// page GET,HEAD /users
+// expected in file: app/routes/users/page.go
+// expected function: func Page(*http.Request) goldr.Page { ... }
+page := goldrroute_users.Page(r)`,
+		`// layout /users
+// expected in file: app/routes/users/layout.go
+// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
+component = goldrroute_users.Layout(r, layoutContext)`,
+		`// fragment GET,HEAD /users/frag-table
+// expected in file: app/routes/users/frag_table.go
+// expected function: func FragTable(*http.Request) templ.Component { ... }
+component := goldrroute_users.FragTable(r)`,
+		`// action POST /users/save-preview
+// expected in file: app/routes/users/actions.go
+// expected function: func PostSavePreview(http.ResponseWriter, *http.Request) { ... }
+goldrroute_users.PostSavePreview(w, r)`,
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("generated source missing call-site comment block:\n--- want ---\n%s\n--- source ---\n%s", want, source)
+		}
+	}
+}
+
 func TestGenerateManifestIsDeterministic(t *testing.T) {
 	manifest := runtimeManifest()
 	first := generateOK(t, manifest)
@@ -768,9 +808,12 @@ func FragNil(r *http.Request) templ.Component {
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/mobiletoly/goldr"
 )
 
 func TestCustomErrorHandlers(t *testing.T) {
@@ -783,7 +826,10 @@ func TestCustomErrorHandlers(t *testing.T) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			_, _ = w.Write([]byte("allow " + w.Header().Get("Allow")))
 		},
-		InternalServerError: func(w http.ResponseWriter, r *http.Request) {
+		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
+			if !errors.Is(err, goldr.ErrNilComponent) {
+				t.Fatalf("internal error = %v, want ErrNilComponent", err)
+			}
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte("custom boom"))
 		},
@@ -1239,9 +1285,13 @@ func FragFail(r *http.Request) templ.Component {
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/mobiletoly/goldr"
 )
 
 func TestFragmentRenderFailures(t *testing.T) {
@@ -1251,6 +1301,29 @@ func TestFragmentRenderFailures(t *testing.T) {
 		if recorder.Code != http.StatusInternalServerError {
 			t.Fatalf("%s status = %d, want %d", path, recorder.Code, http.StatusInternalServerError)
 		}
+	}
+}
+
+func TestFragmentRenderFailureErrorsReachHandler(t *testing.T) {
+	var internalErr error
+	handler := HandlerWithErrors(ErrorHandlers{
+		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
+			internalErr = err
+			w.WriteHeader(http.StatusInternalServerError)
+		},
+	})
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/frag-nil", nil))
+	if !errors.Is(internalErr, goldr.ErrNilComponent) {
+		t.Fatalf("nil component error = %v, want ErrNilComponent", internalErr)
+	}
+
+	internalErr = nil
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/frag-fail", nil))
+	if internalErr == nil || !strings.Contains(internalErr.Error(), "render failed") {
+		t.Fatalf("render error = %v, want render failed", internalErr)
 	}
 }
 `)
@@ -1410,6 +1483,14 @@ func generateURLHelpersOK(t *testing.T, manifest routing.Manifest) string {
 		t.Fatalf("GenerateURLHelpers() error = %v, want nil", err)
 	}
 	return string(source)
+}
+
+func trimGeneratedLineIndent(source string) string {
+	lines := strings.Split(source, "\n")
+	for index, line := range lines {
+		lines[index] = strings.TrimLeft(line, "\t ")
+	}
+	return strings.Join(lines, "\n")
 }
 
 func tempGoldrModule(t *testing.T) string {

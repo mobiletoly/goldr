@@ -258,7 +258,7 @@ Each hook is optional:
 type ErrorHandlers struct {
 	NotFound            http.HandlerFunc
 	MethodNotAllowed    http.HandlerFunc
-	InternalServerError http.HandlerFunc
+	InternalServerError func(http.ResponseWriter, *http.Request, error)
 }
 ```
 
@@ -270,6 +270,9 @@ Nil hooks keep goldr defaults:
 
 Generated `405` responses set the `Allow` header before calling a custom
 `MethodNotAllowed` hook.
+
+Custom internal-server-error hooks receive `goldr.ErrNilComponent` for nil
+render units or the underlying templ render error.
 
 Action error responses and static asset error responses are application-owned.
 

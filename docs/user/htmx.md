@@ -45,15 +45,21 @@ package users
 import (
 	"net/http"
 
+	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/hx"
 )
 
 func PostCreate(w http.ResponseWriter, r *http.Request) {
+	response, err := goldr.Render(r, UsersTable())
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	hx.Retarget(w, "#users-table")
 	hx.Reswap(w, "outerHTML")
 	hx.Trigger(w, "user:created")
-
-	_ = UsersTable().Render(r.Context(), w)
+	_ = response.Write(w, r)
 }
 ```
 
@@ -68,6 +74,15 @@ func FragTable(r *http.Request) templ.Component
 
 Use actions when a route-local mutation needs to set headers, parse forms, or
 redisplay partial HTML.
+
+For default templ HTML action responses, `goldr.Render` buffers the component
+and returns an error if rendering fails. After a successful render, set any
+headers, then call `response.Write(w, r)`. Use
+`response.WriteStatus(w, r, status)` when the HTML response needs a non-200
+status. Both write methods set `Content-Type: text/html; charset=utf-8` before
+writing status or body, and both skip the body for `HEAD`. `goldr.Render` does
+not set HTMX headers, parse forms, redirect, or choose application status
+codes.
 
 ## Request Helpers
 
@@ -136,6 +151,7 @@ See package documentation or completion for the full list.
 
 - `hx-get` and `hx-post` in templates
 - `HX-Trigger`, `HX-Retarget`, and `HX-Reswap` in action handlers
+- `goldr.Render` for action-owned templ HTML responses
 - fragment rendering for `/users/frag-table`
 - form redisplay from `/users/create`
 

@@ -192,9 +192,6 @@ func writeImports(buffer *bytes.Buffer, imports []routeImport, needsDynamicRoute
 	}
 
 	buffer.WriteString("import (\n")
-	if needsRender {
-		buffer.WriteString("\t\"bytes\"\n")
-	}
 	buffer.WriteString("\t\"net/http\"\n")
 	if needsDynamicRoutes {
 		buffer.WriteString("\t\"net/url\"\n")
@@ -206,7 +203,7 @@ func writeImports(buffer *bytes.Buffer, imports []routeImport, needsDynamicRoute
 	if needsRender {
 		buffer.WriteString("\t\"github.com/a-h/templ\"\n")
 	}
-	if needsLayoutContext {
+	if needsRender || needsLayoutContext {
 		buffer.WriteString("\t\"github.com/mobiletoly/goldr\"\n")
 	}
 	for _, item := range imports {
@@ -262,7 +259,7 @@ type goldrRenderUnit struct {
 		buffer.WriteString(`type ErrorHandlers struct {
 	NotFound            http.HandlerFunc
 	MethodNotAllowed    http.HandlerFunc
-	InternalServerError http.HandlerFunc
+	InternalServerError func(http.ResponseWriter, *http.Request, error)
 }
 
 `)
@@ -373,9 +370,9 @@ func goldrMethodNotAllowed(handlers ErrorHandlers, w http.ResponseWriter, r *htt
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 
-func goldrInternalServerError(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request) {
+func goldrInternalServerError(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, err error) {
 	if handlers.InternalServerError != nil {
-		handlers.InternalServerError(w, r)
+		handlers.InternalServerError(w, r, err)
 		return
 	}
 	http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -408,17 +405,12 @@ func goldrPathParam(segment string) (string, bool) {
 	if hasRenderRoutes(routes) {
 		buffer.WriteString(`
 func goldrWriteResponse(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, component templ.Component) {
-	var body bytes.Buffer
-	if err := component.Render(r.Context(), &body); err != nil {
-		goldrInternalServerError(handlers, w, r)
+	response, err := goldr.Render(r, component)
+	if err != nil {
+		goldrInternalServerError(handlers, w, r, err)
 		return
 	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if r.Method == http.MethodHead {
-		return
-	}
-	_, _ = body.WriteTo(w)
+	_ = response.Write(w, r)
 }
 `)
 	}
@@ -638,6 +630,7 @@ func writeMethodDispatch(buffer *bytes.Buffer, route runtimeRoute, indent string
 	methodConst := httpMethodConst(route.action.action.Method)
 	fmt.Fprintf(buffer, "%sif r.Method == %s {\n", indent, methodConst)
 	actionCall := routeFunc(route.action.action.GoFile, route.action.action.Function)
+	writeActionCallComment(buffer, indent+"\t", route.action.action)
 	fmt.Fprintf(buffer, "%s\t%s(w, r)\n", indent, actionCall)
 	fmt.Fprintf(buffer, "%s\treturn\n", indent)
 	fmt.Fprintf(buffer, "%s}\n", indent)
@@ -646,14 +639,16 @@ func writeMethodDispatch(buffer *bytes.Buffer, route runtimeRoute, indent string
 func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, indent string) {
 	if route.page != nil {
 		pageCall := routeFunc(route.page.page.Unit.GoFile, "Page")
+		writePageCallComment(buffer, indent, route.page.page)
 		fmt.Fprintf(buffer, "%spage := %s(r)\n", indent, pageCall)
 		fmt.Fprintf(buffer, "%scomponent := page.Component\n", indent)
 	} else {
 		fragmentCall := routeFunc(route.fragment.fragment.Unit.GoFile, fragmentFuncName(route.fragment.fragment.Name))
+		writeFragmentCallComment(buffer, indent, *route.fragment)
 		fmt.Fprintf(buffer, "%scomponent := %s(r)\n", indent, fragmentCall)
 	}
 	fmt.Fprintf(buffer, "%sif component == nil {\n", indent)
-	fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(handlers, w, r)\n", indent)
+	fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)\n", indent)
 	fmt.Fprintf(buffer, "%s\treturn\n", indent)
 	fmt.Fprintf(buffer, "%s}\n", indent)
 	if route.page != nil {
@@ -663,15 +658,46 @@ func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, indent string) {
 		for index := len(route.page.layouts) - 1; index >= 0; index-- {
 			layoutCall := routeFunc(route.page.layouts[index].Unit.GoFile, "Layout")
 			fmt.Fprintf(buffer, "%slayoutContext.Child = component\n", indent)
+			writeLayoutCallComment(buffer, indent, route.page.layouts[index])
 			fmt.Fprintf(buffer, "%scomponent = %s(r, layoutContext)\n", indent, layoutCall)
 			fmt.Fprintf(buffer, "%sif component == nil {\n", indent)
-			fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(handlers, w, r)\n", indent)
+			fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)\n", indent)
 			fmt.Fprintf(buffer, "%s\treturn\n", indent)
 			fmt.Fprintf(buffer, "%s}\n", indent)
 		}
 	}
 	fmt.Fprintf(buffer, "%sgoldrWriteResponse(handlers, w, r, component)\n", indent)
 	fmt.Fprintf(buffer, "%sreturn\n", indent)
+}
+
+func writePageCallComment(buffer *bytes.Buffer, indent string, page routing.ManifestPage) {
+	writeExpectedCallComment(buffer, indent, "page GET,HEAD "+page.Route, page.Unit.GoFile, "func Page(*http.Request) goldr.Page { ... }")
+}
+
+func writeFragmentCallComment(buffer *bytes.Buffer, indent string, fragment runtimeFragment) {
+	function := fragmentFuncName(fragment.fragment.Name)
+	signature := fmt.Sprintf("func %s(*http.Request) templ.Component { ... }", function)
+	writeExpectedCallComment(buffer, indent, "fragment GET,HEAD "+fragment.route, fragment.fragment.Unit.GoFile, signature)
+}
+
+func writeLayoutCallComment(buffer *bytes.Buffer, indent string, layout routing.ManifestLayout) {
+	writeExpectedCallComment(buffer, indent, "layout "+layout.RoutePrefix, layout.Unit.GoFile, "func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }")
+}
+
+func writeActionCallComment(buffer *bytes.Buffer, indent string, action routing.ManifestAction) {
+	summary := fmt.Sprintf("action %s %s", action.Method, action.Route)
+	signature := fmt.Sprintf("func %s(http.ResponseWriter, *http.Request) { ... }", action.Function)
+	writeExpectedCallComment(buffer, indent, summary, action.GoFile, signature)
+}
+
+func writeExpectedCallComment(buffer *bytes.Buffer, indent, summary, goFile, signature string) {
+	fmt.Fprintf(buffer, "%s// %s\n", indent, summary)
+	fmt.Fprintf(buffer, "%s// expected in file: %s\n", indent, appRouteGoFile(goFile))
+	fmt.Fprintf(buffer, "%s// expected function: %s\n", indent, signature)
+}
+
+func appRouteGoFile(goFile string) string {
+	return path.Join("app/routes", goFile)
 }
 
 func paramSegmentIndex(segments []string, name string, fallback int) int {

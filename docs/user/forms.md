@@ -22,14 +22,24 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 
 	form = form.WithErrors(errors)
 	if form.HasErrors() {
+		response, err := goldr.Render(r, UserForm(form))
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
 		hx.Retarget(w, "#user-form")
 		hx.Reswap(w, "outerHTML")
-		_ = UserForm(form).Render(r.Context(), w)
+		_ = response.Write(w, r)
 		return
 	}
 
 	// Application-owned persistence happens here.
-	_ = UsersTable().Render(r.Context(), w)
+	response, err := goldr.Render(r, UsersTable())
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	_ = response.Write(w, r)
 }
 ```
 
@@ -81,13 +91,19 @@ parse a form, set headers, or redisplay partial HTML.
 For HTMX redisplay, combine `bind` with `hx` response headers:
 
 ```go
+response, err := goldr.Render(r, UserForm(form))
+if err != nil {
+	http.Error(w, "internal server error", http.StatusInternalServerError)
+	return
+}
 hx.Retarget(w, "#user-form")
 hx.Reswap(w, "outerHTML")
-_ = UserForm(form).Render(r.Context(), w)
+_ = response.Write(w, r)
 ```
 
 goldr does not validate required fields, allowed values, CSRF tokens, or
-business rules. Applications own those decisions.
+business rules. Applications own those decisions. `goldr.Render` only provides
+the default buffered templ HTML response.
 
 ## Runnable Example
 

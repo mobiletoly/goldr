@@ -55,6 +55,11 @@
 // action, such as PostCreate, colocated with the route they mutate. HTMX
 // attributes should stay visible in templ files.
 //
+// Action handlers that redisplay templ HTML can call Render to buffer the
+// component response, handle render errors, set response headers, then write
+// the buffered response. Use HTMLResponse.WriteStatus when rendered HTML needs
+// a non-200 status.
+//
 // Static assets are application-owned and should not live under app/routes. For
 // production cache safety, write final browser-ready files to assets/build,
 // then run:

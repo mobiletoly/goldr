@@ -542,6 +542,13 @@ path, source, and URL helper expression. Layout rows use `-` for methods and
 helper because layouts are generated wiring surface, not standalone routes.
 The comment is for reviewability only; runtime code does not read it.
 
+Generated route dispatch also emits a short contract comment immediately above
+each call into app-owned route code. These call-site comments name the route
+kind and path, the expected `app/routes/...` file, and the expected function
+signature for page, fragment, layout, and action functions. The comments are
+for compiler-error locality and generated-source inspectability only; runtime
+code does not read them.
+
 ## Middleware And Static Assets
 
 Generated route dispatch is an ordinary `http.Handler`.
@@ -635,8 +642,8 @@ The generated handler supports `GET` and `HEAD` for matched page routes.
 It returns:
 - `404` for unmatched paths
 - `405` with `Allow: GET, HEAD` for unsupported methods on matched paths
-- plain `500` for nil page components, nil layout components, or templ render
-  errors
+- plain `500` by default for nil page components, nil layout components, or
+  templ render errors
 
 Successful page responses use:
 
@@ -695,7 +702,7 @@ The generated handler supports `GET` and `HEAD` for matched fragment routes.
 It returns:
 - `404` for unmatched paths
 - `405` with `Allow: GET, HEAD` for unsupported methods on matched paths
-- plain `500` for nil fragment components or templ render errors
+- plain `500` by default for nil fragment components or templ render errors
 
 Successful fragment responses use:
 
@@ -758,7 +765,7 @@ Generated route packages expose:
 type ErrorHandlers struct {
 	NotFound            http.HandlerFunc
 	MethodNotAllowed    http.HandlerFunc
-	InternalServerError http.HandlerFunc
+	InternalServerError func(http.ResponseWriter, *http.Request, error)
 }
 ```
 
@@ -772,8 +779,9 @@ The generated method-not-allowed helper runs after dispatch sets the `Allow`
 header for the matched path.
 
 The generated internal-server-error helper handles nil page, layout, or
-fragment components and templ render failures. It does not receive the
-underlying error.
+fragment components and templ render failures. Custom hooks receive
+`goldr.ErrNilComponent` for nil render units or the underlying templ render
+error.
 
 Action handlers are called directly and remain responsible for their own error
 responses. Static assets are application-owned and are outside this generated

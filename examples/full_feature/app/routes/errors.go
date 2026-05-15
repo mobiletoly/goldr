@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"bytes"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -23,13 +22,11 @@ func NotFoundPage(r *http.Request) templ.Component {
 }
 
 func renderError(w http.ResponseWriter, r *http.Request, status int, component templ.Component) {
-	var body bytes.Buffer
-	if err := component.Render(r.Context(), &body); err != nil {
+	response, err := goldr.Render(r, component)
+	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(status)
-	_, _ = body.WriteTo(w)
+	_ = response.WriteStatus(w, r, status)
 }
