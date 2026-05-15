@@ -103,7 +103,9 @@ _ = response.Write(w, r)
 
 goldr does not validate required fields, allowed values, CSRF tokens, or
 business rules. Applications own those decisions. `goldr.Render` only provides
-the default buffered templ HTML response.
+the default buffered templ HTML response. If redisplayed HTML should use a
+non-200 status such as `422`, set response headers first and then call
+`response.WriteStatus(w, r, status)`.
 
 ## Runnable Example
 

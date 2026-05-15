@@ -336,6 +336,9 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+Use `response.WriteStatus(w, r, status)` for rendered HTML that needs a
+non-200 status. Set HTMX and other response headers before either write method.
+
 ## Try the Full Example
 
 From a goldr checkout, run the full-feature example:

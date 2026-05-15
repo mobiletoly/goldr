@@ -99,26 +99,39 @@ func TestHTMLResponseAllowsHeadersAfterRenderBeforeWrite(t *testing.T) {
 	}
 }
 
-func TestHTMLResponseWriteStatusSetsContentTypeBeforeStatus(t *testing.T) {
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
-	response, err := Render(request, stringComponent("<p>Missing</p>"))
-	if err != nil {
-		t.Fatalf("Render() error = %v, want nil", err)
+func TestHTMLResponseWriteStatus(t *testing.T) {
+	tests := []struct {
+		name     string
+		method   string
+		wantBody string
+	}{
+		{name: "get", method: http.MethodGet, wantBody: "<p>Missing</p>"},
+		{name: "head", method: http.MethodHead, wantBody: ""},
 	}
 
-	recorder := httptest.NewRecorder()
-	if err := response.WriteStatus(recorder, request, http.StatusNotFound); err != nil {
-		t.Fatalf("WriteStatus() error = %v, want nil", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequestWithContext(context.Background(), tt.method, "/", nil)
+			response, err := Render(request, stringComponent("<p>Missing</p>"))
+			if err != nil {
+				t.Fatalf("Render() error = %v, want nil", err)
+			}
 
-	if got := recorder.Result().StatusCode; got != http.StatusNotFound {
-		t.Fatalf("status = %d, want %d", got, http.StatusNotFound)
-	}
-	if got := recorder.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
-		t.Fatalf("content-type = %q, want text/html; charset=utf-8", got)
-	}
-	if got := recorder.Body.String(); got != "<p>Missing</p>" {
-		t.Fatalf("body = %q, want rendered HTML", got)
+			recorder := httptest.NewRecorder()
+			if err := response.WriteStatus(recorder, request, http.StatusNotFound); err != nil {
+				t.Fatalf("WriteStatus() error = %v, want nil", err)
+			}
+
+			if got := recorder.Result().StatusCode; got != http.StatusNotFound {
+				t.Fatalf("status = %d, want %d", got, http.StatusNotFound)
+			}
+			if got := recorder.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+				t.Fatalf("content-type = %q, want text/html; charset=utf-8", got)
+			}
+			if got := recorder.Body.String(); got != tt.wantBody {
+				t.Fatalf("body = %q, want %q", got, tt.wantBody)
+			}
+		})
 	}
 }
 

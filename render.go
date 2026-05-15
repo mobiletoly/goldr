@@ -47,6 +47,10 @@ func (response HTMLResponse) Write(w http.ResponseWriter, r *http.Request) error
 }
 
 // WriteStatus writes a buffered HTML response with an explicit HTTP status.
+//
+// WriteStatus sets Content-Type before committing the status. Use it instead
+// of calling http.ResponseWriter.WriteHeader before Write when rendered HTML
+// needs a non-200 response.
 func (response HTMLResponse) WriteStatus(w http.ResponseWriter, r *http.Request, status int) error {
 	return response.write(w, r, status, true)
 }
