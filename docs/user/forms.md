@@ -70,6 +70,13 @@ standard library memory threshold for multipart parsing. It is not a hard
 request-size limit. Use `http.MaxBytesReader` before parsing when the
 application needs a total request-size limit.
 
+For HTMX multipart submissions, set both ordinary HTML form encoding and HTMX
+request encoding:
+
+```html
+<form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post="/users/create">
+```
+
 ## Read Values
 
 Read values explicitly:

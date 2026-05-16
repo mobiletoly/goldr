@@ -65,6 +65,7 @@ func TestHandlerGetPages(t *testing.T) {
 				`<title>Users - Goldr Example</title>`,
 				`<meta name="description" content="Browse and manage example contacts.">`,
 				`hx-post="/users/create"`,
+				`hx-encoding="multipart/form-data"`,
 				`href="/users/42"`,
 				`<a href="/users" aria-current="page">Users</a>`,
 				`name="name"`,
@@ -110,7 +111,8 @@ func TestHandlerGetPages(t *testing.T) {
 			}
 			if test.wantCSS {
 				for _, want := range []string{
-					`src="https://unpkg.com/htmx.org@2.0.4"`,
+					`src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3"`,
+					`integrity="sha384-bq4nTap5u8w4XlVP8JHkDioQVZBI5wUx5PxNwlbCq27H5QJ+q0CSeJcTYU+PLdCp"`,
 					`href="` + assets.Path("app.css") + `"`,
 					`src="` + assets.Path("app.js") + `"`,
 					`data-js-enhance="open-users"`,

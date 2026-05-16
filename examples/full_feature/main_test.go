@@ -269,6 +269,9 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 	if !strings.Contains(string(jsBody), `dataset.goldrJs = "ready"`) {
 		t.Fatalf("js body = %q", jsBody)
 	}
+	if strings.Contains(string(jsBody), "htmx:beforeSwap") {
+		t.Fatalf("js body = %q, want htmx 4 validation responses without custom swap handling", jsBody)
+	}
 
 	missingRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+"/missing", nil)
 	if err != nil {

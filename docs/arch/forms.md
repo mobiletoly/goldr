@@ -41,4 +41,6 @@ errors before anything is written. Actions handle those errors, set headers
 after successful rendering, then write the buffered response. Actions use the
 status-aware write method when rendered HTML needs a non-200 status. The helper
 does not set HTMX headers, inspect form state, or replace action-owned response
-control.
+control. htmx 4 swaps validation statuses such as `422` by default, so
+applications do not need custom client response handling for ordinary form
+redisplay.

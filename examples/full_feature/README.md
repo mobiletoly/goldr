@@ -84,6 +84,7 @@ Post to `/users/save-preview` to see `HX-Trigger`, `HX-Retarget`, and
 `app/routes/users/actions.go`.
 
 Post to `/users/create` with multipart `name`, `status`, and optional `avatar`
-fields to see form parsing, app-owned request-size limiting, field-error
-redisplay with `422`, optional upload filename display, and successful HTMX
-replacement from `users.PostCreate` in `app/routes/users/actions.go`.
+fields to see `hx-encoding="multipart/form-data"`, form parsing, app-owned
+request-size limiting, field-error redisplay with `422`, optional upload
+filename display, and successful HTMX replacement from `users.PostCreate` in
+`app/routes/users/actions.go`.

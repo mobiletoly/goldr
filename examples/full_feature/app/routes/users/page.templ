@@ -14,7 +14,7 @@ templ PageView(form bind.Form, contacts []Contact) {
 
 templ DirectoryView(form bind.Form, contacts []Contact) {
 	<section id="users-directory">
-		<form method="post" enctype="multipart/form-data" hx-post={ urls.Users.Create.Path() } hx-target="#users-directory" hx-swap="outerHTML">
+		<form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post={ urls.Users.Create.Path() } hx-target="#users-directory" hx-swap="outerHTML">
 			<div>
 				<label for="contact-name">Name</label>
 				<input id="contact-name" name="name" value={ form.Value("name") }/>
