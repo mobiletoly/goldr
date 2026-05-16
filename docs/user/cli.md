@@ -78,7 +78,8 @@ For a manual first-app walkthrough, read [Getting Started](getting-started.md).
 
 ## Generate
 
-`goldr generate` scans `app/routes` and writes goldr-owned generated files:
+`goldr generate` runs templ generation, scans `app/routes`, and writes
+goldr-owned generated files:
 
 ```bash
 go tool goldr generate
@@ -98,16 +99,9 @@ go tool goldr generate --check
 go tool goldr generate --root examples/full_feature --check
 ```
 
-Check mode compares generated output with files on disk, reports stale or
-missing generated files, and exits non-zero without writing.
-
-`goldr generate` does not run templ generation. Run templ separately when
-`.templ` files change:
-
-```bash
-go tool templ generate
-go tool goldr generate
-```
+Check mode runs templ check mode, compares goldr-generated output with files on
+disk, reports stale or missing generated files, and exits non-zero without
+writing.
 
 ## Dev
 
@@ -173,7 +167,7 @@ Examples:
 app/routes/Users: GOLDR002 static route directories must use lowercase Go-safe names
 app/routes/page.go: GOLDR003 page /: missing matching .templ file
 GOLDR006 app/routes/goldr_gen.go is stale
-GOLDR007 templ generated files are not up to date; run go tool templ generate
+GOLDR007 templ generated files are not up to date; run go tool goldr generate
 GOLDR008 Goldr-managed assets are not current; run go tool goldr assets dist
 ```
 

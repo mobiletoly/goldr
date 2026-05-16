@@ -60,6 +60,11 @@
 // the buffered response. Use HTMLResponse.WriteStatus when rendered HTML needs
 // a non-200 status.
 //
+// For server-sent events, applications keep ownership of their stream routes,
+// mux registration, subscriber state, and replay policy. The sse package
+// provides only event-stream wire helpers for headers, comments, event fields,
+// templ-rendered HTML data, and flushing.
+//
 // Static assets are application-owned and should not live under app/routes. For
 // production cache safety, write final browser-ready files to assets/build,
 // then run:

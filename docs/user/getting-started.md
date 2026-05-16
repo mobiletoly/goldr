@@ -158,10 +158,9 @@ are not layout-wrapped.
 
 ## Generate And Run
 
-Generate templ output, generate goldr route wiring, validate, and run:
+Generate templ output and goldr route wiring, validate, and run:
 
 ```bash
-go tool templ generate
 go tool goldr generate
 go tool goldr check
 go run .
@@ -179,7 +178,6 @@ http://127.0.0.1:8080
 After route or template edits, use the same loop:
 
 ```bash
-go tool templ generate
 go tool goldr generate
 go tool goldr check
 go run .

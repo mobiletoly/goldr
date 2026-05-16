@@ -446,6 +446,12 @@ Each active spec should state whether it affects:
 - CLI help
 - package docs
 
+Specs that add or change exported Go packages, types, functions, methods,
+constants, or variables must require in-code Go documentation comments for the
+public interface. The only exception is when the spec explicitly explains why
+an exported identifier is self-evident and already covered by package
+documentation.
+
 If behavior changes, durable docs must change in the same implementation slice.
 
 If a spec changes supported user behavior, update `docs/user/` in the same slice.

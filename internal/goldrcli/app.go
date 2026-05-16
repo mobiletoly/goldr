@@ -79,11 +79,10 @@ func New(version string) *cli.Command {
 
 const rootDescription = `Goldr apps keep route source under app/routes and generate ordinary Go files for route dispatch and URL helpers.
 
-Common workflow:
-  go tool templ generate
-  go tool goldr generate
-  go tool goldr check
-  go test ./...
+   Common workflow:
+     go tool goldr generate
+     go tool goldr check
+     go test ./...
 
 Use "go tool goldr routes" to inspect the route tree before editing routes.
 Use "go tool goldr assets" only for final static files that already exist in assets/build.

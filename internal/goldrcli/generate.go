@@ -75,13 +75,28 @@ const generateDescription = `Scans app/routes and writes goldr-owned generated f
   app/routes/goldr_gen.go
   app/urls/goldr_gen.go
 
-Run templ separately before this command when .templ files changed:
-  go tool templ generate
+Before scanning routes, this command runs:
+  go tool templ generate -path .
 
-Use --check in CI to verify generated files without writing. This command does not run templ generation.`
+Use --check in CI to verify templ and goldr-generated files without writing.`
 
 func runGenerate(ctx context.Context, options generateOptions) error {
-	files, err := generateFiles(ctx, options.root)
+	paths, err := appPathsForRoot(ctx, options.root)
+	if err != nil {
+		return fmt.Errorf("goldr generate: %w", err)
+	}
+
+	if options.check {
+		if err := runTemplGenerateCheck(ctx, paths.root); err != nil {
+			return fmt.Errorf("goldr generate: %w", err)
+		}
+	} else {
+		if err := runTemplGenerateFiles(ctx, paths.root); err != nil {
+			return fmt.Errorf("goldr generate: %w", err)
+		}
+	}
+
+	files, err := generateFilesForPaths(paths)
 	if err != nil {
 		return fmt.Errorf("goldr generate: %w", err)
 	}
@@ -101,12 +116,58 @@ func runGenerate(ctx context.Context, options generateOptions) error {
 	return nil
 }
 
+func runTemplGenerateFiles(ctx context.Context, root string) error {
+	if err := checkTemplTool(ctx, root); err != nil {
+		return err
+	}
+
+	command := exec.CommandContext(ctx, "go", "tool", "templ", "generate", "-path", ".")
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+
+	var message strings.Builder
+	message.WriteString("templ generation failed")
+	if trimmed := strings.TrimSpace(string(output)); trimmed != "" {
+		message.WriteString("\n")
+		message.WriteString(trimmed)
+	}
+	return errors.New(message.String())
+}
+
+func runTemplGenerateCheck(ctx context.Context, root string) error {
+	if err := checkTemplTool(ctx, root); err != nil {
+		return err
+	}
+
+	command := exec.CommandContext(ctx, "go", "tool", "templ", "generate", "-check", "-path", ".")
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+
+	var message strings.Builder
+	message.WriteString("templ generated files are not up to date; run go tool goldr generate")
+	if trimmed := strings.TrimSpace(string(output)); trimmed != "" {
+		message.WriteString("\n")
+		message.WriteString(trimmed)
+	}
+	return errors.New(message.String())
+}
+
 func generateFiles(ctx context.Context, root string) ([]generatedFile, error) {
 	paths, err := appPathsForRoot(ctx, root)
 	if err != nil {
 		return nil, err
 	}
 
+	return generateFilesForPaths(paths)
+}
+
+func generateFilesForPaths(paths appPaths) ([]generatedFile, error) {
 	tree, err := routing.Scan(paths.routesDir)
 	if err != nil {
 		return nil, err

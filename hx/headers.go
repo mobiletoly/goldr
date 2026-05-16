@@ -1,6 +1,7 @@
 // Copyright 2026 Toly Pochkin
 // SPDX-License-Identifier: Apache-2.0
 
+// Package hx provides small helpers for HTMX request and response headers.
 package hx
 
 import (
@@ -8,28 +9,32 @@ import (
 	"strings"
 )
 
+// HeaderBoosted and the other request header constants name HTMX request
+// headers using Go's canonical HTTP header casing.
 const (
-	HeaderBoosted               = "HX-Boosted"
-	HeaderCurrentURL            = "HX-Current-URL"
-	HeaderHistoryRestoreRequest = "HX-History-Restore-Request"
-	HeaderPrompt                = "HX-Prompt"
-	HeaderRequest               = "HX-Request"
-	HeaderTarget                = "HX-Target"
-	HeaderTrigger               = "HX-Trigger"
-	HeaderTriggerName           = "HX-Trigger-Name"
+	HeaderBoosted               = "Hx-Boosted"
+	HeaderCurrentURL            = "Hx-Current-Url"
+	HeaderHistoryRestoreRequest = "Hx-History-Restore-Request"
+	HeaderPrompt                = "Hx-Prompt"
+	HeaderRequest               = "Hx-Request"
+	HeaderTarget                = "Hx-Target"
+	HeaderTrigger               = "Hx-Trigger"
+	HeaderTriggerName           = "Hx-Trigger-Name"
 )
 
+// HeaderLocation and the other response header constants name HTMX response
+// headers using Go's canonical HTTP header casing.
 const (
-	HeaderLocation           = "HX-Location"
-	HeaderPushURL            = "HX-Push-Url"
-	HeaderRedirect           = "HX-Redirect"
-	HeaderRefresh            = "HX-Refresh"
-	HeaderReplaceURL         = "HX-Replace-Url"
-	HeaderReselect           = "HX-Reselect"
-	HeaderRetarget           = "HX-Retarget"
-	HeaderReswap             = "HX-Reswap"
-	HeaderTriggerAfterSettle = "HX-Trigger-After-Settle"
-	HeaderTriggerAfterSwap   = "HX-Trigger-After-Swap"
+	HeaderLocation           = "Hx-Location"
+	HeaderPushURL            = "Hx-Push-Url"
+	HeaderRedirect           = "Hx-Redirect"
+	HeaderRefresh            = "Hx-Refresh"
+	HeaderReplaceURL         = "Hx-Replace-Url"
+	HeaderReselect           = "Hx-Reselect"
+	HeaderRetarget           = "Hx-Retarget"
+	HeaderReswap             = "Hx-Reswap"
+	HeaderTriggerAfterSettle = "Hx-Trigger-After-Settle"
+	HeaderTriggerAfterSwap   = "Hx-Trigger-After-Swap"
 )
 
 // IsRequest reports whether the request was made by HTMX.

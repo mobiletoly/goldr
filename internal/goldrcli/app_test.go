@@ -39,7 +39,6 @@ func TestRunHelp(t *testing.T) {
 			}
 			for _, want := range []string{
 				"Common workflow:",
-				"go tool templ generate",
 				"go tool goldr generate",
 				"go tool goldr check",
 				"go test ./...",
@@ -96,9 +95,8 @@ func TestRunGenerateHelpExplainsGeneratedFilesAndTemplBoundary(t *testing.T) {
 		[]string{"generate", "--help"},
 		"app/routes/goldr_gen.go",
 		"app/urls/goldr_gen.go",
-		"Run templ separately",
-		"go tool templ generate",
-		"does not run templ generation",
+		"go tool templ generate -path .",
+		"verify templ and goldr-generated files",
 	)
 }
 
@@ -111,7 +109,6 @@ func TestRunCheckHelpExplainsReadOnlyScope(t *testing.T) {
 		"goldr-generated file freshness",
 		"templ-generated file freshness",
 		"Goldr-managed asset freshness",
-		"go tool templ generate",
 		"go tool goldr generate",
 		"go tool goldr assets dist",
 		"does not run tests",
@@ -335,6 +332,8 @@ func TestRunGenerateWritesGeneratedFiles(t *testing.T) {
 	if !strings.Contains(routesSource, `"example.com/generateapp/app/routes/settings"`) {
 		t.Fatalf("%s = %q, want nested route import", routesFile, routesSource)
 	}
+	requireExistingFile(t, filepath.Join(root, "app", "routes", "page_templ.go"))
+	requireExistingFile(t, filepath.Join(root, "app", "routes", "settings", "page_templ.go"))
 
 	urlsFile := filepath.Join(root, "app", "urls", "goldr_gen.go")
 	urlsSource := readFile(t, urlsFile)
@@ -343,6 +342,30 @@ func TestRunGenerateWritesGeneratedFiles(t *testing.T) {
 	}
 	if !strings.Contains(urlsSource, `var Settings = newSettingsRoute()`) {
 		t.Fatalf("%s = %q, want settings helper", urlsFile, urlsSource)
+	}
+}
+
+func TestRunGenerateReportsMissingTemplTool(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "go.mod", "module example.com/notempltool\n\ngo 1.26.3\n")
+	writeFile(t, root, "app/routes/page.go", "package routes\n")
+	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev")
+
+	if code != 1 {
+		t.Fatalf("Run(generate) exit code = %d, want 1", code)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	errText := stderr.String()
+	for _, want := range []string{"goldr generate:", "go tool templ is not available", templToolInstallCommand} {
+		if !strings.Contains(errText, want) {
+			t.Fatalf("stderr = %q, want %q", errText, want)
+		}
 	}
 }
 
@@ -367,6 +390,34 @@ func TestRunGenerateCheck(t *testing.T) {
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+func TestRunGenerateCheckReportsStaleTemplGeneratedFiles(t *testing.T) {
+	root := tempGenerateApp(t)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev"); code != 0 {
+		t.Fatalf("generate exit code = %d; stderr = %q", code, stderr.String())
+	}
+	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {<h1>Changed</h1>}\n")
+
+	stdout.Reset()
+	stderr.Reset()
+	code := Run(context.Background(), []string{"goldr", "generate", "--root", root, "--check"}, &stdout, &stderr, "dev")
+
+	if code != 1 {
+		t.Fatalf("Run(--check) exit code = %d, want 1", code)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	errText := stderr.String()
+	for _, want := range []string{"goldr generate:", "templ generated files are not up to date", "go tool goldr generate", "generated files are not up to date"} {
+		if !strings.Contains(errText, want) {
+			t.Fatalf("stderr = %q, want %q", errText, want)
+		}
 	}
 }
 
@@ -584,8 +635,9 @@ func TestRunCheckReportsStaleTemplGeneratedFiles(t *testing.T) {
 	root := tempGenerateApp(t)
 
 	requireRunSuccess(t, "generate", "--root", root)
+	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {<h1>Changed</h1>}\n")
 
-	requireCheckFailureContains(t, root, "goldr check:", checkCodeTemplGenerated, "templ generated files are not up to date", "go tool templ generate", "generated files are not up to date")
+	requireCheckFailureContains(t, root, "goldr check:", checkCodeTemplGenerated, "templ generated files are not up to date", "go tool goldr generate", "generated files are not up to date")
 }
 
 func TestRunCheckReportsInvalidRouteNames(t *testing.T) {

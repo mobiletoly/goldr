@@ -1,0 +1,27 @@
+package routes
+
+import (
+	"github.com/mobiletoly/goldr/bind"
+	"github.com/mobiletoly/goldr/examples/chat/app/urls"
+)
+
+templ PageView(form bind.Form) {
+	<section class="app-card stack">
+		<h1>Goldr Chat</h1>
+		<p>Enter your name to join the shared in-memory chat room.</p>
+		@JoinForm(form)
+	</section>
+}
+
+templ JoinForm(form bind.Form) {
+	<form method="post" action={ urls.Join.Path() }>
+		<div>
+			<label for="name">Name</label>
+			<input id="name" name="name" value={ form.Value("name") } autocomplete="name"/>
+		</div>
+		if form.HasFieldError("name") {
+			<p class="error">{ form.FieldError("name") }</p>
+		}
+		<button type="submit">Enter chat</button>
+	</form>
+}

@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/mobiletoly/goldr/internal/goldrcli/appfs"
@@ -61,7 +60,7 @@ const checkDescription = `Read-only validation for app/routes, templ output, gen
 
 Checks route naming, page/layout/fragment file pairs, action conventions, generated route dispatch readiness, generated URL helper readiness, templ-generated file freshness, goldr-generated file freshness, and Goldr-managed asset freshness when asset outputs exist.
 
-Run after go tool templ generate, go tool goldr generate, and go tool goldr assets dist when assets are used. This command runs templ check mode but does not run tests, start the app, or write files.`
+Run after go tool goldr generate and go tool goldr assets dist when assets are used. This command runs templ check mode but does not run tests, start the app, or write files.`
 
 func runCheck(ctx context.Context, options checkOptions) error {
 	paths, err := appPathsForRoot(ctx, options.root)
@@ -114,20 +113,10 @@ func checkTemplGeneratedFiles(ctx context.Context, root string) error {
 		return checkCodeError(checkCodeTemplGenerated, err)
 	}
 
-	command := exec.CommandContext(ctx, "go", "tool", "templ", "generate", "-check", "-path", ".")
-	command.Dir = root
-	output, err := command.CombinedOutput()
-	if err == nil {
-		return nil
+	if err := runTemplGenerateCheck(ctx, root); err != nil {
+		return checkMultilineCodeError(checkCodeTemplGenerated, err)
 	}
-
-	var message strings.Builder
-	message.WriteString("templ generated files are not up to date; run go tool templ generate")
-	if trimmed := strings.TrimSpace(string(output)); trimmed != "" {
-		message.WriteString("\n")
-		message.WriteString(trimmed)
-	}
-	return checkMultilineCodeError(checkCodeTemplGenerated, errors.New(message.String()))
+	return nil
 }
 
 func checkManagedAssets(root string) error {

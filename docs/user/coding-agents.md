@@ -43,14 +43,14 @@ Goldr is server-first, HTML-first, HTMX-native, and Go-native.
 After route or template changes, run:
 
 ```bash
-go tool templ generate
 go tool goldr generate
 go tool goldr check
 go test ./...
 ```
 
-`goldr check` also runs templ check mode and validates Goldr-managed asset
-outputs when they exist. Stale generated output fails the loop without
+`goldr generate` runs templ generation before writing goldr-owned generated
+files. `goldr check` also runs templ check mode and validates Goldr-managed
+asset outputs when they exist. Stale generated output fails the loop without
 rewriting files.
 
 If this app has project-specific scripts, use those scripts instead of the raw

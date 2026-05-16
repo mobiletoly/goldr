@@ -44,6 +44,13 @@ From the repository root:
 go run ./examples/full_feature
 ```
 
+Use `examples/chat/` when you want to see app-owned server-sent events with
+HTMX and the `sse` protocol helper:
+
+```bash
+go run ./examples/chat
+```
+
 Inspect the example route tree:
 
 ```bash

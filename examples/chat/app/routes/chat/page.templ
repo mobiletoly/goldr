@@ -1,0 +1,67 @@
+package chat
+
+import (
+	"strconv"
+
+	"github.com/mobiletoly/goldr/bind"
+	"github.com/mobiletoly/goldr/examples/chat/app/urls"
+)
+
+templ PageView(name string, form bind.Form, messages []Message) {
+	if name == "" {
+		<section class="app-card stack">
+			<h1>Goldr Chat</h1>
+			<p>Enter your name before joining the chat.</p>
+			<p><a href={ urls.Root.Path() }>Go to the start page</a></p>
+		</section>
+	} else {
+		<section class="app-card stack">
+			<header class="chat-header">
+				<div>
+					<h1>Goldr Chat</h1>
+					<p>Joined as <strong>{ name }</strong>.</p>
+				</div>
+				<form method="post" action={ urls.Chat.SignOut.Path() }>
+					<button class="secondary-button" type="submit">Sign out</button>
+				</form>
+			</header>
+			<div
+				id="messages"
+				class="chat-log"
+				hx-sse:connect={ eventsPath(lastMessageID(messages)) }
+				hx-swap="beforeend scroll:bottom"
+			>
+				for _, message := range messages {
+					@MessageView(message)
+				}
+			</div>
+			@ComposerView(form)
+		</section>
+	}
+}
+
+templ ComposerView(form bind.Form) {
+	<form id="composer" method="post" hx-post={ urls.Chat.Message.Path() } hx-target="#composer" hx-swap="outerHTML" hx-indicator="#send-progress">
+		<div>
+			<label for="body">Message</label>
+			<textarea id="body" name="body">{ form.Value("body") }</textarea>
+		</div>
+		if form.HasFieldError("body") {
+			<p class="error">{ form.FieldError("body") }</p>
+		}
+		<div class="composer-actions">
+			<button type="submit">Send</button>
+			<span id="send-progress" class="send-progress" role="status" aria-live="polite">Sending...</span>
+		</div>
+	</form>
+}
+
+templ MessageView(message Message) {
+	<article class="message" id={ "message-" + strconv.FormatInt(message.ID, 10) }>
+		<header>
+			<strong>{ message.Author }</strong>
+			<time datetime={ message.CreatedAt.Format("2006-01-02T15:04:05Z07:00") }>{ message.CreatedAt.Format("15:04:05") }</time>
+		</header>
+		<p>{ message.Body }</p>
+	</article>
+}

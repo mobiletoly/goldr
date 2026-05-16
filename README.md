@@ -202,10 +202,9 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 }
 ```
 
-Generate templ output, generate goldr route wiring, validate, and run:
+Generate templ output and goldr route wiring, validate, and run:
 
 ```bash
-go tool templ generate
 go tool goldr generate
 go tool goldr check
 go run .
@@ -223,7 +222,6 @@ http://127.0.0.1:8080
 After route or template edits, the normal loop is:
 
 ```bash
-go tool templ generate
 go tool goldr generate
 go tool goldr check
 go run .
@@ -339,6 +337,11 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 Use `response.WriteStatus(w, r, status)` for rendered HTML that needs a
 non-200 status. Set HTMX and other response headers before either write method.
 
+For app-owned server-sent event streams, use the small `sse` package for
+event-stream headers, comments, event fields, templ-rendered HTML data, and
+flushing. The application still owns stream URLs, mux registration,
+subscribers, replay policy, and HTMX attributes.
+
 ## Try the Full Example
 
 From a goldr checkout, run the full-feature example:
@@ -359,6 +362,16 @@ go run ./cmd/goldr check --root examples/full_feature
 The example shows pages, nested layouts, fragments, actions, forms, generated
 URL helpers, custom errors, middleware, and fingerprinted static assets in one
 small app.
+
+For a focused realtime example using server-sent events, run:
+
+```bash
+go run ./examples/chat
+```
+
+The chat example shows ordinary actions for input, app-owned in-memory
+persistence, and an app-owned SSE stream that uses `sse` to push rendered HTML
+to HTMX.
 
 ## Documentation
 
