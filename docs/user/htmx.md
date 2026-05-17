@@ -50,16 +50,12 @@ import (
 )
 
 func PostCreate(w http.ResponseWriter, r *http.Request) {
-	response, err := goldr.Render(r, UsersTable())
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
 	hx.Retarget(w, "#users-table")
 	hx.Reswap(w, "outerHTML")
 	hx.Trigger(w, "user:created")
-	_ = response.Write(w, r)
+	if err := goldr.WriteComponent(w, r, http.StatusOK, UsersTable()); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
 }
 ```
 
@@ -67,22 +63,19 @@ Page, layout, and fragment render functions do not receive
 `http.ResponseWriter`:
 
 ```go
-func Page(r *http.Request) goldr.Page
+func Page(r *http.Request) goldr.RouteResponse
 func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component
-func FragTable(r *http.Request) templ.Component
+func FragTable(r *http.Request) goldr.RouteResponse
 ```
 
 Use actions when a route-local mutation needs to set headers, parse forms, or
 redisplay partial HTML.
 
-For default templ HTML action responses, `goldr.Render` buffers the component
-and returns an error if rendering fails. After a successful render, set any
-headers, then call `response.Write(w, r)`. Use
-`response.WriteStatus(w, r, status)` when the HTML response needs a non-200
-status. Both write methods set `Content-Type: text/html; charset=utf-8` before
-writing status or body, and both skip the body for `HEAD`. `goldr.Render` does
-not set HTMX headers, parse forms, redirect, or choose application status
-codes.
+For templ HTML action responses, set any headers first, then call
+`goldr.WriteComponent(w, r, status, component)`. It buffers the component before
+committing headers, sets `Content-Type: text/html; charset=utf-8`, writes the
+status, and skips the body for `HEAD`. `goldr.WriteComponent` does not set HTMX
+headers, parse forms, redirect, or choose application status codes.
 
 ## CSRF Headers
 
@@ -168,7 +161,7 @@ See package documentation or completion for the full list.
 - `hx-get` and `hx-post` in templates
 - `HX-Trigger`, `HX-Retarget`, and `HX-Reswap` in action handlers
 - CSRF validation for unsafe HTMX requests
-- `goldr.Render` for action-owned templ HTML responses
+- `goldr.WriteComponent` for action-owned templ HTML responses
 - fragment rendering for `/users/frag-table`
 - form redisplay from `/users/create`
 

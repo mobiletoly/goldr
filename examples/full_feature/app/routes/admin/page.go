@@ -11,14 +11,14 @@ import (
 
 var errDemoAdminLoad = errors.New("demo admin load failed")
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	if r.URL.Query().Get("demo_error") == "1" {
-		return goldr.Error(errDemoAdminLoad)
+		return goldr.ServerError{Err: errDemoAdminLoad}
 	}
 
 	role := security.DemoRole(r)
 	if role == "" {
-		return goldr.Redirect("/sign-in?next="+url.QueryEscape("/admin"), http.StatusSeeOther)
+		return goldr.Redirect{Location: "/sign-in?next=" + url.QueryEscape("/admin"), Status: http.StatusSeeOther}
 	}
 
 	metadata := goldr.PageMetadata{
@@ -26,8 +26,8 @@ func Page(r *http.Request) goldr.Page {
 		Description: "A page-level redirect and forbidden status example.",
 	}
 	if role != security.RoleAdmin {
-		return goldr.Status(http.StatusForbidden, ForbiddenView(role), metadata)
+		return goldr.NewPage(ForbiddenView(role), metadata).WithStatus(http.StatusForbidden)
 	}
 
-	return goldr.RenderPage(PageView(role), metadata)
+	return goldr.NewPage(PageView(role), metadata)
 }

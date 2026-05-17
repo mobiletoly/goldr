@@ -52,6 +52,7 @@ type RouteLayoutMapAction struct {
 	Params   []string
 	Source   string
 	Function string
+	Layouts  []RouteLayoutMapLayout
 }
 
 func BuildRouteLayoutMap(manifest routing.Manifest) (RouteLayoutMap, error) {
@@ -96,6 +97,7 @@ func BuildRouteLayoutMap(manifest routing.Manifest) (RouteLayoutMap, error) {
 				Params:   slices.Clone(route.params),
 				Source:   action.GoFile,
 				Function: action.Function,
+				Layouts:  routeLayoutMapLayouts(route.action.layouts),
 			})
 		}
 	}

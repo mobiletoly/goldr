@@ -34,12 +34,9 @@ func PostMessage(w http.ResponseWriter, r *http.Request) {
 		var errors bind.FieldErrors
 		errors.Add("body", "Enter a message.")
 		form = form.WithErrors(errors)
-		response, err := goldr.Render(r, ComposerView(form))
-		if err != nil {
+		if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, ComposerView(form)); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
 		}
-		_ = response.WriteStatus(w, r, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -50,12 +47,9 @@ func PostMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	addMessage(name, body)
-	response, err := goldr.Render(r, ComposerView(bind.Form{}))
-	if err != nil {
+	if err := goldr.WriteComponent(w, r, http.StatusOK, ComposerView(bind.Form{})); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
 	}
-	_ = response.Write(w, r)
 }
 
 func PostSignOut(w http.ResponseWriter, r *http.Request) {

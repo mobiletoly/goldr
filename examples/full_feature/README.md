@@ -85,8 +85,10 @@ member returns to `/admin` and shows a `403 Forbidden` page rendered through the
 normal layout, while signing in as admin renders the protected page. Choosing
 Unknown Credentials on `/sign-in` keeps the user on the sign-in page with a
 visible error. Open `/admin?demo_error=1` to see a page delegate an unexpected
-application error through `goldr.Error(err)` and the generated internal error
-path.
+application error through `goldr.ServerError{Err: err}` and the generated
+internal error path. The protected resource demo also includes a POST action
+that returns a full page with `goldr.WriteRouteResponse`, so the response uses
+the same layout and asset links as a normal page route.
 
 The example fingerprints final static files from
 `examples/full_feature/assets/build/` into `assets/dist/` with

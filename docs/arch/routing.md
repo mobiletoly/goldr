@@ -605,25 +605,28 @@ The generated segment functions are deterministic and route-tree shaped:
 The generated handler calls each matched route package's page function:
 
 ```go
-func Page(r *http.Request) goldr.Page
+func Page(r *http.Request) goldr.RouteResponse
 ```
 
-The returned `goldr.Page` is a page response value. Generated dispatch handles
-normal rendered pages, redirects, status components, plain text status
-responses, and internal error responses. Nil rendered components and invalid
-page responses are internal server errors. The framework metadata surface is
+The returned `goldr.RouteResponse` is resolved by generated dispatch. Generated
+dispatch handles normal rendered pages, fragments, redirects, plain text status
+responses, and internal error responses. Page, fragment, redirect, and text
+responses may carry explicit headers with `WithHeader` and `AddHeader`;
+generated dispatch applies those headers before writing status and body. Nil
+rendered components and invalid route
+responses are internal server errors. The framework metadata surface is
 intentionally small: `Title` and `Description` are passed through to layouts,
 while canonical links, navigation state, and other shell policy remain
 application-owned.
 
-Generated dispatch calls `page.Response()`. A non-nil error from that method is
-an invalid Goldr page contract, such as a zero-value page, a nil render
-component, an empty redirect location, a redirect status outside `301`, `302`,
-`303`, `307`, and `308`, a bodyless page status such as `204` or `205`, or
-`goldr.Error(nil)`. Rendered page statuses must be final body-carrying statuses:
-`2xx` except `204` and `205`, plus `4xx` and `5xx`. `goldr.PageResponseError`
-is separate from that validation path: it is a valid page response created by
-`goldr.Error(err)`, and `response.Error` is the application error passed to the
+Generated dispatch calls `goldr.ResolveRouteResponse(response)`. A non-nil
+error from that function is an invalid Goldr route response contract, such as a
+zero-value page, a nil render component, an empty redirect location, a redirect
+status outside `301`, `302`, `303`, `307`, and `308`, a bodyless page status
+such as `204` or `205`, or `goldr.ServerError{Err: nil}`. Rendered page statuses
+must be final body-carrying statuses: `2xx` except `204` and `205`, plus `4xx`
+and `5xx`. `goldr.ServerError{Err: err}` is separate from that validation path:
+it is a valid route response, and `err` is the application error passed to the
 generated internal server error handler.
 
 When the manifest contains matching layouts, the generated handler wraps the page
@@ -691,7 +694,7 @@ URL: /users/{id}/frag-row
 The generated handler calls each matched route package's fragment function:
 
 ```go
-func Frag<Name>(r *http.Request) templ.Component
+func Frag<Name>(r *http.Request) goldr.RouteResponse
 ```
 
 Fragment function names are derived from the fragment name:
@@ -715,7 +718,10 @@ The generated handler supports `GET` and `HEAD` for matched fragment routes.
 It returns:
 - `404` for unmatched paths
 - `405` with `Allow: GET, HEAD` for unsupported methods on matched paths
-- plain `500` by default for nil fragment components or templ render errors
+- redirects, plain text responses, and server errors from the returned route
+  response
+- plain `500` by default for nil fragment components, invalid fragment route
+  responses, or templ render errors
 
 Successful fragment responses use:
 

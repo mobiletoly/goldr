@@ -37,10 +37,11 @@ func TestExplainRouteMatchesDynamicPageWithLayoutsAndDecodedParam(t *testing.T) 
 	})
 }
 
-func TestExplainRouteMatchesActionWithoutLayouts(t *testing.T) {
+func TestExplainRouteMatchesActionWithLayouts(t *testing.T) {
 	requireRouteExplanation(t, routing.Manifest{
 		Layouts: []routing.ManifestLayout{
 			{RoutePrefix: "/", Unit: routing.RenderUnit{GoFile: "layout.go"}},
+			{RoutePrefix: "/users", Unit: routing.RenderUnit{GoFile: "users/layout.go"}},
 		},
 		Actions: []routing.ManifestAction{
 			{Method: "POST", Route: "/users/create", GoFile: "users/actions.go", Function: "PostCreate"},
@@ -57,6 +58,10 @@ func TestExplainRouteMatchesActionWithoutLayouts(t *testing.T) {
 			Params:   []RouteExplanationParam{},
 			Source:   "users/actions.go",
 			Function: "PostCreate",
+			Layouts: []RouteExplanationLayout{
+				{RoutePrefix: "/", Source: "layout.go"},
+				{RoutePrefix: "/users", Source: "users/layout.go"},
+			},
 		},
 	})
 }

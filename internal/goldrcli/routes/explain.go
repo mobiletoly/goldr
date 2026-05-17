@@ -141,7 +141,7 @@ func renderExplainOutput(writer io.Writer, routesDir string, explanation wiring.
 	if _, err := fmt.Fprintln(writer, style.Bold("LAYOUT STACK")); err != nil {
 		return err
 	}
-	if match.Kind != wiring.RouteSurfaceKindPage {
+	if match.Kind != wiring.RouteSurfaceKindPage && match.Kind != wiring.RouteSurfaceKindAction {
 		_, err := fmt.Fprintln(writer, "  not layout-wrapped")
 		return err
 	}

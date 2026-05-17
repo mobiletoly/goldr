@@ -27,7 +27,7 @@ func TestRenderRouteLayoutMapStylesSemanticLabels(t *testing.T) {
 		"\x1b[36m" + "layout" + "\x1b[0m",
 		"\x1b[32m" + "page" + "\x1b[0m",
 		"\x1b[33m" + "fragment (not wrapped)" + "\x1b[0m",
-		"\x1b[35m" + "action (not wrapped)" + "\x1b[0m",
+		"\x1b[35m" + "action (layout-aware)" + "\x1b[0m",
 		"\x1b[2m" + "params:" + "\x1b[0m",
 	} {
 		if !strings.Contains(output, want) {

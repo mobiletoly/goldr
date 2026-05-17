@@ -43,22 +43,20 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 		form = bind.Form{}
 	}
 
-	response, err := goldr.Render(r, DirectoryView(form, ListContacts(), security.CSRF.Token(r)))
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
 	if created {
 		hx.Trigger(w, "user:created")
 	}
 	hx.Retarget(w, "#users-directory")
 	hx.Reswap(w, "outerHTML")
 	if form.HasErrors() {
-		_ = response.WriteStatus(w, r, http.StatusUnprocessableEntity)
+		if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, DirectoryView(form, ListContacts(), security.CSRF.Token(r))); err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
 		return
 	}
-	_ = response.Write(w, r)
+	if err := goldr.WriteComponent(w, r, http.StatusOK, DirectoryView(form, ListContacts(), security.CSRF.Token(r))); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
 }
 
 func PostSavePreview(w http.ResponseWriter, r *http.Request) {
@@ -67,16 +65,12 @@ func PostSavePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := goldr.Render(r, FragTableView(ListContacts()))
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
 	hx.Trigger(w, "user:saved")
 	hx.Retarget(w, "#users-table")
 	hx.Reswap(w, "outerHTML")
-	_ = response.Write(w, r)
+	if err := goldr.WriteComponent(w, r, http.StatusOK, FragTableView(ListContacts())); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
 }
 
 func optionalUploadFilename(form bind.Form, field string) (string, error) {

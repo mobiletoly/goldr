@@ -7,7 +7,7 @@ import (
 	"github.com/mobiletoly/goldr/examples/full_feature/app/routes/users"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	id := r.PathValue("id")
 	contact, ok := users.ContactByID(id)
 	metadata := goldr.PageMetadata{
@@ -18,5 +18,5 @@ func Page(r *http.Request) goldr.Page {
 		metadata.Title = contact.Name + " - Goldr Example"
 		metadata.Description = "Contact details for " + contact.Name + "."
 	}
-	return goldr.RenderPage(PageView(id, contact.Name, contact.Status, ok), metadata)
+	return goldr.NewPage(PageView(id, contact.Name, contact.Status, ok), metadata)
 }

@@ -37,7 +37,7 @@ func layoutsCommand() *cli.Command {
 
 const layoutsDescription = `Shows the layout inheritance map for app/routes.
 
-Pages inherit matching layouts above them. Fragments and actions are reported separately because they are not layout-wrapped.`
+Pages inherit matching layouts above them. Actions can use the same layout stack explicitly with goldr.WriteRouteResponse. Fragments are not layout-wrapped.`
 
 func runLayouts(_ context.Context, options layoutsOptions, writer io.Writer) error {
 	paths, manifest, err := scanRouteManifest(options.root)
@@ -85,7 +85,10 @@ func renderLayoutMap(writer io.Writer, routesDir string, layoutMap wiring.RouteL
 	if _, err := fmt.Fprintln(writer, "  pages inherit every layout above them"); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintln(writer, "  fragments and actions do not inherit layouts"); err != nil {
+	if _, err := fmt.Fprintln(writer, "  actions can use the same layout stack with goldr.WriteRouteResponse"); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(writer, "  fragments are not layout-wrapped"); err != nil {
 		return err
 	}
 	return nil
@@ -160,7 +163,7 @@ func layoutMapNodeText(routesDir string, node *wiring.RouteLayoutMapNode, style 
 
 func layoutMapActionText(routesDir string, action wiring.RouteLayoutMapAction, style ansi.Style) string {
 	source := fmt.Sprintf("%s (%s)", routeSourceDisplayPath(routesDir, action.Source), action.Function)
-	return layoutMapRouteText("action (not wrapped)", action.Methods, action.Route, action.Params, source, style)
+	return layoutMapRouteText("action (layout-aware)", action.Methods, action.Route, action.Params, source, style)
 }
 
 func layoutMapRouteText(kind string, methods []string, route string, params []string, source string, style ansi.Style) string {
@@ -179,7 +182,7 @@ func layoutMapKindText(kind string, style ansi.Style) string {
 		return style.Green(kind)
 	case "fragment (not wrapped)":
 		return style.Yellow(kind)
-	case "action (not wrapped)":
+	case "action (layout-aware)":
 		return style.Magenta(kind)
 	default:
 		return kind

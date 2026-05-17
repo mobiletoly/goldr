@@ -70,8 +70,8 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(_ *http.Request) goldr.Page {
-	return goldr.RenderPage(
+func Page(_ *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(
 		PageView(time.Now()),
 		goldr.PageMetadata{
 			Title: "Hello goldr",
@@ -153,8 +153,10 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 }
 ```
 
-The root layout wraps the root page and pages below it. Fragments and actions
-are not layout-wrapped.
+The root layout wraps the root page and pages below it. Fragments are not
+layout-wrapped. Actions are ordinary handlers and can call
+`goldr.WriteRouteResponse` only when they need an explicit full-page response
+through the matched layout stack.
 
 ## Generate And Run
 

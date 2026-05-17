@@ -130,8 +130,8 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(_ *http.Request) goldr.Page {
-	return goldr.RenderPage(
+func Page(_ *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(
 		PageView(),
 		goldr.PageMetadata{
 			Title: "Hello goldr",
@@ -318,26 +318,22 @@ templ DirectoryView() {
 }
 ```
 
-Handlers that need HTMX response headers can use the small `hx` package after
-`goldr.Render` has buffered the templ response:
+Handlers that need HTMX response headers can use the small `hx` package before
+writing the rendered component:
 
 ```go
 func PostCreate(w http.ResponseWriter, r *http.Request) {
-	response, err := goldr.Render(r, UsersTable())
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
 	hx.Retarget(w, "#users-table")
 	hx.Reswap(w, "outerHTML")
 	hx.Trigger(w, "user:created")
-	_ = response.Write(w, r)
+	if err := goldr.WriteComponent(w, r, http.StatusOK, UsersTable()); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
 }
 ```
 
-Use `response.WriteStatus(w, r, status)` for rendered HTML that needs a
-non-200 status. Set HTMX and other response headers before either write method.
+Use `goldr.WriteComponent(w, r, status, component)` for rendered HTML action
+responses. Set HTMX and other response headers before calling it.
 
 For app-owned server-sent event streams, use the small `sse` package for
 event-stream headers, comments, event fields, templ-rendered HTML data, and

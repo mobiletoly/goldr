@@ -25,19 +25,29 @@ app/routes/users/by_id/page.go         -> /users/{id}
 Each page must have a matching `.templ` file and must provide:
 
 ```go
-func Page(r *http.Request) goldr.Page
+func Page(r *http.Request) goldr.RouteResponse
 ```
 
-Use `goldr.RenderPage` for a normal rendered page:
+Use `goldr.NewPage` for a normal rendered page:
 
 ```go
-return goldr.RenderPage(
+return goldr.NewPage(
 	PageView(),
 	goldr.PageMetadata{
 		Title:       "Users",
 		Description: "Manage users.",
 	},
 )
+```
+
+Use `WithStatus`, `WithHeader`, and `AddHeader` when the page response needs
+explicit response details:
+
+```go
+return goldr.NewPage(
+	PrivateView(),
+	goldr.PageMetadata{Title: "Private"},
+).WithHeader("Cache-Control", "no-store")
 ```
 
 Supported metadata fields are `Title` and `Description`. goldr passes metadata
@@ -50,10 +60,10 @@ generated URL helpers, or app-owned state when a layout needs them.
 Page handlers can also return responses before normal rendering:
 
 ```go
-return goldr.Redirect("/sign-in", http.StatusSeeOther)
-return goldr.Status(http.StatusForbidden, ForbiddenView(), goldr.PageMetadata{Title: "Forbidden"})
-return goldr.TextStatus(http.StatusForbidden, "forbidden")
-return goldr.Error(err)
+return goldr.Redirect{Location: "/sign-in", Status: http.StatusSeeOther}
+return goldr.NewPage(ForbiddenView(), goldr.PageMetadata{Title: "Forbidden"}).WithStatus(http.StatusForbidden)
+return goldr.Text{Status: http.StatusForbidden, Body: "forbidden"}
+return goldr.ServerError{Err: err}
 ```
 
 Redirects, text status responses, and errors do not render layouts. Status
@@ -61,9 +71,22 @@ responses with a templ component render through the same layout chain as normal
 pages.
 
 `goldr.Redirect` accepts only redirect statuses that clients follow: `301`,
-`302`, `303`, `307`, and `308`. `goldr.Status` and `goldr.TextStatus` accept
-only final body-carrying page statuses: `2xx` except `204 No Content` and `205
-Reset Content`, plus `4xx` and `5xx`.
+`302`, `303`, `307`, and `308`. Rendered page responses and `goldr.Text` accept
+only final body-carrying statuses: `2xx` except `204 No Content` and `205 Reset
+Content`, plus `4xx` and `5xx`.
+
+`goldr.Page`, `goldr.Fragment`, `goldr.Redirect`, and `goldr.Text` support
+`WithHeader` and `AddHeader`. `WithHeader` replaces existing values for that
+header name, matching `http.Header.Set`. `AddHeader` appends a value, matching
+`http.Header.Add`:
+
+```go
+return goldr.Redirect{
+	Location: "/sign-in",
+	Status:   http.StatusSeeOther,
+}.WithHeader("Set-Cookie", sessionCookie.String()).
+	AddHeader("Set-Cookie", csrfCookie.String())
+```
 
 ### Page Error Handling
 
@@ -71,38 +94,40 @@ Use explicit status responses for request-shaped failures:
 
 ```go
 if !validID(r.PathValue("project_id")) {
-	return goldr.Status(http.StatusBadRequest, BadRequestView(), goldr.PageMetadata{Title: "Bad request"})
+	return goldr.NewPage(BadRequestView(), goldr.PageMetadata{Title: "Bad request"}).WithStatus(http.StatusBadRequest)
 }
 
 project, err := store.Project(r.Context(), r.PathValue("project_id"))
 if errors.Is(err, store.ErrNotFound) {
-	return goldr.Status(http.StatusNotFound, NotFoundView(), goldr.PageMetadata{Title: "Not found"})
+	return goldr.NewPage(NotFoundView(), goldr.PageMetadata{Title: "Not found"}).WithStatus(http.StatusNotFound)
 }
 if err != nil {
-	return goldr.Error(err)
+	return goldr.ServerError{Err: err}
 }
 
-return goldr.RenderPage(ProjectView(project), goldr.PageMetadata{Title: project.Name})
+return goldr.NewPage(ProjectView(project), goldr.PageMetadata{Title: project.Name})
 ```
 
-Use `goldr.Error(err)` only for unexpected application or runtime failures that
-should use Goldr's internal server error handling:
+Use `goldr.ServerError{Err: err}` only for unexpected application or runtime
+failures that should use Goldr's internal server error handling:
 
 ```go
 project, err := store.Project(r.Context(), r.PathValue("project_id"))
 if err != nil {
-	return goldr.Error(err)
+	return goldr.ServerError{Err: err}
 }
 ```
 
-Generated dispatch uses `page.Response()` internally. If that returns an error,
-the page returned an invalid Goldr contract, such as `goldr.Page{}`,
-`goldr.RenderPage(nil, metadata)`, `goldr.Redirect("", http.StatusSeeOther)`,
-`goldr.Redirect("/sign-in", http.StatusNotModified)`,
-`goldr.Status(http.StatusNoContent, view, metadata)`, or `goldr.Error(nil)`.
-Those validation errors are routed to internal server error handling. A
-`goldr.PageResponse` with kind `goldr.PageResponseError` is different: its
-`Error` field is the application error originally passed to `goldr.Error(err)`.
+Generated dispatch resolves the returned route response internally. If
+resolution returns an error, the page returned an invalid Goldr contract, such
+as `goldr.Page{}`, `goldr.NewPage(nil, metadata)`,
+`goldr.Redirect{Location: "", Status: http.StatusSeeOther}`,
+`goldr.Redirect{Location: "/sign-in", Status: http.StatusNotModified}`,
+`goldr.NewPage(view, metadata).WithStatus(http.StatusNoContent)`, or
+`goldr.ServerError{Err: nil}`. Those validation errors are routed to internal
+server error handling. `goldr.ServerError{Err: err}` is a valid route response:
+its error is the application error passed to the generated internal server
+error handler.
 
 ## Layouts
 
@@ -122,7 +147,10 @@ func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component
 `ctx.Child` is the child page or nested layout component. `ctx.Metadata` is the
 page metadata returned by the matched page.
 
-Fragments and actions are not layout-wrapped.
+Fragments are not layout-wrapped. Actions are ordinary handlers and are not
+automatically layout-wrapped, but an action can explicitly call
+`goldr.WriteRouteResponse` to write a full page through the matched route
+layout stack.
 
 ## Dynamic Routes
 
@@ -170,7 +198,7 @@ app/routes/users/frag_table.go -> /users/frag-table
 Each fragment must have a matching `.templ` file and must provide:
 
 ```go
-func FragTable(r *http.Request) templ.Component
+func FragTable(r *http.Request) goldr.RouteResponse
 ```
 
 Fragments use route params from their directory prefix:
@@ -180,6 +208,19 @@ app/routes/users/by_id/frag_row.go -> /users/{id}/frag-row
 ```
 
 Fragments render for `GET` and `HEAD`. They are not layout-wrapped.
+
+Use `goldr.NewFragment` for normal fragment HTML:
+
+```go
+func FragTable(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(FragTableView(loadRows(r))).
+		WithHeader("Hx-Trigger", "table-loaded")
+}
+```
+
+Fragments may also return `goldr.Redirect`, `goldr.Text`, and
+`goldr.ServerError`. Returning `goldr.Page` from a fragment route is an invalid
+route-response contract because fragments do not render through layouts.
 
 ## Actions
 
@@ -228,6 +269,36 @@ PatchProfile    -> PATCH /users/{id}/profile
 
 Action handlers are called directly. They own status codes, headers, response
 bodies, redirects, HTMX response headers, and form redisplay.
+
+Use `goldr.WriteComponent` for fragment-style rendered action responses:
+
+```go
+hx.Retarget(w, "#user-form")
+hx.Reswap(w, "outerHTML")
+if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, UserForm(form)); err != nil {
+	http.Error(w, "internal server error", http.StatusInternalServerError)
+}
+```
+
+Use `goldr.WriteRouteResponse` when an action needs to return a full page
+through the matched layout stack:
+
+```go
+err := goldr.WriteRouteResponse(
+	w,
+	r,
+	goldr.NewPage(CreatedView(key), goldr.PageMetadata{Title: "Created"}).
+		WithStatus(http.StatusCreated).
+		WithHeader("Cache-Control", "no-store"),
+)
+if err != nil {
+	http.Error(w, "internal server error", http.StatusInternalServerError)
+}
+```
+
+This is explicit. Actions are not automatically layout-wrapped, so fragments,
+redirects, validation snippets, and custom responses stay ordinary
+`net/http` handler behavior.
 
 ## URL Helpers
 

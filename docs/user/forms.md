@@ -24,24 +24,18 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 
     form = form.WithErrors(errors)
     if form.HasErrors() {
-        response, err := goldr.Render(r, UserForm(form))
-        if err != nil {
-            http.Error(w, "internal server error", http.StatusInternalServerError)
-            return
-        }
         hx.Retarget(w, "#user-form")
         hx.Reswap(w, "outerHTML")
-        _ = response.WriteStatus(w, r, http.StatusUnprocessableEntity)
+        if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, UserForm(form)); err != nil {
+            http.Error(w, "internal server error", http.StatusInternalServerError)
+        }
         return
     }
 
     // Application-owned persistence happens here.
-    response, err := goldr.Render(r, UsersTable())
-    if err != nil {
+    if err := goldr.WriteComponent(w, r, http.StatusOK, UsersTable()); err != nil {
         http.Error(w, "internal server error", http.StatusInternalServerError)
-        return
     }
-    _ = response.Write(w, r)
 }
 ```
 
@@ -164,14 +158,11 @@ parse a form, set headers, or redisplay partial HTML.
 For HTMX redisplay, combine `bind` with `hx` response headers:
 
 ```go
-response, err := goldr.Render(r, UserForm(form))
-if err != nil {
-    http.Error(w, "internal server error", http.StatusInternalServerError)
-    return
-}
 hx.Retarget(w, "#user-form")
 hx.Reswap(w, "outerHTML")
-_ = response.WriteStatus(w, r, http.StatusUnprocessableEntity)
+if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, UserForm(form)); err != nil {
+    http.Error(w, "internal server error", http.StatusInternalServerError)
+}
 ```
 
 goldr does not validate required fields, allowed values, or business rules.
@@ -185,9 +176,9 @@ if err := guard.Validate(r, form.Value(csrf.FieldName)); err != nil {
 }
 ```
 
-`goldr.Render` only provides the default buffered templ HTML response. If
+`goldr.WriteComponent` provides the default buffered templ HTML response. If
 redisplayed HTML should use a non-200 status such as `422`, set response
-headers first and then call `response.WriteStatus(w, r, status)`.
+headers first and then call `goldr.WriteComponent(w, r, status, component)`.
 
 ## Runnable Example
 

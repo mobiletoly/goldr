@@ -16,8 +16,11 @@ type rootRoute struct{}
 type adminRoute struct{}
 
 type protectedResourceDemoRoute struct {
-	SignOut protectedResourceDemoSignOutRoute
+	RevealSecret protectedResourceDemoRevealSecretRoute
+	SignOut      protectedResourceDemoSignOutRoute
 }
+
+type protectedResourceDemoRevealSecretRoute struct{}
 
 type protectedResourceDemoSignOutRoute struct{}
 
@@ -51,8 +54,13 @@ func newAdminRoute() adminRoute {
 
 func newProtectedResourceDemoRoute() protectedResourceDemoRoute {
 	return protectedResourceDemoRoute{
-		SignOut: newProtectedResourceDemoSignOutRoute(),
+		RevealSecret: newProtectedResourceDemoRevealSecretRoute(),
+		SignOut:      newProtectedResourceDemoSignOutRoute(),
 	}
+}
+
+func newProtectedResourceDemoRevealSecretRoute() protectedResourceDemoRevealSecretRoute {
+	return protectedResourceDemoRevealSecretRoute{}
 }
 
 func newProtectedResourceDemoSignOutRoute() protectedResourceDemoSignOutRoute {
@@ -108,6 +116,10 @@ func (r adminRoute) Path() string {
 
 func (r protectedResourceDemoRoute) Path() string {
 	return "/" + "protected-resource-demo"
+}
+
+func (r protectedResourceDemoRevealSecretRoute) Path() string {
+	return "/" + "protected-resource-demo" + "/" + "reveal-secret"
 }
 
 func (r protectedResourceDemoSignOutRoute) Path() string {

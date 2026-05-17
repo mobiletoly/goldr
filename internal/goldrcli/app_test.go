@@ -625,7 +625,18 @@ func TestRunCheckReportsStaleAndMissingGeneratedFiles(t *testing.T) {
 func TestRunCheckReportsMissingTemplTool(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "go.mod", "module example.com/notempltool\n\ngo 1.26.3\n")
-	writeFile(t, root, "app/routes/page.go", "package routes\n")
+	writeFile(t, root, "app/routes/page.go", `package routes
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(_ *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(nil, goldr.PageMetadata{})
+}
+`)
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 
 	requireCheckFailureContains(t, root, "goldr check:", checkCodeTemplGenerated, "go tool templ is not available", templToolInstallCommand)
@@ -675,9 +686,31 @@ func PostCreate(w http.ResponseWriter) {}
 func TestRunCheckReportsRuntimeGenerationErrors(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "go.mod", "module example.com/ambiguousroutes\n\ngo 1.26.3\n")
-	writeFile(t, root, "app/routes/users/by_id/page.go", "package by_id\n")
+	writeFile(t, root, "app/routes/users/by_id/page.go", `package by_id
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(_ *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(nil, goldr.PageMetadata{})
+}
+`)
 	writeFile(t, root, "app/routes/users/by_id/page.templ", "package by_id\n\ntempl PageView() {}\n")
-	writeFile(t, root, "app/routes/users/by_slug/page.go", "package by_slug\n")
+	writeFile(t, root, "app/routes/users/by_slug/page.go", `package by_slug
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(_ *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(nil, goldr.PageMetadata{})
+}
+`)
 	writeFile(t, root, "app/routes/users/by_slug/page.templ", "package by_slug\n\ntempl PageView() {}\n")
 
 	requireCheckFailureContains(t, root, "goldr check:", checkCodeRouteGenerate, "ambiguous runtime route", "users/by_id/page.go", "users/by_slug/page.go")
@@ -902,9 +935,11 @@ func TestRunRoutesExplainHonorsRootFlag(t *testing.T) {
 	}
 }
 
-func TestRunRoutesExplainActionShowsNoLayout(t *testing.T) {
+func TestRunRoutesExplainActionShowsLayoutStack(t *testing.T) {
 	root := fullFeatureRoot(t)
-	source := fullFeatureRouteSourcePath("users/actions.go")
+	source := func(name string) string {
+		return fullFeatureRouteSourcePath(name)
+	}
 
 	code, stdout, stderr := runGoldr(t, "routes", "explain", "--root", root, "--method", "POST", "/users/create")
 
@@ -917,8 +952,10 @@ func TestRunRoutesExplainActionShowsNoLayout(t *testing.T) {
 	for _, want := range []string{
 		"/users/create  POST",
 		"  action   /users/create",
-		"  source   " + source + " (PostCreate)",
-		"LAYOUT STACK\n  not layout-wrapped",
+		"  source   " + source("users/actions.go") + " (PostCreate)",
+		"LAYOUT STACK",
+		"  /      " + source("layout.go"),
+		"  /users " + source("users/layout.go"),
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout = %q, want %q", stdout, want)
@@ -1246,23 +1283,25 @@ func fullFeatureLayoutMapOutput(t *testing.T) string {
 		"   │  └─ page: GET,HEAD /admin  " + source("admin/page.go"),
 		"   ├─ protected_resource_demo/",
 		"   │  ├─ page: GET,HEAD /protected-resource-demo  " + source("protected_resource_demo/page.go"),
-		"   │  └─ action (not wrapped): POST /protected-resource-demo/sign-out  " + source("protected_resource_demo/actions.go") + " (PostSignOut)",
+		"   │  ├─ action (layout-aware): POST /protected-resource-demo/reveal-secret  " + source("protected_resource_demo/actions.go") + " (PostRevealSecret)",
+		"   │  └─ action (layout-aware): POST /protected-resource-demo/sign-out  " + source("protected_resource_demo/actions.go") + " (PostSignOut)",
 		"   ├─ settings/",
 		"   │  └─ page: GET,HEAD /settings  " + source("settings/page.go"),
 		"   ├─ sign_in/",
 		"   │  ├─ page: GET,HEAD /sign-in  " + source("sign_in/page.go"),
-		"   │  └─ action (not wrapped): POST /sign-in  " + source("sign_in/actions.go") + " (PostIndex)",
+		"   │  └─ action (layout-aware): POST /sign-in  " + source("sign_in/actions.go") + " (PostIndex)",
 		"   └─ users/  layout: " + source("users/layout.go"),
 		"      ├─ page: GET,HEAD /users  " + source("users/page.go"),
 		"      ├─ by_id/",
 		"      │  └─ page: GET,HEAD /users/{id}  params: id  " + source("users/by_id/page.go"),
 		"      ├─ fragment (not wrapped): GET,HEAD /users/frag-table  " + source("users/frag_table.go"),
-		"      ├─ action (not wrapped): POST /users/create  " + source("users/actions.go") + " (PostCreate)",
-		"      └─ action (not wrapped): POST /users/save-preview  " + source("users/actions.go") + " (PostSavePreview)",
+		"      ├─ action (layout-aware): POST /users/create  " + source("users/actions.go") + " (PostCreate)",
+		"      └─ action (layout-aware): POST /users/save-preview  " + source("users/actions.go") + " (PostSavePreview)",
 		"",
 		"Rule:",
 		"  pages inherit every layout above them",
-		"  fragments and actions do not inherit layouts",
+		"  actions can use the same layout stack with goldr.WriteRouteResponse",
+		"  fragments are not layout-wrapped",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -1298,7 +1337,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(_ *http.Request) goldr.Page { return goldr.RenderPage(PageView(), goldr.PageMetadata{}) }
+func Page(_ *http.Request) goldr.RouteResponse { return goldr.NewPage(PageView(), goldr.PageMetadata{}) }
 `)
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {<h1>Root</h1>}\n")
 	writeFile(t, root, "app/routes/settings/page.go", `package settings
@@ -1309,7 +1348,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(_ *http.Request) goldr.Page { return goldr.RenderPage(PageView(), goldr.PageMetadata{}) }
+func Page(_ *http.Request) goldr.RouteResponse { return goldr.NewPage(PageView(), goldr.PageMetadata{}) }
 `)
 	writeFile(t, root, "app/routes/settings/page.templ", "package settings\n\ntempl PageView() {<h1>Settings</h1>}\n")
 	return root

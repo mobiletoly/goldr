@@ -8,9 +8,9 @@ import (
 	"github.com/mobiletoly/goldr/examples/chat/app/session"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	name := session.Name(r)
-	return goldr.RenderPage(
+	return goldr.NewPage(
 		PageView(name, bind.Form{}, listMessages()),
 		goldr.PageMetadata{
 			Title:       "Chat - Goldr Chat",

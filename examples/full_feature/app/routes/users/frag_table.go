@@ -3,9 +3,9 @@ package users
 import (
 	"net/http"
 
-	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(_ *http.Request) templ.Component {
-	return FragTableView(ListContacts())
+func FragTable(_ *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(FragTableView(ListContacts()))
 }

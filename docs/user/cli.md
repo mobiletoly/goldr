@@ -247,8 +247,9 @@ go tool goldr routes layouts
 go tool goldr routes layouts --root examples/full_feature
 ```
 
-The output shows where layouts start, which pages inherit them, and which
-fragments and actions are not layout-wrapped.
+The output shows where layouts start, which pages inherit them, which actions
+can use the same stack with `goldr.WriteRouteResponse`, and which fragments are
+not layout-wrapped.
 
 When stdout is a terminal, the command adds restrained styles. Piped or
 redirected output stays plain, and styles are disabled when `NO_COLOR` is set
@@ -269,7 +270,8 @@ ignored for matching. The default method is `GET`; pass `--method` when
 debugging an action or method mismatch.
 
 Matched page routes show the route pattern, source file, dynamic params, and
-layout stack. Fragments and actions are reported as not layout-wrapped.
+layout stack. Matched actions show the layout stack available to
+`goldr.WriteRouteResponse`. Fragments are reported as not layout-wrapped.
 
 If a path exists but the method is wrong, the command exits non-zero and prints
 the allowed methods. If no generated route matches the path, it exits non-zero

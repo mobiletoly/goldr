@@ -17,10 +17,10 @@
 //	    page.go
 //	    page.templ
 //
-// Page functions live beside their templ views and return Page:
+// Page functions live beside their templ views and return RouteResponse:
 //
-//	func Page(r *http.Request) goldr.Page {
-//	    return goldr.RenderPage(
+//	func Page(r *http.Request) goldr.RouteResponse {
+//	    return goldr.NewPage(
 //	        PageView(),
 //	        goldr.PageMetadata{Title: "Home"},
 //	    )
@@ -49,14 +49,16 @@
 // Nested directories define nested routes. A directory named by_<name>
 // captures a path value that handlers read with r.PathValue("<name>").
 // Fragments are explicit HTMX partials named frag_<name>.go and
-// frag_<name>.templ. Actions are ordinary HTTP handlers named by method and
-// action, such as PostCreate, colocated with the route they mutate. HTMX
-// attributes should stay visible in templ files.
+// frag_<name>.templ. Fragment functions return RouteResponse values and use
+// NewFragment for normal fragment HTML. Actions are ordinary HTTP handlers
+// named by method and action, such as PostCreate, colocated with the route they
+// mutate. HTMX attributes should stay visible in templ files.
 //
-// Action handlers that redisplay templ HTML can call Render to buffer the
-// component response, handle render errors, set response headers, then write
-// the buffered response. Use HTMLResponse.WriteStatus when rendered HTML needs
-// a non-200 status.
+// Action handlers that redisplay templ HTML can set response headers, then call
+// WriteComponent with the intended status. When an action needs to return a
+// full page through the matched layout stack, call WriteRouteResponse with a
+// Page response. Page, fragment, redirect, and text route responses can carry
+// explicit headers with WithHeader and AddHeader.
 //
 // For server-sent events, applications keep ownership of their stream routes,
 // mux registration, subscriber state, and replay policy. The sse package

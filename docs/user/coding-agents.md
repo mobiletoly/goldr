@@ -30,7 +30,7 @@ Goldr is server-first, HTML-first, HTMX-native, and Go-native.
 - Routes live under `app/routes`.
 - Static assets should not live under `app/routes`.
 - A render unit is normally a `.go` file beside a matching `.templ` file.
-- `page.go` defines a page route and returns `goldr.Page`.
+- `page.go` defines a page route and returns `goldr.RouteResponse`.
 - `layout.go` defines a layout and accepts `goldr.LayoutContext`.
 - `frag_<name>.go` and `frag_<name>.templ` define HTMX fragments.
 - `actions.go` defines ordinary HTTP mutation handlers such as `PostCreate`.

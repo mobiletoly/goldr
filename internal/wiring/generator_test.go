@@ -28,7 +28,7 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 		"func HandlerWithErrors(handlers ErrorHandlers) http.Handler",
 		"Route:  \"/\"",
 		"RoutePrefix: \"/\"",
-		"goldrWriteResponse(handlers, w, r, component, status)",
+		"goldrWriteResponse(handlers, w, r, component, status, headers)",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing %q:\n%s", want, source)
@@ -89,20 +89,19 @@ func TestGenerateManifestWritesCallSiteComments(t *testing.T) {
 	for _, want := range []string{
 		`// page GET,HEAD /users
 // expected in file: app/routes/users/page.go
-// expected function: func Page(*http.Request) goldr.Page { ... }
-page := goldrroute_users.Page(r)`,
+// expected function: func Page(*http.Request) goldr.RouteResponse { ... }
+routeResponse := goldrroute_users.Page(r)`,
 		`// layout /users
 // expected in file: app/routes/users/layout.go
 // expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 component = goldrroute_users.Layout(r, layoutContext)`,
 		`// fragment GET,HEAD /users/frag-table
 // expected in file: app/routes/users/frag_table.go
-// expected function: func FragTable(*http.Request) templ.Component { ... }
-component := goldrroute_users.FragTable(r)`,
+// expected function: func FragTable(*http.Request) goldr.RouteResponse { ... }
+routeResponse := goldrroute_users.FragTable(r)`,
 		`// action POST /users/save-preview
 // expected in file: app/routes/users/actions.go
-// expected function: func PostSavePreview(http.ResponseWriter, *http.Request) { ... }
-goldrroute_users.PostSavePreview(w, r)`,
+// expected function: func PostSavePreview(http.ResponseWriter, *http.Request) { ... }`,
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing call-site comment block:\n--- want ---\n%s\n--- source ---\n%s", want, source)
@@ -184,8 +183,8 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
-	return goldr.RenderPage(templ.NopComponent, goldr.PageMetadata{})
+func Page(r *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/page.go", `package users
@@ -198,9 +197,9 @@ import (
 	"example.com/app/urls"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	_ = urls.Users.Create.Path()
-	return goldr.RenderPage(templ.NopComponent, goldr.PageMetadata{})
+	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/by_id/page.go", `package by_id
@@ -213,9 +212,9 @@ import (
 	"example.com/app/urls"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	_ = urls.Users.ByID("42").Profile.Path()
-	return goldr.RenderPage(templ.NopComponent, goldr.PageMetadata{})
+	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/by_slug/page.go", `package by_slug
@@ -227,8 +226,8 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
-	return goldr.RenderPage(templ.NopComponent, goldr.PageMetadata{})
+func Page(r *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/settings/build_info/page.go", `package build_info
@@ -240,8 +239,8 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
-	return goldr.RenderPage(templ.NopComponent, goldr.PageMetadata{})
+func Page(r *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/orgs/by_org_id/users/by_user_id/page.go", `package by_user_id
@@ -253,8 +252,8 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
-	return goldr.RenderPage(templ.NopComponent, goldr.PageMetadata{})
+func Page(r *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/actions.go", `package users
@@ -277,10 +276,11 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(r *http.Request) templ.Component {
-	return templ.NopComponent
+func FragTable(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(templ.NopComponent)
 }
 `)
 	writeTempFile(t, tempDir, "urls/url_test.go", `package urls
@@ -453,12 +453,12 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "<h1>Root</h1>")
 		return err
 	})
-	return goldr.RenderPage(component, goldr.PageMetadata{Title: "Root"})
+	return goldr.NewPage(component, goldr.PageMetadata{Title: "Root"})
 }
 `)
 	writeTempFile(t, tempDir, "routes/layout.go", `package routes
@@ -496,12 +496,12 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "<h1>Users</h1>")
 		return err
 	})
-	return goldr.RenderPage(component, goldr.PageMetadata{Title: "Users", Description: "users"})
+	return goldr.NewPage(component, goldr.PageMetadata{Title: "Users", Description: "users"})
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/layout.go", `package users
@@ -539,13 +539,13 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	id := r.PathValue("id")
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "<h1>User "+id+"</h1>")
 		return err
 	})
-	return goldr.RenderPage(component, goldr.PageMetadata{Title: "User " + id, Description: "users"})
+	return goldr.NewPage(component, goldr.PageMetadata{Title: "User " + id, Description: "users"})
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/by_id/layout.go", `package by_id
@@ -581,13 +581,14 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(r *http.Request) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+func FragTable(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "<tbody>Users fragment</tbody>")
 		return err
-	})
+	}))
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/by_id/frag_row.go", `package by_id
@@ -598,14 +599,15 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
 
-func FragRow(r *http.Request) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+func FragRow(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		id := r.PathValue("id")
 		_, err := io.WriteString(writer, "<tr>User "+id+"</tr>")
 		return err
-	})
+	}))
 }
 `)
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
@@ -677,6 +679,425 @@ func TestHandlerHeadAndErrors(t *testing.T) {
 	runGoTest(t, tempDir)
 }
 
+func TestGenerateManifestFragmentRouteResponses(t *testing.T) {
+	manifest := routing.Manifest{
+		Fragments: []routing.ManifestFragment{
+			{Name: "table", RoutePrefix: "/users", Unit: completeUnit("users/frag_table.go")},
+		},
+	}
+
+	tempDir := tempGoldrModule(t)
+	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeTempFile(t, tempDir, "routes/users/frag_table.go", `package users
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func FragTable(r *http.Request) goldr.RouteResponse {
+	switch r.URL.Query().Get("mode") {
+	case "redirect":
+		return goldr.Redirect{Location: "/sign-in", Status: http.StatusSeeOther}.
+			WithHeader("Cache-Control", "no-store")
+	case "text":
+		return goldr.Text{Status: http.StatusForbidden, Body: "forbidden"}.
+			WithHeader("X-Robots-Tag", "noindex")
+	case "error":
+		return goldr.ServerError{Err: errors.New("boom")}
+	case "page":
+		return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{Title: "wrong"})
+	default:
+		component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+			_, err := io.WriteString(writer, "<tbody>Users fragment</tbody>")
+			return err
+		})
+		return goldr.NewFragment(component).
+			WithStatus(http.StatusAccepted).
+			WithHeader("Hx-Trigger", "fragment-loaded")
+	}
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/frag_table.templ", `package users
+
+templ FragTableView() {}
+`)
+	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
+
+import (
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func TestFragmentRouteResponses(t *testing.T) {
+	normal := httptest.NewRecorder()
+	Handler().ServeHTTP(normal, httptest.NewRequest(http.MethodGet, "/users/frag-table", nil))
+	if normal.Code != http.StatusAccepted {
+		t.Fatalf("normal status = %d, want %d", normal.Code, http.StatusAccepted)
+	}
+	if normal.Body.String() != "<tbody>Users fragment</tbody>" {
+		t.Fatalf("normal body = %q", normal.Body.String())
+	}
+	if got := normal.Header().Get("Hx-Trigger"); got != "fragment-loaded" {
+		t.Fatalf("normal Hx-Trigger = %q, want fragment-loaded", got)
+	}
+
+	head := httptest.NewRecorder()
+	Handler().ServeHTTP(head, httptest.NewRequest(http.MethodHead, "/users/frag-table", nil))
+	if head.Code != http.StatusAccepted {
+		t.Fatalf("HEAD status = %d, want %d", head.Code, http.StatusAccepted)
+	}
+	if head.Body.Len() != 0 {
+		t.Fatalf("HEAD body length = %d, want 0", head.Body.Len())
+	}
+
+	redirect := httptest.NewRecorder()
+	Handler().ServeHTTP(redirect, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=redirect", nil))
+	if redirect.Code != http.StatusSeeOther || redirect.Header().Get("Location") != "/sign-in" {
+		t.Fatalf("redirect = (%d, %q), want 303 /sign-in", redirect.Code, redirect.Header().Get("Location"))
+	}
+	if got := redirect.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("redirect Cache-Control = %q, want no-store", got)
+	}
+
+	text := httptest.NewRecorder()
+	Handler().ServeHTTP(text, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=text", nil))
+	if text.Code != http.StatusForbidden || text.Body.String() != "forbidden" {
+		t.Fatalf("text = (%d, %q), want 403 forbidden", text.Code, text.Body.String())
+	}
+	if got := text.Header().Get("X-Robots-Tag"); got != "noindex" {
+		t.Fatalf("text X-Robots-Tag = %q, want noindex", got)
+	}
+
+	var serverErr error
+	errorResponse := httptest.NewRecorder()
+	HandlerWithErrors(ErrorHandlers{
+		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
+			serverErr = err
+			http.Error(w, "custom error", http.StatusInternalServerError)
+		},
+	}).ServeHTTP(errorResponse, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=error", nil))
+	if serverErr == nil || !strings.Contains(serverErr.Error(), "boom") {
+		t.Fatalf("serverErr = %v, want boom", serverErr)
+	}
+
+	invalidPage := httptest.NewRecorder()
+	HandlerWithErrors(ErrorHandlers{
+		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
+			serverErr = err
+			http.Error(w, "custom error", http.StatusInternalServerError)
+		},
+	}).ServeHTTP(invalidPage, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=page", nil))
+	if !errors.Is(serverErr, goldr.ErrInvalidRouteResponse) {
+		t.Fatalf("invalid page error = %v, want ErrInvalidRouteResponse", serverErr)
+	}
+}
+`)
+
+	runGoTest(t, tempDir)
+}
+
+func TestGenerateManifestDoesNotLeakRouteHeadersOnRenderError(t *testing.T) {
+	manifest := routing.Manifest{
+		Pages: []routing.ManifestPage{
+			{Route: "/", Unit: completeUnit("page.go")},
+		},
+		Fragments: []routing.ManifestFragment{
+			{Name: "fail", RoutePrefix: "/", Unit: completeUnit("frag_fail.go")},
+		},
+	}
+
+	tempDir := tempGoldrModule(t)
+	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeTempFile(t, tempDir, "routes/page.go", `package routes
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(r *http.Request) goldr.RouteResponse {
+	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		return errors.New("page render failed")
+	})
+	return goldr.NewPage(component, goldr.PageMetadata{}).
+		WithHeader("Set-Cookie", "page=success")
+}
+`)
+	writeTempFile(t, tempDir, "routes/frag_fail.go", `package routes
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func FragFail(r *http.Request) goldr.RouteResponse {
+	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		return errors.New("fragment render failed")
+	})
+	return goldr.NewFragment(component).
+		WithHeader("Hx-Trigger", "fragment-success")
+}
+`)
+	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestRouteHeadersAreDelayedUntilRenderSuccess(t *testing.T) {
+	handler := HandlerWithErrors(ErrorHandlers{
+		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, "custom error", http.StatusInternalServerError)
+		},
+	})
+
+	page := httptest.NewRecorder()
+	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/", nil))
+	if page.Code != http.StatusInternalServerError {
+		t.Fatalf("page status = %d, want %d", page.Code, http.StatusInternalServerError)
+	}
+	if got := page.Header().Values("Set-Cookie"); len(got) != 0 {
+		t.Fatalf("page Set-Cookie = %#v, want none", got)
+	}
+
+	fragment := httptest.NewRecorder()
+	handler.ServeHTTP(fragment, httptest.NewRequest(http.MethodGet, "/frag-fail", nil))
+	if fragment.Code != http.StatusInternalServerError {
+		t.Fatalf("fragment status = %d, want %d", fragment.Code, http.StatusInternalServerError)
+	}
+	if got := fragment.Header().Get("Hx-Trigger"); got != "" {
+		t.Fatalf("fragment Hx-Trigger = %q, want empty", got)
+	}
+}
+`)
+
+	runGoTest(t, tempDir)
+}
+
+func TestGenerateManifestActionWritesRouteResponseWithoutLayouts(t *testing.T) {
+	manifest := routing.Manifest{
+		Actions: []routing.ManifestAction{
+			{Method: "POST", Route: "/create", GoFile: "actions.go", Function: "PostCreate"},
+		},
+	}
+
+	tempDir := tempGoldrModule(t)
+	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeTempFile(t, tempDir, "routes/actions.go", `package routes
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func PostCreate(w http.ResponseWriter, r *http.Request) {
+	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		_, err := io.WriteString(writer, "<p>created</p>")
+		return err
+	})
+	err := goldr.WriteRouteResponse(w, r, goldr.NewPage(
+		component,
+		goldr.PageMetadata{Title: "Created"},
+	).WithStatus(http.StatusCreated).WithHeader("Cache-Control", "no-store"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+`)
+	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestActionRouteResponseWithoutLayouts(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/create", nil))
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusCreated, recorder.Body.String())
+	}
+	if recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", recorder.Header().Get("Cache-Control"))
+	}
+	if recorder.Body.String() != "<p>created</p>" {
+		t.Fatalf("body = %q, want created page", recorder.Body.String())
+	}
+}
+`)
+
+	runGoTest(t, tempDir)
+}
+
+func TestGenerateManifestActionWritesRouteResponseWithLayoutStack(t *testing.T) {
+	manifest := routing.Manifest{
+		Layouts: []routing.ManifestLayout{
+			{RoutePrefix: "/", Unit: completeUnit("layout.go")},
+			{RoutePrefix: "/users", Unit: completeUnit("users/layout.go")},
+			{RoutePrefix: "/users/{id}", Params: []string{"id"}, Unit: completeUnit("users/by_id/layout.go")},
+		},
+		Actions: []routing.ManifestAction{
+			{Method: "POST", Route: "/users/{id}/keys/create", Params: []string{"id"}, GoFile: "users/by_id/keys/actions.go", Function: "PostCreate"},
+		},
+	}
+
+	tempDir := tempGoldrModule(t)
+	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeTempFile(t, tempDir, "routes/layout.go", `package routes
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func Layout(r *http.Request, layout goldr.LayoutContext) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		if _, err := io.WriteString(writer, "<root title=\""+layout.Metadata.Title+"\">"); err != nil {
+			return err
+		}
+		if err := layout.Child.Render(ctx, writer); err != nil {
+			return err
+		}
+		_, err := io.WriteString(writer, "</root>")
+		return err
+	})
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/layout.go", `package users
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func Layout(r *http.Request, layout goldr.LayoutContext) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		if _, err := io.WriteString(writer, "<users section=\""+layout.Metadata.Description+"\">"); err != nil {
+			return err
+		}
+		if err := layout.Child.Render(ctx, writer); err != nil {
+			return err
+		}
+		_, err := io.WriteString(writer, "</users>")
+		return err
+	})
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/by_id/layout.go", `package by_id
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func Layout(r *http.Request, layout goldr.LayoutContext) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		if _, err := io.WriteString(writer, "<user id=\""+r.PathValue("id")+"\">"); err != nil {
+			return err
+		}
+		if err := layout.Child.Render(ctx, writer); err != nil {
+			return err
+		}
+		_, err := io.WriteString(writer, "</user>")
+		return err
+	})
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/by_id/keys/actions.go", `package keys
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func PostCreate(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		_, err := io.WriteString(writer, "<p>created "+id+"</p>")
+		return err
+	})
+	err := goldr.WriteRouteResponse(w, r, goldr.NewPage(
+		component,
+		goldr.PageMetadata{Title: "Created " + id, Description: "keys"},
+	).WithStatus(http.StatusCreated).WithHeader("Cache-Control", "no-store"))
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
+}
+`)
+	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestActionRouteResponseUsesLayoutStack(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/users/42/keys/create", nil))
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusCreated)
+	}
+	if recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("Cache-Control = %q", recorder.Header().Get("Cache-Control"))
+	}
+	want := "<root title=\"Created 42\"><users section=\"keys\"><user id=\"42\"><p>created 42</p></user></users></root>"
+	if recorder.Body.String() != want {
+		t.Fatalf("body = %q, want %q", recorder.Body.String(), want)
+	}
+}
+`)
+
+	runGoTest(t, tempDir)
+}
+
 func TestGenerateManifestPassesZeroMetadataToLayouts(t *testing.T) {
 	manifest := routing.Manifest{
 		Pages: []routing.ManifestPage{
@@ -700,12 +1121,12 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "root")
 		return err
 	})
-	return goldr.RenderPage(component, goldr.PageMetadata{})
+	return goldr.NewPage(component, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/layout.go", `package routes
@@ -776,12 +1197,12 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "root")
 		return err
 	})
-	return goldr.RenderPage(component, goldr.PageMetadata{})
+	return goldr.NewPage(component, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/frag_nil.go", `package routes
@@ -789,11 +1210,11 @@ func Page(r *http.Request) goldr.Page {
 import (
 	"net/http"
 
-	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
 
-func FragNil(r *http.Request) templ.Component {
-	return nil
+func FragNil(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(nil)
 }
 `)
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
@@ -930,8 +1351,8 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
-	return goldr.Redirect("/sign-in", http.StatusSeeOther)
+func Page(r *http.Request) goldr.RouteResponse {
+	return goldr.Redirect{Location: "/sign-in", Status: http.StatusSeeOther}.WithHeader("Cache-Control", "no-store")
 }
 `)
 	writeTempFile(t, tempDir, "routes/forbidden/page.go", `package forbidden
@@ -945,12 +1366,14 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "<p>forbidden</p>")
 		return err
 	})
-	return goldr.Status(http.StatusForbidden, component, goldr.PageMetadata{Title: "Forbidden"})
+	return goldr.NewPage(component, goldr.PageMetadata{Title: "Forbidden"}).
+		WithStatus(http.StatusForbidden).
+		WithHeader("X-Robots-Tag", "noindex")
 }
 `)
 	writeTempFile(t, tempDir, "routes/plain/page.go", `package plain
@@ -961,8 +1384,8 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
-	return goldr.TextStatus(http.StatusForbidden, "plain forbidden")
+func Page(r *http.Request) goldr.RouteResponse {
+	return goldr.Text{Status: http.StatusForbidden, Body: "plain forbidden"}.WithHeader("Cache-Control", "private")
 }
 `)
 	writeTempFile(t, tempDir, "routes/errorpage/page.go", `package errorpage
@@ -974,8 +1397,8 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
-	return goldr.Error(errors.New("load failed"))
+func Page(r *http.Request) goldr.RouteResponse {
+	return goldr.ServerError{Err: errors.New("load failed")}
 }
 `)
 	writeTempFile(t, tempDir, "routes/badredirect/page.go", `package badredirect
@@ -986,8 +1409,8 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
-	return goldr.Redirect("", http.StatusSeeOther)
+func Page(r *http.Request) goldr.RouteResponse {
+	return goldr.Redirect{Location: "", Status: http.StatusSeeOther}
 }
 `)
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
@@ -1017,6 +1440,9 @@ func TestPageResponses(t *testing.T) {
 	if redirect.Header().Get("Location") != "/sign-in" {
 		t.Fatalf("redirect Location = %q", redirect.Header().Get("Location"))
 	}
+	if redirect.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("redirect Cache-Control = %q", redirect.Header().Get("Cache-Control"))
+	}
 	if strings.Contains(redirect.Body.String(), "layout") {
 		t.Fatalf("redirect body = %q, must not render layout", redirect.Body.String())
 	}
@@ -1029,6 +1455,9 @@ func TestPageResponses(t *testing.T) {
 	if forbidden.Body.String() != "<layout title=\"Forbidden\"><p>forbidden</p></layout>" {
 		t.Fatalf("forbidden body = %q", forbidden.Body.String())
 	}
+	if forbidden.Header().Get("X-Robots-Tag") != "noindex" {
+		t.Fatalf("forbidden X-Robots-Tag = %q", forbidden.Header().Get("X-Robots-Tag"))
+	}
 
 	plain := httptest.NewRecorder()
 	handler.ServeHTTP(plain, httptest.NewRequest(http.MethodGet, "/plain", nil))
@@ -1037,6 +1466,9 @@ func TestPageResponses(t *testing.T) {
 	}
 	if plain.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
 		t.Fatalf("plain Content-Type = %q", plain.Header().Get("Content-Type"))
+	}
+	if plain.Header().Get("Cache-Control") != "private" {
+		t.Fatalf("plain Cache-Control = %q", plain.Header().Get("Cache-Control"))
 	}
 	if plain.Body.String() != "plain forbidden" {
 		t.Fatalf("plain body = %q", plain.Body.String())
@@ -1059,7 +1491,7 @@ func TestPageResponses(t *testing.T) {
 	if invalid.Code != http.StatusInternalServerError {
 		t.Fatalf("bad redirect status = %d, want %d", invalid.Code, http.StatusInternalServerError)
 	}
-	if !strings.Contains(invalid.Body.String(), goldr.ErrInvalidPageResponse.Error()) {
+	if !strings.Contains(invalid.Body.String(), goldr.ErrInvalidRouteResponse.Error()) {
 		t.Fatalf("bad redirect body = %q, want invalid page response", invalid.Body.String())
 	}
 }
@@ -1075,11 +1507,15 @@ func TestGenerateManifestActionOnlyRuntimeDispatch(t *testing.T) {
 		},
 	}
 	source := generateOK(t, manifest)
-	if strings.Contains(source, "github.com/a-h/templ") {
-		t.Fatalf("action-only source imports templ:\n%s", source)
-	}
-	if strings.Contains(source, "\"bytes\"") {
-		t.Fatalf("action-only source imports bytes:\n%s", source)
+	for _, want := range []string{
+		"goldr.WithRouteResponseWriter",
+		"func goldrWriteComponentResponse",
+		"github.com/a-h/templ",
+		"\"bytes\"",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("action-only source missing %q:\n%s", want, source)
+		}
 	}
 
 	tempDir := tempGoldrModule(t)
@@ -1156,12 +1592,12 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "users page")
 		return err
 	})
-	return goldr.RenderPage(component, goldr.PageMetadata{})
+	return goldr.NewPage(component, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/frag_table.go", `package users
@@ -1172,13 +1608,14 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(r *http.Request) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+func FragTable(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "users fragment")
 		return err
-	})
+	}))
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/actions.go", `package users
@@ -1262,12 +1699,12 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "profile")
 		return err
 	})
-	return goldr.RenderPage(component, goldr.PageMetadata{})
+	return goldr.NewPage(component, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/profile/actions.go", `package profile
@@ -1289,12 +1726,12 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "dynamic")
 		return err
 	})
-	return goldr.RenderPage(component, goldr.PageMetadata{})
+	return goldr.NewPage(component, goldr.PageMetadata{})
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/frag_table.go", `package users
@@ -1305,13 +1742,14 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(r *http.Request) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+func FragTable(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "fragment")
 		return err
-	})
+	}))
 }
 `)
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
@@ -1409,8 +1847,8 @@ func TestGenerateManifestFragmentNamesWithEmptyUnderscoreParts(t *testing.T) {
 	})
 
 	for _, want := range []string{
-		"component := FragTable_(r)",
-		"component := FragUser_Row(r)",
+		"routeResponse := FragTable_(r)",
+		"routeResponse := FragUser_Row(r)",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing %q:\n%s", want, source)
@@ -1435,11 +1873,11 @@ func TestGenerateManifestFragmentRenderFailures(t *testing.T) {
 import (
 	"net/http"
 
-	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
 
-func FragNil(r *http.Request) templ.Component {
-	return nil
+func FragNil(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(nil)
 }
 `)
 	writeTempFile(t, tempDir, "routes/frag_fail.go", `package routes
@@ -1451,12 +1889,13 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
 
-func FragFail(r *http.Request) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+func FragFail(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		return errors.New("render failed")
-	})
+	}))
 }
 `)
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
@@ -1795,6 +2234,7 @@ func fullFeatureManifest() routing.Manifest {
 			{Name: "table", RoutePrefix: "/users", Unit: completeUnit("users/frag_table.go")},
 		},
 		Actions: []routing.ManifestAction{
+			{Method: "POST", Route: "/protected-resource-demo/reveal-secret", GoFile: "protected_resource_demo/actions.go", Function: "PostRevealSecret", Suffix: "RevealSecret", Segment: "reveal-secret"},
 			{Method: "POST", Route: "/protected-resource-demo/sign-out", GoFile: "protected_resource_demo/actions.go", Function: "PostSignOut", Suffix: "SignOut", Segment: "sign-out"},
 			{Method: "POST", Route: "/sign-in", GoFile: "sign_in/actions.go", Function: "PostIndex", Suffix: "Index"},
 			{Method: "POST", Route: "/users/create", GoFile: "users/actions.go", Function: "PostCreate", Suffix: "Create", Segment: "create"},

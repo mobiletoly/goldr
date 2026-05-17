@@ -169,6 +169,7 @@ func TestHandlerProtectedResourceDemoSignedInState(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Signed in as admin",
+		`action="/protected-resource-demo/reveal-secret"`,
 		`action="/protected-resource-demo/sign-out"`,
 		`name="csrf_token"`,
 		`href="/admin"`,
@@ -382,6 +383,49 @@ func TestHandlerProtectedResourceDemoSignOutClearsDemoRole(t *testing.T) {
 		}
 	}
 	t.Fatalf("Set-Cookie = %v, want cleared %s cookie", recorder.Result().Cookies(), security.DemoAuthCookie)
+}
+
+func TestHandlerProtectedResourceDemoActionWritesFullPage(t *testing.T) {
+	cookie, token := testcsrf.Pair(t, security.CSRF)
+	recorder := recordForm(t, "/protected-resource-demo/reveal-secret", url.Values{
+		csrf.FieldName: {token},
+	}, cookie, &http.Cookie{Name: security.DemoAuthCookie, Value: security.RoleAdmin})
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusCreated)
+	}
+	if recorder.Header().Get("Content-Type") != "text/html; charset=utf-8" {
+		t.Fatalf("content-type = %q", recorder.Header().Get("Content-Type"))
+	}
+	for _, want := range []string{
+		`<title>One-time secret - Goldr Example</title>`,
+		`href="` + assets.Path("app.css") + `"`,
+		"One-time secret",
+		"This full page was returned from an action after a POST.",
+		"goldr-demo-secret-123",
+		`href="/protected-resource-demo"`,
+	} {
+		if !strings.Contains(recorder.Body.String(), want) {
+			t.Fatalf("body = %q, want %q", recorder.Body.String(), want)
+		}
+	}
+}
+
+func TestHandlerProtectedResourceDemoActionRequiresAuth(t *testing.T) {
+	cookie, token := testcsrf.Pair(t, security.CSRF)
+	recorder := recordForm(t, "/protected-resource-demo/reveal-secret", url.Values{
+		csrf.FieldName: {token},
+	}, cookie)
+
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusSeeOther)
+	}
+	if recorder.Header().Get("Location") != "/sign-in?next=%2Fprotected-resource-demo" {
+		t.Fatalf("Location = %q, want sign-in redirect", recorder.Header().Get("Location"))
+	}
+	if strings.Contains(recorder.Body.String(), "goldr-demo-secret-123") {
+		t.Fatalf("body = %q, want no secret", recorder.Body.String())
+	}
 }
 
 func TestHandlerGetFragmentPartial(t *testing.T) {

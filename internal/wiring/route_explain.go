@@ -194,6 +194,7 @@ func routeExplainMatch(route runtimeRoute, params []RouteExplanationParam) Route
 		match.Kind = RouteSurfaceKindAction
 		match.Source = route.action.action.GoFile
 		match.Function = route.action.action.Function
+		match.Layouts = routeExplainLayouts(route.action.layouts)
 	}
 	return match
 }

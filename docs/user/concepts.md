@@ -56,18 +56,19 @@ The `.go` file owns request handling, data loading, and render state. The
 
 A page is a route endpoint. `app/routes/users/page.go` maps to `/users`.
 
-Page functions return `goldr.Page`:
+Page functions return `goldr.RouteResponse`:
 
 ```go
-func Page(r *http.Request) goldr.Page
+func Page(r *http.Request) goldr.RouteResponse
 ```
 
 The page component renders the body. Page metadata is passed to matching
 layouts.
 
-Normal pages use `goldr.RenderPage`. Page handlers may also return
-`goldr.Redirect`, `goldr.Status`, `goldr.TextStatus`, or `goldr.Error` when the
-route needs to respond before normal rendering.
+Normal pages use `goldr.NewPage`. Page handlers may also return `goldr.Redirect`,
+`goldr.Text`, or `goldr.ServerError` when the route needs to respond before
+normal rendering. Use `page.WithStatus(status)` for rendered page responses
+such as `403` or `404`.
 
 ## Page Metadata
 
@@ -113,13 +114,14 @@ Fragments are standalone partials for HTMX swaps.
 app/routes/users/frag_table.go -> /users/frag-table
 ```
 
-Fragment functions return a templ component:
+Fragment functions return `goldr.RouteResponse`:
 
 ```go
-func FragTable(r *http.Request) templ.Component
+func FragTable(r *http.Request) goldr.RouteResponse
 ```
 
-Fragments render partial HTML and are not layout-wrapped.
+Use `goldr.NewFragment` for normal fragment HTML. Fragments may also return
+redirect, text, and server-error route responses. They are not layout-wrapped.
 
 ## Actions
 
@@ -137,7 +139,9 @@ POST /users/create
 ```
 
 Actions own status codes, headers, bodies, redirects, HTMX response headers,
-and form redisplay. They are not layout-wrapped.
+and form redisplay. They are not automatically layout-wrapped, but can call
+`goldr.WriteRouteResponse` when an action needs to return a full page through
+the matched layout stack.
 
 ## Generated Code
 

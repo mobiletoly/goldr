@@ -7,7 +7,7 @@ import (
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 )
 
-func Page(r *http.Request) goldr.Page {
+func Page(r *http.Request) goldr.RouteResponse {
 	next := signInReturnPath(r)
 	notice := ""
 	if next == adminReturnPath {
@@ -18,7 +18,7 @@ func Page(r *http.Request) goldr.Page {
 		errorMessage = signInCredentialsNotice
 	}
 
-	return goldr.RenderPage(
+	return goldr.NewPage(
 		PageView(security.CSRF.Token(r), security.DemoRole(r), next, notice, errorMessage),
 		goldr.PageMetadata{
 			Title:       "Sign in - Goldr Example",

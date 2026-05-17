@@ -7,8 +7,8 @@ import (
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 )
 
-func Page(r *http.Request) goldr.Page {
-	return goldr.RenderPage(
+func Page(r *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(
 		PageView(security.CSRF.Token(r), security.DemoRole(r)),
 		goldr.PageMetadata{
 			Title:       "Protected Resource Demo - Goldr Example",

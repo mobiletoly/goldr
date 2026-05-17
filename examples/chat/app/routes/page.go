@@ -7,8 +7,8 @@ import (
 	"github.com/mobiletoly/goldr/bind"
 )
 
-func Page(_ *http.Request) goldr.Page {
-	return goldr.RenderPage(
+func Page(_ *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(
 		PageView(bind.Form{}),
 		goldr.PageMetadata{
 			Title:       "Join Chat - Goldr Chat",

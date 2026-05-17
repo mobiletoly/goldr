@@ -126,6 +126,9 @@ func TestBuildRouteLayoutMap(t *testing.T) {
 	if got := users.Actions[0].Function; got != "PostCreate" {
 		t.Fatalf("users first action = %q, want PostCreate", got)
 	}
+	if got, want := layoutSources(users.Actions[0].Layouts), []string{"layout.go", "users/layout.go"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("users action layouts = %#v, want %#v", got, want)
+	}
 	if got := users.Actions[1].Function; got != "PostSavePreview" {
 		t.Fatalf("users second action = %q, want PostSavePreview", got)
 	}

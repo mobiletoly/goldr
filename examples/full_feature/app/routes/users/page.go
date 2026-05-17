@@ -8,8 +8,8 @@ import (
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 )
 
-func Page(r *http.Request) goldr.Page {
-	return goldr.RenderPage(
+func Page(r *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(
 		PageView(bind.Form{}, ListContacts(), security.CSRF.Token(r)),
 		goldr.PageMetadata{
 			Title:       "Users - Goldr Example",

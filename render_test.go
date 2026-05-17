@@ -11,7 +11,7 @@ import (
 	"github.com/a-h/templ"
 )
 
-func TestRenderBuffersHTMLResponse(t *testing.T) {
+func TestWriteComponent(t *testing.T) {
 	tests := []struct {
 		name     string
 		method   string
@@ -24,21 +24,22 @@ func TestRenderBuffersHTMLResponse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequestWithContext(context.Background(), tt.method, "/", nil)
+			recorder := httptest.NewRecorder()
+			recorder.Header().Set("Hx-Trigger", "saved")
 
-			response, err := Render(request, stringComponent("<p>Hello</p>"))
+			err := WriteComponent(recorder, request, http.StatusAccepted, stringComponent("<p>Hello</p>"))
 
 			if err != nil {
-				t.Fatalf("Render() error = %v, want nil", err)
+				t.Fatalf("WriteComponent() error = %v, want nil", err)
 			}
-			recorder := httptest.NewRecorder()
-			if err := response.Write(recorder, request); err != nil {
-				t.Fatalf("Write() error = %v, want nil", err)
-			}
-			if got := recorder.Result().StatusCode; got != http.StatusOK {
-				t.Fatalf("status = %d, want %d", got, http.StatusOK)
+			if got := recorder.Result().StatusCode; got != http.StatusAccepted {
+				t.Fatalf("status = %d, want %d", got, http.StatusAccepted)
 			}
 			if got := recorder.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
 				t.Fatalf("content-type = %q, want text/html; charset=utf-8", got)
+			}
+			if got := recorder.Header().Get("Hx-Trigger"); got != "saved" {
+				t.Fatalf("HX-Trigger = %q, want saved", got)
 			}
 			if got := recorder.Body.String(); got != tt.wantBody {
 				t.Fatalf("body = %q, want %q", got, tt.wantBody)
@@ -47,91 +48,148 @@ func TestRenderBuffersHTMLResponse(t *testing.T) {
 	}
 }
 
-func TestRenderRejectsNilRequest(t *testing.T) {
-	_, err := Render(nil, stringComponent("<p>Hello</p>"))
-	if !errors.Is(err, ErrNilRequest) {
-		t.Fatalf("Render() error = %v, want ErrNilRequest", err)
-	}
-}
-
-func TestRenderRejectsNilComponent(t *testing.T) {
+func TestWriteComponentRejectsInvalidInputs(t *testing.T) {
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	tests := []struct {
+		name      string
+		writer    http.ResponseWriter
+		request   *http.Request
+		status    int
+		component templ.Component
+		want      error
+	}{
+		{name: "nil writer", writer: nil, request: request, status: http.StatusOK, component: templ.NopComponent, want: ErrNilResponseWriter},
+		{name: "nil request", writer: httptest.NewRecorder(), request: nil, status: http.StatusOK, component: templ.NopComponent, want: ErrNilRequest},
+		{name: "nil component", writer: httptest.NewRecorder(), request: request, status: http.StatusOK, component: nil, want: ErrNilComponent},
+		{name: "no content status", writer: httptest.NewRecorder(), request: request, status: http.StatusNoContent, component: templ.NopComponent, want: ErrInvalidHTMLStatus},
+	}
 
-	_, err := Render(request, nil)
-
-	if !errors.Is(err, ErrNilComponent) {
-		t.Fatalf("Render() error = %v, want ErrNilComponent", err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := WriteComponent(test.writer, test.request, test.status, test.component)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("WriteComponent() error = %v, want %v", err, test.want)
+			}
+		})
 	}
 }
 
-func TestRenderReturnsComponentErrorsWithoutWriting(t *testing.T) {
+func TestWriteComponentReturnsComponentErrorsWithoutWriting(t *testing.T) {
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	componentErr := errors.New("render failed")
+	recorder := httptest.NewRecorder()
 
-	_, err := Render(request, templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
+	err := WriteComponent(recorder, request, http.StatusOK, templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
 		_, _ = io.WriteString(writer, "partial")
 		return componentErr
 	}))
 
 	if !errors.Is(err, componentErr) {
-		t.Fatalf("Render() error = %v, want component error", err)
+		t.Fatalf("WriteComponent() error = %v, want component error", err)
+	}
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want implicit 200 because response was not committed", recorder.Code)
+	}
+	if recorder.Body.Len() != 0 {
+		t.Fatalf("body = %q, want empty", recorder.Body.String())
 	}
 }
 
-func TestHTMLResponseAllowsHeadersAfterRenderBeforeWrite(t *testing.T) {
+func TestWriteRouteResponseRequiresGeneratedWriterForPage(t *testing.T) {
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
-	response, err := Render(request, stringComponent("<p>Hello</p>"))
-	if err != nil {
-		t.Fatalf("Render() error = %v, want nil", err)
-	}
-
 	recorder := httptest.NewRecorder()
-	recorder.Header().Set("HX-Trigger", "saved")
-	if err := response.Write(recorder, request); err != nil {
-		t.Fatalf("Write() error = %v, want nil", err)
-	}
 
-	if got := recorder.Header().Get("HX-Trigger"); got != "saved" {
-		t.Fatalf("HX-Trigger = %q, want saved", got)
-	}
-	if got := recorder.Body.String(); got != "<p>Hello</p>" {
-		t.Fatalf("body = %q, want rendered HTML", got)
+	err := WriteRouteResponse(recorder, request, NewPage(templ.NopComponent, PageMetadata{}))
+
+	if !errors.Is(err, ErrRouteResponseWriterUnavailable) {
+		t.Fatalf("WriteRouteResponse() error = %v, want ErrRouteResponseWriterUnavailable", err)
 	}
 }
 
-func TestHTMLResponseWriteStatus(t *testing.T) {
-	tests := []struct {
-		name     string
-		method   string
-		wantBody string
-	}{
-		{name: "get", method: http.MethodGet, wantBody: "<p>Missing</p>"},
-		{name: "head", method: http.MethodHead, wantBody: ""},
+func TestWriteRouteResponseWritesRedirectAndText(t *testing.T) {
+	redirect := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil)
+	if err := WriteRouteResponse(
+		redirect,
+		request,
+		Redirect{Location: "/sign-in", Status: http.StatusSeeOther}.WithHeader("Cache-Control", "no-store"),
+	); err != nil {
+		t.Fatalf("WriteRouteResponse(redirect) error = %v, want nil", err)
+	}
+	if redirect.Code != http.StatusSeeOther || redirect.Header().Get("Location") != "/sign-in" {
+		t.Fatalf("redirect = (%d, %q), want 303 /sign-in", redirect.Code, redirect.Header().Get("Location"))
+	}
+	if got := redirect.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("redirect Cache-Control = %q, want no-store", got)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequestWithContext(context.Background(), tt.method, "/", nil)
-			response, err := Render(request, stringComponent("<p>Missing</p>"))
-			if err != nil {
-				t.Fatalf("Render() error = %v, want nil", err)
-			}
+	text := httptest.NewRecorder()
+	if err := WriteRouteResponse(
+		text,
+		request,
+		Text{Status: http.StatusForbidden, Body: "forbidden"}.WithHeader("X-Robots-Tag", "noindex"),
+	); err != nil {
+		t.Fatalf("WriteRouteResponse(text) error = %v, want nil", err)
+	}
+	if text.Code != http.StatusForbidden || text.Body.String() != "forbidden" {
+		t.Fatalf("text = (%d, %q), want 403 forbidden", text.Code, text.Body.String())
+	}
+	if got := text.Header().Get("X-Robots-Tag"); got != "noindex" {
+		t.Fatalf("text X-Robots-Tag = %q, want noindex", got)
+	}
+}
 
-			recorder := httptest.NewRecorder()
-			if err := response.WriteStatus(recorder, request, http.StatusNotFound); err != nil {
-				t.Fatalf("WriteStatus() error = %v, want nil", err)
-			}
+func TestWriteRouteResponseWritesFragment(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 
-			if got := recorder.Result().StatusCode; got != http.StatusNotFound {
-				t.Fatalf("status = %d, want %d", got, http.StatusNotFound)
-			}
-			if got := recorder.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
-				t.Fatalf("content-type = %q, want text/html; charset=utf-8", got)
-			}
-			if got := recorder.Body.String(); got != tt.wantBody {
-				t.Fatalf("body = %q, want %q", got, tt.wantBody)
-			}
-		})
+	err := WriteRouteResponse(
+		recorder,
+		request,
+		NewFragment(stringComponent("<tbody>Users</tbody>")).
+			WithStatus(http.StatusAccepted).
+			WithHeader("Hx-Trigger", "fragment-loaded"),
+	)
+
+	if err != nil {
+		t.Fatalf("WriteRouteResponse(fragment) error = %v, want nil", err)
+	}
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusAccepted)
+	}
+	if recorder.Body.String() != "<tbody>Users</tbody>" {
+		t.Fatalf("body = %q, want fragment body", recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Hx-Trigger"); got != "fragment-loaded" {
+		t.Fatalf("Hx-Trigger = %q, want fragment-loaded", got)
+	}
+}
+
+func TestWriteRouteResponseDoesNotApplyFragmentHeadersOnRenderError(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	componentErr := errors.New("render failed")
+
+	err := WriteRouteResponse(
+		recorder,
+		request,
+		NewFragment(templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
+			_, _ = io.WriteString(writer, "partial")
+			return componentErr
+		})).WithHeader("Hx-Trigger", "fragment-loaded"),
+	)
+
+	if !errors.Is(err, componentErr) {
+		t.Fatalf("WriteRouteResponse(fragment) error = %v, want component error", err)
+	}
+	if got := recorder.Header().Get("Hx-Trigger"); got != "" {
+		t.Fatalf("Hx-Trigger = %q, want empty", got)
+	}
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want implicit 200 because response was not committed", recorder.Code)
+	}
+	if recorder.Body.Len() != 0 {
+		t.Fatalf("body = %q, want empty", recorder.Body.String())
 	}
 }
 

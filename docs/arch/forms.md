@@ -39,12 +39,11 @@ redisplay handlers. `bind` remains a small parsing and error-carrier package;
 it does not validate forms, persist data, choose status codes, or choose
 redirect behavior.
 
-`goldr.Render` is the default templ HTML response helper for actions that need
-to redisplay partial HTML. It buffers a `templ.Component` and returns render
-errors before anything is written. Actions handle those errors, set headers
-after successful rendering, then write the buffered response. Actions use the
-status-aware write method when rendered HTML needs a non-200 status. The helper
-does not set HTMX headers, inspect form state, or replace action-owned response
-control. htmx 4 swaps validation statuses such as `422` by default, so
-applications do not need custom client response handling for ordinary form
-redisplay.
+`goldr.WriteComponent` is the default templ HTML response helper for actions
+that need to redisplay partial HTML. It buffers a `templ.Component` before
+committing headers, sets `Content-Type: text/html; charset=utf-8`, writes the
+requested status, and returns render or write errors to the action. Actions set
+HTMX headers explicitly before calling it. The helper does not set HTMX
+headers, inspect form state, or replace action-owned response control. htmx 4
+swaps validation statuses such as `422` by default, so applications do not need
+custom client response handling for ordinary form redisplay.

@@ -22,11 +22,7 @@ func NotFoundPage(r *http.Request) templ.Component {
 }
 
 func renderError(w http.ResponseWriter, r *http.Request, status int, component templ.Component) {
-	response, err := goldr.Render(r, component)
-	if err != nil {
+	if err := goldr.WriteComponent(w, r, status, component); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
 	}
-
-	_ = response.WriteStatus(w, r, status)
 }

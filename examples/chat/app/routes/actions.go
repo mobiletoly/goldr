@@ -22,12 +22,9 @@ func PostJoin(w http.ResponseWriter, r *http.Request) {
 		var errors bind.FieldErrors
 		errors.Add("name", "Enter your name.")
 		form = form.WithErrors(errors)
-		response, err := goldr.Render(r, JoinForm(form))
-		if err != nil {
+		if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, JoinForm(form)); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
 		}
-		_ = response.WriteStatus(w, r, http.StatusUnprocessableEntity)
 		return
 	}
 
