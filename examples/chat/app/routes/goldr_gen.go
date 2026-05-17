@@ -155,12 +155,34 @@ func goldrDispatchRoot(handlers ErrorHandlers, w http.ResponseWriter, r *http.Re
 			// expected in file: app/routes/page.go
 			// expected function: func Page(*http.Request) goldr.Page { ... }
 			page := Page(r)
-			component := page.Component
+			response, err := page.Response()
+			if err != nil {
+				goldrInternalServerError(handlers, w, r, err)
+				return
+			}
+			component := response.Component
+			status := response.Status
+			metadata := response.Metadata
+			switch response.Kind {
+			case goldr.PageResponseRedirect:
+				goldrWriteRedirect(w, response.Location, response.Status)
+				return
+			case goldr.PageResponseText:
+				goldrWriteTextResponse(w, r, response.Status, response.Body)
+				return
+			case goldr.PageResponseError:
+				goldrInternalServerError(handlers, w, r, response.Error)
+				return
+			case goldr.PageResponseRender:
+			default:
+				goldrInternalServerError(handlers, w, r, goldr.ErrInvalidPageResponse)
+				return
+			}
 			if component == nil {
 				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
-			layoutContext := goldr.LayoutContext{Metadata: page.Metadata}
+			layoutContext := goldr.LayoutContext{Metadata: metadata}
 			layoutContext.Child = component
 			// layout /
 			// expected in file: app/routes/layout.go
@@ -170,7 +192,7 @@ func goldrDispatchRoot(handlers ErrorHandlers, w http.ResponseWriter, r *http.Re
 				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
-			goldrWriteResponse(handlers, w, r, component)
+			goldrWriteResponse(handlers, w, r, component, status)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -199,12 +221,34 @@ func goldrDispatchRootStaticChat(handlers ErrorHandlers, w http.ResponseWriter, 
 			// expected in file: app/routes/chat/page.go
 			// expected function: func Page(*http.Request) goldr.Page { ... }
 			page := goldrroute_chat.Page(r)
-			component := page.Component
+			response, err := page.Response()
+			if err != nil {
+				goldrInternalServerError(handlers, w, r, err)
+				return
+			}
+			component := response.Component
+			status := response.Status
+			metadata := response.Metadata
+			switch response.Kind {
+			case goldr.PageResponseRedirect:
+				goldrWriteRedirect(w, response.Location, response.Status)
+				return
+			case goldr.PageResponseText:
+				goldrWriteTextResponse(w, r, response.Status, response.Body)
+				return
+			case goldr.PageResponseError:
+				goldrInternalServerError(handlers, w, r, response.Error)
+				return
+			case goldr.PageResponseRender:
+			default:
+				goldrInternalServerError(handlers, w, r, goldr.ErrInvalidPageResponse)
+				return
+			}
 			if component == nil {
 				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
-			layoutContext := goldr.LayoutContext{Metadata: page.Metadata}
+			layoutContext := goldr.LayoutContext{Metadata: metadata}
 			layoutContext.Child = component
 			// layout /
 			// expected in file: app/routes/layout.go
@@ -214,7 +258,7 @@ func goldrDispatchRootStaticChat(handlers ErrorHandlers, w http.ResponseWriter, 
 				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
 				return
 			}
-			goldrWriteResponse(handlers, w, r, component)
+			goldrWriteResponse(handlers, w, r, component, status)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -323,11 +367,25 @@ func goldrPathSegments(routePath string) []string {
 	return strings.Split(strings.TrimPrefix(routePath, "/"), "/")
 }
 
-func goldrWriteResponse(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, component templ.Component) {
+func goldrWriteResponse(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, component templ.Component, status int) {
 	response, err := goldr.Render(r, component)
 	if err != nil {
 		goldrInternalServerError(handlers, w, r, err)
 		return
 	}
-	_ = response.Write(w, r)
+	_ = response.WriteStatus(w, r, status)
+}
+
+func goldrWriteRedirect(w http.ResponseWriter, location string, status int) {
+	w.Header().Set("Location", location)
+	w.WriteHeader(status)
+}
+
+func goldrWriteTextResponse(w http.ResponseWriter, r *http.Request, status int, body string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(status)
+	if r.Method == http.MethodHead {
+		return
+	}
+	_, _ = w.Write([]byte(body))
 }

@@ -71,12 +71,12 @@ import (
 )
 
 func Page(_ *http.Request) goldr.Page {
-	return goldr.Page{
-		Component: PageView(time.Now()),
-		Metadata: goldr.PageMetadata{
+	return goldr.RenderPage(
+		PageView(time.Now()),
+		goldr.PageMetadata{
 			Title: "Hello goldr",
 		},
-	}
+	)
 }
 ```
 

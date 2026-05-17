@@ -20,12 +20,10 @@
 // Page functions live beside their templ views and return Page:
 //
 //	func Page(r *http.Request) goldr.Page {
-//	    return goldr.Page{
-//	        Component: PageView(),
-//	        Metadata: goldr.PageMetadata{
-//	            Title: "Home",
-//	        },
-//	    }
+//	    return goldr.RenderPage(
+//	        PageView(),
+//	        goldr.PageMetadata{Title: "Home"},
+//	    )
 //	}
 //
 // Layout functions accept LayoutContext and return a templ.Component:

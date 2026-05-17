@@ -20,9 +20,9 @@ type Asset struct {
 var manifest = map[string]Asset{
 	"app.css": {
 		Name: "app.css",
-		Path: "/assets/app.733637bd.css",
-		Hash: "733637bd",
-		Size: 801,
+		Path: "/assets/app.f52a6844.css",
+		Hash: "f52a6844",
+		Size: 857,
 	},
 	"app.js": {
 		Name: "app.js",

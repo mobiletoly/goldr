@@ -1,0 +1,18 @@
+package protected_resource_demo
+
+templ PageView(csrfToken string, role string) {
+	<section>
+		<h1>Protected Resource Demo</h1>
+		if role == "" {
+			<p>Signed out</p>
+			<p><a href="/sign-in?next=%2Fprotected-resource-demo">Sign in</a></p>
+		} else {
+			<p>Signed in as { role }</p>
+			<form method="post" action="/protected-resource-demo/sign-out">
+				<input type="hidden" name="csrf_token" value={ csrfToken }/>
+				<button type="submit">Sign out</button>
+			</form>
+		}
+		<p><a href="/admin">Open protected admin page</a></p>
+	</section>
+}

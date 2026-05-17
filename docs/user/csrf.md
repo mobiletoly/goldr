@@ -37,9 +37,10 @@ Pass the request token to the template:
 
 ```go
 func Page(r *http.Request) goldr.Page {
-    return goldr.Page{
-        Component: PageView(guard.Token(r)),
-    }
+    return goldr.RenderPage(
+        PageView(guard.Token(r)),
+        goldr.PageMetadata{},
+    )
 }
 ```
 

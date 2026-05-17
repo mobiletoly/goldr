@@ -1242,8 +1242,16 @@ func fullFeatureLayoutMapOutput(t *testing.T) string {
 		rootPath,
 		"└─ /  layout: " + source("layout.go"),
 		"   ├─ page: GET,HEAD /  " + source("page.go"),
+		"   ├─ admin/",
+		"   │  └─ page: GET,HEAD /admin  " + source("admin/page.go"),
+		"   ├─ protected_resource_demo/",
+		"   │  ├─ page: GET,HEAD /protected-resource-demo  " + source("protected_resource_demo/page.go"),
+		"   │  └─ action (not wrapped): POST /protected-resource-demo/sign-out  " + source("protected_resource_demo/actions.go") + " (PostSignOut)",
 		"   ├─ settings/",
 		"   │  └─ page: GET,HEAD /settings  " + source("settings/page.go"),
+		"   ├─ sign_in/",
+		"   │  ├─ page: GET,HEAD /sign-in  " + source("sign_in/page.go"),
+		"   │  └─ action (not wrapped): POST /sign-in  " + source("sign_in/actions.go") + " (PostIndex)",
 		"   └─ users/  layout: " + source("users/layout.go"),
 		"      ├─ page: GET,HEAD /users  " + source("users/page.go"),
 		"      ├─ by_id/",
@@ -1290,7 +1298,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(_ *http.Request) goldr.Page { return goldr.Page{Component: PageView()} }
+func Page(_ *http.Request) goldr.Page { return goldr.RenderPage(PageView(), goldr.PageMetadata{}) }
 `)
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {<h1>Root</h1>}\n")
 	writeFile(t, root, "app/routes/settings/page.go", `package settings
@@ -1301,7 +1309,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(_ *http.Request) goldr.Page { return goldr.Page{Component: PageView()} }
+func Page(_ *http.Request) goldr.Page { return goldr.RenderPage(PageView(), goldr.PageMetadata{}) }
 `)
 	writeFile(t, root, "app/routes/settings/page.templ", "package settings\n\ntempl PageView() {<h1>Settings</h1>}\n")
 	return root

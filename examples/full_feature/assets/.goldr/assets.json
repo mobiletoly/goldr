@@ -10,6 +10,11 @@
       "logical": "app.js",
       "dist": "assets/dist/app.a0e732aa.js",
       "hash": "a0e732aa"
+    },
+    {
+      "logical": "app.css",
+      "dist": "assets/dist/app.f52a6844.css",
+      "hash": "f52a6844"
     }
   ]
 }

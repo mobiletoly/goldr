@@ -404,13 +404,27 @@ func goldrPathParam(segment string) (string, bool) {
 
 	if hasRenderRoutes(routes) {
 		buffer.WriteString(`
-func goldrWriteResponse(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, component templ.Component) {
+func goldrWriteResponse(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, component templ.Component, status int) {
 	response, err := goldr.Render(r, component)
 	if err != nil {
 		goldrInternalServerError(handlers, w, r, err)
 		return
 	}
-	_ = response.Write(w, r)
+	_ = response.WriteStatus(w, r, status)
+}
+
+func goldrWriteRedirect(w http.ResponseWriter, location string, status int) {
+	w.Header().Set("Location", location)
+	w.WriteHeader(status)
+}
+
+func goldrWriteTextResponse(w http.ResponseWriter, r *http.Request, status int, body string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(status)
+	if r.Method == http.MethodHead {
+		return
+	}
+	_, _ = w.Write([]byte(body))
 }
 `)
 	}
@@ -641,11 +655,36 @@ func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, indent string) {
 		pageCall := routeFunc(route.page.page.Unit.GoFile, "Page")
 		writePageCallComment(buffer, indent, route.page.page)
 		fmt.Fprintf(buffer, "%spage := %s(r)\n", indent, pageCall)
-		fmt.Fprintf(buffer, "%scomponent := page.Component\n", indent)
+		fmt.Fprintf(buffer, "%sresponse, err := page.Response()\n", indent)
+		fmt.Fprintf(buffer, "%sif err != nil {\n", indent)
+		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(handlers, w, r, err)\n", indent)
+		fmt.Fprintf(buffer, "%s\treturn\n", indent)
+		fmt.Fprintf(buffer, "%s}\n", indent)
+		fmt.Fprintf(buffer, "%scomponent := response.Component\n", indent)
+		fmt.Fprintf(buffer, "%sstatus := response.Status\n", indent)
+		if len(route.page.layouts) > 0 {
+			fmt.Fprintf(buffer, "%smetadata := response.Metadata\n", indent)
+		}
+		fmt.Fprintf(buffer, "%sswitch response.Kind {\n", indent)
+		fmt.Fprintf(buffer, "%scase goldr.PageResponseRedirect:\n", indent)
+		fmt.Fprintf(buffer, "%s\tgoldrWriteRedirect(w, response.Location, response.Status)\n", indent)
+		fmt.Fprintf(buffer, "%s\treturn\n", indent)
+		fmt.Fprintf(buffer, "%scase goldr.PageResponseText:\n", indent)
+		fmt.Fprintf(buffer, "%s\tgoldrWriteTextResponse(w, r, response.Status, response.Body)\n", indent)
+		fmt.Fprintf(buffer, "%s\treturn\n", indent)
+		fmt.Fprintf(buffer, "%scase goldr.PageResponseError:\n", indent)
+		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(handlers, w, r, response.Error)\n", indent)
+		fmt.Fprintf(buffer, "%s\treturn\n", indent)
+		fmt.Fprintf(buffer, "%scase goldr.PageResponseRender:\n", indent)
+		fmt.Fprintf(buffer, "%sdefault:\n", indent)
+		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(handlers, w, r, goldr.ErrInvalidPageResponse)\n", indent)
+		fmt.Fprintf(buffer, "%s\treturn\n", indent)
+		fmt.Fprintf(buffer, "%s}\n", indent)
 	} else {
 		fragmentCall := routeFunc(route.fragment.fragment.Unit.GoFile, fragmentFuncName(route.fragment.fragment.Name))
 		writeFragmentCallComment(buffer, indent, *route.fragment)
 		fmt.Fprintf(buffer, "%scomponent := %s(r)\n", indent, fragmentCall)
+		fmt.Fprintf(buffer, "%sstatus := http.StatusOK\n", indent)
 	}
 	fmt.Fprintf(buffer, "%sif component == nil {\n", indent)
 	fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)\n", indent)
@@ -653,7 +692,7 @@ func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, indent string) {
 	fmt.Fprintf(buffer, "%s}\n", indent)
 	if route.page != nil {
 		if len(route.page.layouts) > 0 {
-			fmt.Fprintf(buffer, "%slayoutContext := goldr.LayoutContext{Metadata: page.Metadata}\n", indent)
+			fmt.Fprintf(buffer, "%slayoutContext := goldr.LayoutContext{Metadata: metadata}\n", indent)
 		}
 		for index := len(route.page.layouts) - 1; index >= 0; index-- {
 			layoutCall := routeFunc(route.page.layouts[index].Unit.GoFile, "Layout")
@@ -666,7 +705,7 @@ func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, indent string) {
 			fmt.Fprintf(buffer, "%s}\n", indent)
 		}
 	}
-	fmt.Fprintf(buffer, "%sgoldrWriteResponse(handlers, w, r, component)\n", indent)
+	fmt.Fprintf(buffer, "%sgoldrWriteResponse(handlers, w, r, component, status)\n", indent)
 	fmt.Fprintf(buffer, "%sreturn\n", indent)
 }
 

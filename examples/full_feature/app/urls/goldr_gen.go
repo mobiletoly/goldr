@@ -5,12 +5,25 @@ package urls
 import "net/url"
 
 var Root = newRootRoute()
+var Admin = newAdminRoute()
+var ProtectedResourceDemo = newProtectedResourceDemoRoute()
 var Settings = newSettingsRoute()
+var SignIn = newSignInRoute()
 var Users = newUsersRoute()
 
 type rootRoute struct{}
 
+type adminRoute struct{}
+
+type protectedResourceDemoRoute struct {
+	SignOut protectedResourceDemoSignOutRoute
+}
+
+type protectedResourceDemoSignOutRoute struct{}
+
 type settingsRoute struct{}
+
+type signInRoute struct{}
 
 type usersRoute struct {
 	Create      usersCreateRoute
@@ -32,8 +45,26 @@ func newRootRoute() rootRoute {
 	return rootRoute{}
 }
 
+func newAdminRoute() adminRoute {
+	return adminRoute{}
+}
+
+func newProtectedResourceDemoRoute() protectedResourceDemoRoute {
+	return protectedResourceDemoRoute{
+		SignOut: newProtectedResourceDemoSignOutRoute(),
+	}
+}
+
+func newProtectedResourceDemoSignOutRoute() protectedResourceDemoSignOutRoute {
+	return protectedResourceDemoSignOutRoute{}
+}
+
 func newSettingsRoute() settingsRoute {
 	return settingsRoute{}
+}
+
+func newSignInRoute() signInRoute {
+	return signInRoute{}
 }
 
 func newUsersRoute() usersRoute {
@@ -71,8 +102,24 @@ func (r rootRoute) Path() string {
 	return "/"
 }
 
+func (r adminRoute) Path() string {
+	return "/" + "admin"
+}
+
+func (r protectedResourceDemoRoute) Path() string {
+	return "/" + "protected-resource-demo"
+}
+
+func (r protectedResourceDemoSignOutRoute) Path() string {
+	return "/" + "protected-resource-demo" + "/" + "sign-out"
+}
+
 func (r settingsRoute) Path() string {
 	return "/" + "settings"
+}
+
+func (r signInRoute) Path() string {
+	return "/" + "sign-in"
 }
 
 func (r usersRoute) Path() string {

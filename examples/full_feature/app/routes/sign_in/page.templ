@@ -1,0 +1,39 @@
+package sign_in
+
+templ PageView(csrfToken string, role string, next string, notice string, errorMessage string) {
+	<section>
+		<h1>Sign in</h1>
+		if notice != "" {
+			<p class="auth-notice">{ notice }</p>
+		}
+		if errorMessage != "" {
+			<p class="auth-notice">{ errorMessage }</p>
+		}
+		if role == "" {
+			<p>No demo role is active.</p>
+		} else {
+			<p>Current demo role: { role }</p>
+		}
+		<form method="post" action="/sign-in">
+			<input type="hidden" name="csrf_token" value={ csrfToken }/>
+			<input type="hidden" name="next" value={ next }/>
+			<fieldset>
+				<legend>Choose demo credentials</legend>
+				<label>
+					<input type="radio" name="credential" value="admin" checked/>
+					Admin
+				</label>
+				<label>
+					<input type="radio" name="credential" value="member"/>
+					Member
+				</label>
+				<label>
+					<input type="radio" name="credential" value="unknown"/>
+					Unknown Credentials
+				</label>
+			</fieldset>
+			<button type="submit">Sign in</button>
+		</form>
+		<p><a href="/protected-resource-demo">Back to Protected Resource Demo</a></p>
+	</section>
+}

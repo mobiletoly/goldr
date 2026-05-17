@@ -18,8 +18,5 @@ func Page(r *http.Request) goldr.Page {
 		metadata.Title = contact.Name + " - Goldr Example"
 		metadata.Description = "Contact details for " + contact.Name + "."
 	}
-	return goldr.Page{
-		Component: PageView(id, contact.Name, contact.Status, ok),
-		Metadata:  metadata,
-	}
+	return goldr.RenderPage(PageView(id, contact.Name, contact.Status, ok), metadata)
 }

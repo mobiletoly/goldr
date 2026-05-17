@@ -26,6 +26,8 @@ templ LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Comp
 				<nav class="app-nav" aria-label="Primary">
 					<a href={ urls.Users.Path() } { currentPageAttr(activeNav == navUsers)... }>Users</a>
 					<a href={ urls.Settings.Path() } { currentPageAttr(activeNav == navSettings)... }>Settings</a>
+					<a href={ urls.ProtectedResourceDemo.Path() } { currentPageAttr(activeNav == navProtected)... }>Protected</a>
+					<a href="/sign-in" { currentPageAttr(activeNav == navSignIn)... }>Sign in</a>
 				</nav>
 			</header>
 			<main class="app-main">

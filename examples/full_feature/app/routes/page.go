@@ -7,11 +7,11 @@ import (
 )
 
 func Page(_ *http.Request) goldr.Page {
-	return goldr.Page{
-		Component: PageView(),
-		Metadata: goldr.PageMetadata{
+	return goldr.RenderPage(
+		PageView(),
+		goldr.PageMetadata{
 			Title:       "Goldr Example",
 			Description: "Server-rendered pages, nested layouts, HTMX fragments, actions, and custom error views.",
 		},
-	}
+	)
 }

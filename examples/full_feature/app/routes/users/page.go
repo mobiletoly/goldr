@@ -9,11 +9,11 @@ import (
 )
 
 func Page(r *http.Request) goldr.Page {
-	return goldr.Page{
-		Component: PageView(bind.Form{}, ListContacts(), security.CSRF.Token(r)),
-		Metadata: goldr.PageMetadata{
+	return goldr.RenderPage(
+		PageView(bind.Form{}, ListContacts(), security.CSRF.Token(r)),
+		goldr.PageMetadata{
 			Title:       "Users - Goldr Example",
 			Description: "Browse and manage example contacts.",
 		},
-	}
+	)
 }

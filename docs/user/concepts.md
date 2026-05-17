@@ -65,6 +65,10 @@ func Page(r *http.Request) goldr.Page
 The page component renders the body. Page metadata is passed to matching
 layouts.
 
+Normal pages use `goldr.RenderPage`. Page handlers may also return
+`goldr.Redirect`, `goldr.Status`, `goldr.TextStatus`, or `goldr.Error` when the
+route needs to respond before normal rendering.
+
 ## Page Metadata
 
 Page metadata is a small page-owned value:

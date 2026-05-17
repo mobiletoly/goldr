@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -20,6 +21,19 @@ func recordRoute(t *testing.T, method string, path string) *httptest.ResponseRec
 
 	recorder := httptest.NewRecorder()
 	Handler().ServeHTTP(recorder, httptest.NewRequestWithContext(context.Background(), method, path, nil))
+	return recorder
+}
+
+func recordForm(t *testing.T, path string, values url.Values, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+	t.Helper()
+
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, path, strings.NewReader(values.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for _, cookie := range cookies {
+		request.AddCookie(cookie)
+	}
+	recorder := httptest.NewRecorder()
+	Handler().ServeHTTP(recorder, request)
 	return recorder
 }
 
@@ -54,6 +68,20 @@ func TestHandlerGetPages(t *testing.T) {
 				`<title>Settings - Goldr Example</title>`,
 				`<meta name="description" content="Application preferences and account controls.">`,
 				`<a href="/settings" aria-current="page">Settings</a>`,
+			},
+			omit: []string{"people section shell", `rel="canonical"`},
+		},
+		{
+			name: "protected resource demo",
+			path: "/protected-resource-demo",
+			want: []string{
+				"Goldr Example",
+				"Protected Resource Demo",
+				"Signed out",
+				`href="/sign-in?next=%2Fprotected-resource-demo"`,
+				`href="/admin"`,
+				`<a href="/protected-resource-demo" aria-current="page">Protected</a>`,
+				`<title>Protected Resource Demo - Goldr Example</title>`,
 			},
 			omit: []string{"people section shell", `rel="canonical"`},
 		},
@@ -127,6 +155,233 @@ func TestHandlerGetPages(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHandlerProtectedResourceDemoSignedInState(t *testing.T) {
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/protected-resource-demo", nil)
+	request.AddCookie(&http.Cookie{Name: security.DemoAuthCookie, Value: security.RoleAdmin})
+	recorder := httptest.NewRecorder()
+
+	Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	for _, want := range []string{
+		"Signed in as admin",
+		`action="/protected-resource-demo/sign-out"`,
+		`name="csrf_token"`,
+		`href="/admin"`,
+	} {
+		if !strings.Contains(recorder.Body.String(), want) {
+			t.Fatalf("body = %q, want %q", recorder.Body.String(), want)
+		}
+	}
+}
+
+func TestHandlerProtectedPageResponses(t *testing.T) {
+	redirect := recordRoute(t, http.MethodGet, "/admin")
+	if redirect.Code != http.StatusSeeOther {
+		t.Fatalf("redirect status = %d, want %d", redirect.Code, http.StatusSeeOther)
+	}
+	if redirect.Header().Get("Location") != "/sign-in?next=%2Fadmin" {
+		t.Fatalf("redirect Location = %q, want /sign-in?next=%%2Fadmin", redirect.Header().Get("Location"))
+	}
+	if strings.Contains(redirect.Body.String(), "Protected admin") {
+		t.Fatalf("redirect body = %q, want no protected page render", redirect.Body.String())
+	}
+	signIn := recordRoute(t, http.MethodGet, redirect.Header().Get("Location"))
+	if signIn.Code != http.StatusOK {
+		t.Fatalf("sign-in status = %d, want %d", signIn.Code, http.StatusOK)
+	}
+	if !strings.Contains(signIn.Body.String(), "Sign in to open the protected admin page.") {
+		t.Fatalf("sign-in body = %q, want protected page redirect notice", signIn.Body.String())
+	}
+	if !strings.Contains(signIn.Body.String(), `class="auth-notice"`) {
+		t.Fatalf("sign-in body = %q, want auth notice class", signIn.Body.String())
+	}
+	if strings.Contains(signIn.Body.String(), "Open protected admin page") {
+		t.Fatalf("sign-in body = %q, want no direct admin link", signIn.Body.String())
+	}
+	for _, want := range []string{
+		`action="/sign-in"`,
+		`name="credential" value="admin"`,
+		`name="credential" value="member"`,
+		`name="credential" value="unknown"`,
+		`name="next" value="/admin"`,
+	} {
+		if !strings.Contains(signIn.Body.String(), want) {
+			t.Fatalf("sign-in body = %q, want %q", signIn.Body.String(), want)
+		}
+	}
+
+	memberRequest := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin", nil)
+	memberRequest.AddCookie(&http.Cookie{Name: security.DemoAuthCookie, Value: security.RoleMember})
+	member := httptest.NewRecorder()
+	Handler().ServeHTTP(member, memberRequest)
+	if member.Code != http.StatusForbidden {
+		t.Fatalf("member status = %d, want %d", member.Code, http.StatusForbidden)
+	}
+	for _, want := range []string{
+		"Goldr Example",
+		"Forbidden",
+		"requires the admin demo role",
+		`href="/protected-resource-demo"`,
+		`<title>Protected admin - Goldr Example</title>`,
+	} {
+		if !strings.Contains(member.Body.String(), want) {
+			t.Fatalf("member body = %q, want %q", member.Body.String(), want)
+		}
+	}
+	if strings.Contains(member.Body.String(), "Switch demo role") {
+		t.Fatalf("member body = %q, want no switch role link", member.Body.String())
+	}
+
+	adminRequest := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin", nil)
+	adminRequest.AddCookie(&http.Cookie{Name: security.DemoAuthCookie, Value: security.RoleAdmin})
+	admin := httptest.NewRecorder()
+	Handler().ServeHTTP(admin, adminRequest)
+	if admin.Code != http.StatusOK {
+		t.Fatalf("admin status = %d, want %d", admin.Code, http.StatusOK)
+	}
+	if !strings.Contains(admin.Body.String(), "route-local auth check passed") {
+		t.Fatalf("admin body = %q", admin.Body.String())
+	}
+	if !strings.Contains(admin.Body.String(), `href="/protected-resource-demo"`) {
+		t.Fatalf("admin body = %q, want protected resource demo link", admin.Body.String())
+	}
+	if strings.Contains(admin.Body.String(), "Switch demo role") {
+		t.Fatalf("admin body = %q, want no switch role link", admin.Body.String())
+	}
+}
+
+func TestHandlerProtectedPageErrorResponse(t *testing.T) {
+	handler := HandlerWithErrors(ErrorHandlers{
+		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(err.Error()))
+		},
+	})
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin?demo_error=1", nil))
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+	if recorder.Body.String() != "demo admin load failed" {
+		t.Fatalf("body = %q, want demo admin load failed", recorder.Body.String())
+	}
+}
+
+func TestHandlerSignInActionSetsDemoRoleAndRedirects(t *testing.T) {
+	tests := []struct {
+		name       string
+		credential string
+		next       string
+		location   string
+		role       string
+	}{
+		{
+			name:       "admin returns to admin",
+			credential: security.RoleAdmin,
+			next:       "/admin",
+			location:   "/admin",
+			role:       security.RoleAdmin,
+		},
+		{
+			name:       "member returns to demo",
+			credential: security.RoleMember,
+			next:       "/protected-resource-demo",
+			location:   "/protected-resource-demo",
+			role:       security.RoleMember,
+		},
+		{
+			name:       "invalid next defaults to demo",
+			credential: security.RoleAdmin,
+			next:       "/missing",
+			location:   "/protected-resource-demo",
+			role:       security.RoleAdmin,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cookie, token := testcsrf.Pair(t, security.CSRF)
+			recorder := recordForm(t, "/sign-in", url.Values{
+				csrf.FieldName: {token},
+				"credential":   {test.credential},
+				"next":         {test.next},
+			}, cookie)
+			if recorder.Code != http.StatusSeeOther {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusSeeOther)
+			}
+			if recorder.Header().Get("Location") != test.location {
+				t.Fatalf("Location = %q, want %s", recorder.Header().Get("Location"), test.location)
+			}
+			for _, setCookie := range recorder.Result().Cookies() {
+				if setCookie.Name == security.DemoAuthCookie && setCookie.Value == test.role {
+					return
+				}
+			}
+			t.Fatalf("Set-Cookie = %v, want %s=%s", recorder.Result().Cookies(), security.DemoAuthCookie, test.role)
+		})
+	}
+}
+
+func TestHandlerSignInActionRejectsUnknownCredentials(t *testing.T) {
+	cookie, token := testcsrf.Pair(t, security.CSRF)
+	recorder := recordForm(t, "/sign-in", url.Values{
+		csrf.FieldName: {token},
+		"credential":   {"unknown"},
+		"next":         {"/admin"},
+	}, cookie)
+
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusSeeOther)
+	}
+	if recorder.Header().Get("Location") != "/sign-in?next=%2Fadmin&error=credentials" {
+		t.Fatalf("Location = %q, want sign-in credential error", recorder.Header().Get("Location"))
+	}
+	for _, setCookie := range recorder.Result().Cookies() {
+		if setCookie.Name == security.DemoAuthCookie {
+			t.Fatalf("Set-Cookie = %v, want no demo role cookie", recorder.Result().Cookies())
+		}
+	}
+
+	signIn := recordRoute(t, http.MethodGet, recorder.Header().Get("Location"))
+	if signIn.Code != http.StatusOK {
+		t.Fatalf("sign-in status = %d, want %d", signIn.Code, http.StatusOK)
+	}
+	for _, want := range []string{
+		"Unknown credentials.",
+		`class="auth-notice"`,
+		`name="next" value="/admin"`,
+	} {
+		if !strings.Contains(signIn.Body.String(), want) {
+			t.Fatalf("sign-in body = %q, want %q", signIn.Body.String(), want)
+		}
+	}
+}
+
+func TestHandlerProtectedResourceDemoSignOutClearsDemoRole(t *testing.T) {
+	cookie, token := testcsrf.Pair(t, security.CSRF)
+	recorder := recordForm(t, "/protected-resource-demo/sign-out", url.Values{
+		csrf.FieldName: {token},
+	}, cookie, &http.Cookie{Name: security.DemoAuthCookie, Value: security.RoleAdmin})
+
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusSeeOther)
+	}
+	if recorder.Header().Get("Location") != "/protected-resource-demo" {
+		t.Fatalf("Location = %q, want /protected-resource-demo", recorder.Header().Get("Location"))
+	}
+	for _, setCookie := range recorder.Result().Cookies() {
+		if setCookie.Name == security.DemoAuthCookie && setCookie.MaxAge < 0 {
+			return
+		}
+	}
+	t.Fatalf("Set-Cookie = %v, want cleared %s cookie", recorder.Result().Cookies(), security.DemoAuthCookie)
 }
 
 func TestHandlerGetFragmentPartial(t *testing.T) {

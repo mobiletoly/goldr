@@ -28,16 +28,16 @@ Each page must have a matching `.templ` file and must provide:
 func Page(r *http.Request) goldr.Page
 ```
 
-`goldr.Page` contains the component and optional page metadata:
+Use `goldr.RenderPage` for a normal rendered page:
 
 ```go
-return goldr.Page{
-	Component: PageView(),
-	Metadata: goldr.PageMetadata{
+return goldr.RenderPage(
+	PageView(),
+	goldr.PageMetadata{
 		Title:       "Users",
 		Description: "Manage users.",
 	},
-}
+)
 ```
 
 Supported metadata fields are `Title` and `Description`. goldr passes metadata
@@ -46,6 +46,63 @@ to layouts. Layouts decide how to render it.
 goldr does not infer page titles, render canonical links, or choose active
 navigation entries. Those are application layout decisions. Use request data,
 generated URL helpers, or app-owned state when a layout needs them.
+
+Page handlers can also return responses before normal rendering:
+
+```go
+return goldr.Redirect("/sign-in", http.StatusSeeOther)
+return goldr.Status(http.StatusForbidden, ForbiddenView(), goldr.PageMetadata{Title: "Forbidden"})
+return goldr.TextStatus(http.StatusForbidden, "forbidden")
+return goldr.Error(err)
+```
+
+Redirects, text status responses, and errors do not render layouts. Status
+responses with a templ component render through the same layout chain as normal
+pages.
+
+`goldr.Redirect` accepts only redirect statuses that clients follow: `301`,
+`302`, `303`, `307`, and `308`. `goldr.Status` and `goldr.TextStatus` accept
+only final body-carrying page statuses: `2xx` except `204 No Content` and `205
+Reset Content`, plus `4xx` and `5xx`.
+
+### Page Error Handling
+
+Use explicit status responses for request-shaped failures:
+
+```go
+if !validID(r.PathValue("project_id")) {
+	return goldr.Status(http.StatusBadRequest, BadRequestView(), goldr.PageMetadata{Title: "Bad request"})
+}
+
+project, err := store.Project(r.Context(), r.PathValue("project_id"))
+if errors.Is(err, store.ErrNotFound) {
+	return goldr.Status(http.StatusNotFound, NotFoundView(), goldr.PageMetadata{Title: "Not found"})
+}
+if err != nil {
+	return goldr.Error(err)
+}
+
+return goldr.RenderPage(ProjectView(project), goldr.PageMetadata{Title: project.Name})
+```
+
+Use `goldr.Error(err)` only for unexpected application or runtime failures that
+should use Goldr's internal server error handling:
+
+```go
+project, err := store.Project(r.Context(), r.PathValue("project_id"))
+if err != nil {
+	return goldr.Error(err)
+}
+```
+
+Generated dispatch uses `page.Response()` internally. If that returns an error,
+the page returned an invalid Goldr contract, such as `goldr.Page{}`,
+`goldr.RenderPage(nil, metadata)`, `goldr.Redirect("", http.StatusSeeOther)`,
+`goldr.Redirect("/sign-in", http.StatusNotModified)`,
+`goldr.Status(http.StatusNoContent, view, metadata)`, or `goldr.Error(nil)`.
+Those validation errors are routed to internal server error handling. A
+`goldr.PageResponse` with kind `goldr.PageResponseError` is different: its
+`Error` field is the application error originally passed to `goldr.Error(err)`.
 
 ## Layouts
 

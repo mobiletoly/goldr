@@ -8,11 +8,11 @@ import (
 )
 
 func Page(_ *http.Request) goldr.Page {
-	return goldr.Page{
-		Component: PageView(bind.Form{}),
-		Metadata: goldr.PageMetadata{
+	return goldr.RenderPage(
+		PageView(bind.Form{}),
+		goldr.PageMetadata{
 			Title:       "Join Chat - Goldr Chat",
 			Description: "Enter a display name for the goldr SSE chat example.",
 		},
-	}
+	)
 }

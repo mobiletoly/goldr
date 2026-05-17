@@ -1,0 +1,17 @@
+package admin
+
+templ PageView(role string) {
+	<section>
+		<h1>Protected admin</h1>
+		<p>Authenticated as { role }. This page rendered after the route-local auth check passed.</p>
+		<p><a href="/protected-resource-demo">Back to Protected Resource Demo</a></p>
+	</section>
+}
+
+templ ForbiddenView(role string) {
+	<section>
+		<h1>Forbidden</h1>
+		<p>Authenticated as { role }, but this page requires the admin demo role.</p>
+		<p><a href="/protected-resource-demo">Back to Protected Resource Demo</a></p>
+	</section>
+}

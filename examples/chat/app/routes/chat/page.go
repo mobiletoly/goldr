@@ -10,11 +10,11 @@ import (
 
 func Page(r *http.Request) goldr.Page {
 	name := session.Name(r)
-	return goldr.Page{
-		Component: PageView(name, bind.Form{}, listMessages()),
-		Metadata: goldr.PageMetadata{
+	return goldr.RenderPage(
+		PageView(name, bind.Form{}, listMessages()),
+		goldr.PageMetadata{
 			Title:       "Chat - Goldr Chat",
 			Description: "A small server-sent events chat example for goldr.",
 		},
-	}
+	)
 }

@@ -44,6 +44,11 @@ a {
   font-weight: 700;
 }
 
+.auth-notice {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
 .app-main,
 section {
   padding: 1rem;

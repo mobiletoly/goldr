@@ -11,8 +11,10 @@ import (
 const defaultTitle = "goldr full-feature example"
 
 const (
-	navUsers    = "users"
-	navSettings = "settings"
+	navUsers     = "users"
+	navSettings  = "settings"
+	navProtected = "protected"
+	navSignIn    = "sign-in"
 )
 
 func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component {
@@ -41,6 +43,11 @@ func activeNav(r *http.Request) string {
 		return navUsers
 	case r.URL.Path == "/settings" || strings.HasPrefix(r.URL.Path, "/settings/"):
 		return navSettings
+	case r.URL.Path == "/protected-resource-demo" || strings.HasPrefix(r.URL.Path, "/protected-resource-demo/") ||
+		r.URL.Path == "/admin" || strings.HasPrefix(r.URL.Path, "/admin/"):
+		return navProtected
+	case r.URL.Path == "/sign-in" || strings.HasPrefix(r.URL.Path, "/sign-in/"):
+		return navSignIn
 	default:
 		return ""
 	}
