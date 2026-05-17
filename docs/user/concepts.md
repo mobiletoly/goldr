@@ -169,7 +169,7 @@ goldr does not own the whole server. Applications still own:
 - mux registration
 - middleware
 - auth and sessions
-- CSRF
+- CSRF policy and secrets
 - static assets
 - cache headers
 - logging and recovery

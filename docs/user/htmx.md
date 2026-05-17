@@ -84,6 +84,22 @@ writing status or body, and both skip the body for `HEAD`. `goldr.Render` does
 not set HTMX headers, parse forms, redirect, or choose application status
 codes.
 
+## CSRF Headers
+
+For unsafe HTMX requests that do not submit a form field, send the token from
+Goldr's `csrf` guard with `X-CSRF-Token`:
+
+```html
+<button
+  hx-post="/users/save-preview"
+  hx-headers='{"X-CSRF-Token": "..."}'>
+  Save
+</button>
+```
+
+The action validates the header token with `guard.Validate(r, "")`. For normal
+forms, prefer a visible hidden input named `csrf.FieldName`.
+
 ## Request Helpers
 
 Request helpers read HTMX request headers:
@@ -151,6 +167,7 @@ See package documentation or completion for the full list.
 
 - `hx-get` and `hx-post` in templates
 - `HX-Trigger`, `HX-Retarget`, and `HX-Reswap` in action handlers
+- CSRF validation for unsafe HTMX requests
 - `goldr.Render` for action-owned templ HTML responses
 - fragment rendering for `/users/frag-table`
 - form redisplay from `/users/create`

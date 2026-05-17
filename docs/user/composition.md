@@ -3,7 +3,7 @@
 goldr generated routes are ordinary `http.Handler` values.
 
 Applications own the HTTP server, mux, middleware, static assets, cache
-headers, auth, sessions, CSRF, logging, recovery, and non-route handlers.
+headers, auth, sessions, logging, recovery, and non-route handlers.
 
 ## Mux Shape
 
@@ -37,6 +37,22 @@ security headers, request IDs, or other application concerns.
 goldr does not provide a framework middleware stack. Keeping middleware as
 plain `net/http` keeps behavior explicit and lets applications use ordinary Go
 libraries.
+
+Goldr's `csrf` package provides a small signed-cookie token guard. Applications
+still choose where to mount it:
+
+```go
+guard, err := csrf.New(csrf.Config{
+	Secret: []byte(os.Getenv("CSRF_SECRET")),
+})
+if err != nil {
+	return err
+}
+
+mux.Handle("/", guard.Middleware(routes.Handler()))
+```
+
+Read [CSRF](csrf.md) for form and HTMX validation patterns.
 
 ## Static Assets
 

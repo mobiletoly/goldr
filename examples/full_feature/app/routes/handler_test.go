@@ -7,7 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mobiletoly/goldr/csrf"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 	"github.com/mobiletoly/goldr/examples/full_feature/assets"
+	"github.com/mobiletoly/goldr/examples/full_feature/internal/testcsrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/internal/testmultipart"
 	"github.com/mobiletoly/goldr/hx"
 )
@@ -185,14 +188,17 @@ func TestHandlerWithErrorsCustomNotFound(t *testing.T) {
 }
 
 func TestHandlerPostCreateAction(t *testing.T) {
+	cookie, token := testcsrf.Pair(t, security.CSRF)
 	body, contentType := testmultipart.Body(t, map[string]string{
-		"name":   "Grace Hopper",
-		"status": "Active",
+		csrf.FieldName: token,
+		"name":         "Grace Hopper",
+		"status":       "Active",
 	}, map[string]testmultipart.Upload{
 		"avatar": {Filename: "grace.txt", Content: "example avatar"},
 	})
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
 	request.Header.Set("Content-Type", contentType)
+	request.AddCookie(cookie)
 	recorder := httptest.NewRecorder()
 
 	Handler().ServeHTTP(recorder, request)
@@ -214,13 +220,32 @@ func TestHandlerPostCreateAction(t *testing.T) {
 	}
 }
 
-func TestHandlerPostCreateRedisplaysErrors(t *testing.T) {
+func TestHandlerPostCreateRejectsMissingCSRF(t *testing.T) {
 	body, contentType := testmultipart.Body(t, map[string]string{
-		"name":   "",
-		"status": "Missing",
+		"name":   "Grace Hopper",
+		"status": "Active",
 	}, nil)
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
 	request.Header.Set("Content-Type", contentType)
+	recorder := httptest.NewRecorder()
+
+	Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusForbidden)
+	}
+}
+
+func TestHandlerPostCreateRedisplaysErrors(t *testing.T) {
+	cookie, token := testcsrf.Pair(t, security.CSRF)
+	body, contentType := testmultipart.Body(t, map[string]string{
+		csrf.FieldName: token,
+		"name":         "",
+		"status":       "Missing",
+	}, nil)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
+	request.Header.Set("Content-Type", contentType)
+	request.AddCookie(cookie)
 	recorder := httptest.NewRecorder()
 
 	Handler().ServeHTTP(recorder, request)
@@ -239,7 +264,13 @@ func TestHandlerPostCreateRedisplaysErrors(t *testing.T) {
 }
 
 func TestHandlerPostSavePreviewAction(t *testing.T) {
-	recorder := recordRoute(t, http.MethodPost, "/users/save-preview")
+	cookie, token := testcsrf.Pair(t, security.CSRF)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/save-preview", nil)
+	request.AddCookie(cookie)
+	request.Header.Set(csrf.HeaderName, token)
+	recorder := httptest.NewRecorder()
+
+	Handler().ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)

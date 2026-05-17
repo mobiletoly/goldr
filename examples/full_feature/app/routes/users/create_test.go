@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mobiletoly/goldr/csrf"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
+	"github.com/mobiletoly/goldr/examples/full_feature/internal/testcsrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/internal/testmultipart"
 	"github.com/mobiletoly/goldr/hx"
 )
@@ -15,12 +18,15 @@ func TestPostCreateRedisplaysFieldErrors(t *testing.T) {
 	resetContactsForTest()
 	t.Cleanup(resetContactsForTest)
 
+	cookie, token := testcsrf.Pair(t, security.CSRF)
 	body, contentType := testmultipart.Body(t, map[string]string{
-		"name":   "",
-		"status": "Missing",
+		csrf.FieldName: token,
+		"name":         "",
+		"status":       "Missing",
 	}, nil)
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
 	request.Header.Set("Content-Type", contentType)
+	request.AddCookie(cookie)
 	recorder := httptest.NewRecorder()
 
 	PostCreate(recorder, request)
@@ -49,14 +55,17 @@ func TestPostCreateAddsContact(t *testing.T) {
 	resetContactsForTest()
 	t.Cleanup(resetContactsForTest)
 
+	cookie, token := testcsrf.Pair(t, security.CSRF)
 	body, contentType := testmultipart.Body(t, map[string]string{
-		"name":   "Hedy Lamarr",
-		"status": "Inactive",
+		csrf.FieldName: token,
+		"name":         "Hedy Lamarr",
+		"status":       "Inactive",
 	}, map[string]testmultipart.Upload{
 		"avatar": {Filename: "hedy.txt", Content: "example avatar"},
 	})
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
 	request.Header.Set("Content-Type", contentType)
+	request.AddCookie(cookie)
 	recorder := httptest.NewRecorder()
 
 	PostCreate(recorder, request)
@@ -79,5 +88,24 @@ func TestPostCreateAddsContact(t *testing.T) {
 	}
 	if contact.AvatarFilename != "hedy.txt" {
 		t.Fatalf("AvatarFilename = %q, want %q", contact.AvatarFilename, "hedy.txt")
+	}
+}
+
+func TestPostCreateRejectsMissingCSRF(t *testing.T) {
+	resetContactsForTest()
+	t.Cleanup(resetContactsForTest)
+
+	body, contentType := testmultipart.Body(t, map[string]string{
+		"name":   "Hedy Lamarr",
+		"status": "Inactive",
+	}, nil)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
+	request.Header.Set("Content-Type", contentType)
+	recorder := httptest.NewRecorder()
+
+	PostCreate(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusForbidden)
 	}
 }

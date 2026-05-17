@@ -65,6 +65,11 @@
 // provides only event-stream wire helpers for headers, comments, event fields,
 // templ-rendered HTML data, and flushing.
 //
+// For CSRF protection, applications keep ownership of middleware mounting,
+// secrets, auth, sessions, templates, and error responses. The csrf package
+// provides only signed-cookie token issue and validation helpers for unsafe
+// form and HTMX requests.
+//
 // Static assets are application-owned and should not live under app/routes. For
 // production cache safety, write final browser-ready files to assets/build,
 // then run:

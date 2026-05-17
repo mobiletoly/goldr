@@ -2,7 +2,8 @@
 
 This is the runnable goldr v0 large-app composition example. It keeps the app
 small, but shows how pages, layouts, fragments, actions, forms, URL helpers,
-custom errors, middleware, and static assets fit together in one Go/HTMX app.
+custom errors, middleware, CSRF, and static assets fit together in one
+Go/HTMX app.
 
 Run:
 
@@ -67,6 +68,11 @@ title, description, canonical path, and active navigation. The `/users` and
 `/users/42` pages share the users section shell from `users/layout.templ`;
 `/users/frag-table` renders only the fragment partial.
 
+Generated route dispatch is wrapped with app-owned middleware for security
+headers and a signed-cookie CSRF guard. The users form renders a visible hidden
+CSRF field, and unsafe actions validate the submitted token before mutating
+example state.
+
 The example fingerprints final static files from
 `examples/full_feature/assets/build/` into `assets/dist/` with
 `goldr assets dist`. The generated `assets` package provides `assets.Path` for
@@ -79,12 +85,19 @@ middleware that sets `X-Content-Type-Options: nosniff`.
 
 For the broader asset workflow, read `docs/user/assets.md`.
 
-Post to `/users/save-preview` to see `HX-Trigger`, `HX-Retarget`, and
-`HX-Reswap` response headers from `users.PostSavePreview` in
+In a browser, the `/users` page receives the signed `goldr_csrf` cookie and
+renders the matching hidden token before HTMX submits unsafe requests. Manual
+POST clients must do the same setup first: load `/users`, preserve the
+`goldr_csrf` cookie, and reuse the rendered CSRF token.
+
+Post to `/users/save-preview` with the `goldr_csrf` cookie and matching
+`X-CSRF-Token` header to see `HX-Trigger`, `HX-Retarget`, and `HX-Reswap`
+response headers from `users.PostSavePreview` in
 `app/routes/users/actions.go`.
 
-Post to `/users/create` with multipart `name`, `status`, and optional `avatar`
-fields to see `hx-encoding="multipart/form-data"`, form parsing, app-owned
+Post to `/users/create` with the `goldr_csrf` cookie, multipart `name`,
+`status`, optional `avatar`, and matching `csrf_token` fields to see
+`hx-encoding="multipart/form-data"`, CSRF validation, form parsing, app-owned
 request-size limiting, field-error redisplay with `422`, optional upload
 filename display, and successful HTMX replacement from `users.PostCreate` in
 `app/routes/users/actions.go`.

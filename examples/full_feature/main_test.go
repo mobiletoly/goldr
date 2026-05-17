@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/assets"
 	"github.com/mobiletoly/goldr/examples/full_feature/internal/testmultipart"
 	"github.com/mobiletoly/goldr/hx"
@@ -38,6 +39,7 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 	}
 
 	client := http.Client{Timeout: 5 * time.Second}
+	baseURL := "http://" + listener.Addr().String()
 	response, err := client.Do(request)
 	if err != nil {
 		t.Fatalf("Do() error = %v", err)
@@ -147,10 +149,14 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 		t.Fatalf("fragment body = %q", fragmentBody)
 	}
 
-	helperRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://"+listener.Addr().String()+"/users/save-preview", nil)
+	csrfCookie, csrfToken := fetchUserCSRF(t, client, baseURL)
+
+	helperRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, baseURL+"/users/save-preview", nil)
 	if err != nil {
 		t.Fatalf("NewRequestWithContext(helper) error = %v", err)
 	}
+	helperRequest.AddCookie(csrfCookie)
+	helperRequest.Header.Set(csrf.HeaderName, csrfToken)
 	helperResponse, err := client.Do(helperRequest)
 	if err != nil {
 		t.Fatalf("Do(helper) error = %v", err)
@@ -181,16 +187,18 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 	}
 
 	createBodyReader, createContentType := testmultipart.Body(t, map[string]string{
-		"name":   "Hedy Lamarr",
-		"status": "Inactive",
+		csrf.FieldName: csrfToken,
+		"name":         "Hedy Lamarr",
+		"status":       "Inactive",
 	}, map[string]testmultipart.Upload{
 		"avatar": {Filename: "hedy.txt", Content: "example avatar"},
 	})
-	createRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://"+listener.Addr().String()+"/users/create", createBodyReader)
+	createRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, baseURL+"/users/create", createBodyReader)
 	if err != nil {
 		t.Fatalf("NewRequestWithContext(create) error = %v", err)
 	}
 	createRequest.Header.Set("Content-Type", createContentType)
+	createRequest.AddCookie(csrfCookie)
 	createResponse, err := client.Do(createRequest)
 	if err != nil {
 		t.Fatalf("Do(create) error = %v", err)
@@ -302,4 +310,57 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 	if !strings.Contains(string(missingBody), "Goldr Example") {
 		t.Fatalf("missing body = %q", missingBody)
 	}
+}
+
+func fetchUserCSRF(t *testing.T, client http.Client, baseURL string) (*http.Cookie, string) {
+	t.Helper()
+
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/users", nil)
+	if err != nil {
+		t.Fatalf("NewRequestWithContext(csrf) error = %v", err)
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatalf("Do(csrf) error = %v", err)
+	}
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			t.Errorf("Close(csrf) error = %v", err)
+		}
+	}()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("csrf status = %d, want %d", response.StatusCode, http.StatusOK)
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("ReadAll(csrf) error = %v", err)
+	}
+	token := hiddenCSRFToken(t, string(body))
+	for _, cookie := range response.Cookies() {
+		if cookie.Name == csrf.DefaultCookieName {
+			return cookie, token
+		}
+	}
+	t.Fatalf("CSRF cookie %q not found", csrf.DefaultCookieName)
+	return nil, ""
+}
+
+func hiddenCSRFToken(t *testing.T, body string) string {
+	t.Helper()
+
+	marker := `name="` + csrf.FieldName + `" value="`
+	start := strings.Index(body, marker)
+	if start < 0 {
+		t.Fatalf("body = %q, want CSRF hidden input", body)
+	}
+	start += len(marker)
+	end := strings.Index(body[start:], `"`)
+	if end < 0 {
+		t.Fatalf("body = %q, want CSRF token value", body)
+	}
+	token := body[start : start+end]
+	if token == "" {
+		t.Fatalf("body = %q, want non-empty CSRF token", body)
+	}
+	return token
 }

@@ -174,11 +174,20 @@ hx.Reswap(w, "outerHTML")
 _ = response.WriteStatus(w, r, http.StatusUnprocessableEntity)
 ```
 
-goldr does not validate required fields, allowed values, CSRF tokens, or
-business rules. Applications own those decisions. `goldr.Render` only provides
-the default buffered templ HTML response. If redisplayed HTML should use a
-non-200 status such as `422`, set response headers first and then call
-`response.WriteStatus(w, r, status)`.
+goldr does not validate required fields, allowed values, or business rules.
+Applications own those decisions. For CSRF, use the `csrf` package and validate
+the submitted token after parsing:
+
+```go
+if err := guard.Validate(r, form.Value(csrf.FieldName)); err != nil {
+    http.Error(w, "forbidden", http.StatusForbidden)
+    return
+}
+```
+
+`goldr.Render` only provides the default buffered templ HTML response. If
+redisplayed HTML should use a non-200 status such as `422`, set response
+headers first and then call `response.WriteStatus(w, r, status)`.
 
 ## Runnable Example
 

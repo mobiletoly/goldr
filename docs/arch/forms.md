@@ -5,9 +5,13 @@
 It does not own:
 - application validation rules
 - persistence
-- CSRF policy
 - upload storage, validation, scanning, or size policy
 - client-side state
+
+CSRF is intentionally separate from `bind`. The `csrf` package owns signed
+token issue and validation helpers, while applications own where the guard is
+mounted, which secret is used, how failed validation is rendered, and when
+unsafe actions call validation.
 
 `bind.ParseForm` delegates parsing to `http.Request.ParseForm` and copies parsed
 values before returning a `Form`.

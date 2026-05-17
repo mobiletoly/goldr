@@ -5,6 +5,8 @@ import (
 
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/bind"
+	"github.com/mobiletoly/goldr/csrf"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 	"github.com/mobiletoly/goldr/hx"
 )
 
@@ -23,6 +25,10 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	if err := security.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
 	avatarFilename, err := optionalUploadFilename(form, "avatar")
 	if err != nil {
@@ -37,7 +43,7 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 		form = bind.Form{}
 	}
 
-	response, err := goldr.Render(r, DirectoryView(form, ListContacts()))
+	response, err := goldr.Render(r, DirectoryView(form, ListContacts(), security.CSRF.Token(r)))
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -56,6 +62,11 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func PostSavePreview(w http.ResponseWriter, r *http.Request) {
+	if err := security.CSRF.Validate(r, ""); err != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
 	response, err := goldr.Render(r, FragTableView(ListContacts()))
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)

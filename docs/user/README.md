@@ -27,6 +27,7 @@ Then use the references:
   agents working inside goldr applications.
 - [HTMX](htmx.md) - visible `hx-*` attributes and response headers.
 - [Forms](forms.md) - form parsing, validation errors, and redisplay.
+- [CSRF](csrf.md) - signed-cookie tokens for unsafe form and HTMX requests.
 - [Composition](composition.md) - mux, middleware, static assets, and app-owned
   server behavior.
 
@@ -36,7 +37,7 @@ Use `getting-started.md` when you want to create the smallest working goldr app.
 
 Use `examples/full_feature/` when you want to see a larger app that combines
 pages, nested layouts, fragments, actions, forms, URL helpers, custom errors,
-middleware, and fingerprinted static assets.
+middleware, CSRF, and fingerprinted static assets.
 
 From the repository root:
 

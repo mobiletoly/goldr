@@ -1,20 +1,22 @@
 package users
 
 import (
+	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
 )
 
-templ PageView(form bind.Form, contacts []Contact) {
+templ PageView(form bind.Form, contacts []Contact, csrfToken string) {
 	<section>
 		<h1>[app/routes/users/page.templ] - User Directory</h1>
-		@DirectoryView(form, contacts)
+		@DirectoryView(form, contacts, csrfToken)
 	</section>
 }
 
-templ DirectoryView(form bind.Form, contacts []Contact) {
+templ DirectoryView(form bind.Form, contacts []Contact, csrfToken string) {
 	<section id="users-directory">
 		<form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post={ urls.Users.Create.Path() } hx-target="#users-directory" hx-swap="outerHTML">
+			<input type="hidden" name={ csrf.FieldName } value={ csrfToken }/>
 			<div>
 				<label for="contact-name">Name</label>
 				<input id="contact-name" name="name" value={ form.Value("name") }/>
