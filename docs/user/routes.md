@@ -10,6 +10,9 @@ app/routes/
 ```
 
 Route names are Go-native. Do not use JavaScript-style filesystem route syntax.
+Goldr ignores Go-special directories named `internal`, `testdata`, and `vendor`
+so applications can keep route-adjacent private code, test fixtures, or vendored
+code without exposing those names as URL segments.
 
 ## Pages
 

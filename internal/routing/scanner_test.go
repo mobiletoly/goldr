@@ -125,6 +125,38 @@ func TestScanIgnoresNonConventionGoFiles(t *testing.T) {
 	}
 }
 
+func TestScanIgnoresGoSpecialDirectories(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root,
+		"page.go",
+		"internal/page.go",
+		"internal/layout.go",
+		"internal/frag_row.go",
+		"internal/users/page.go",
+		"testdata/page.go",
+		"users/internal/page.go",
+		"users/page.go",
+		"vendor/page.go",
+	)
+
+	tree := scanOK(t, root)
+
+	got := make([]string, 0, len(tree.Pages))
+	for _, page := range tree.Pages {
+		got = append(got, page.Route)
+	}
+	want := []string{"/", "/users"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("page routes = %#v, want %#v", got, want)
+	}
+	if len(tree.Layouts) != 0 {
+		t.Fatalf("layouts = %#v, want empty", tree.Layouts)
+	}
+	if len(tree.Fragments) != 0 {
+		t.Fatalf("fragments = %#v, want empty", tree.Fragments)
+	}
+}
+
 func TestScanActions(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "actions.go", `package routes
@@ -207,7 +239,6 @@ func TestScanCollectsInvalidNames(t *testing.T) {
 		".hidden/page.go",
 		"by_/page.go",
 		"blog-posts/page.go",
-		"testdata/page.go",
 		"_helper.go",
 		".hidden.go",
 		"frag_.go",
@@ -234,7 +265,6 @@ func TestScanCollectsInvalidNames(t *testing.T) {
 		"_id",
 		"blog-posts",
 		"by_",
-		"testdata",
 	}
 	for _, wantPath := range wantPaths {
 		if !hasProblemPath(scanErr.Problems, wantPath) {

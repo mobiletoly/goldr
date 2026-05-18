@@ -32,7 +32,9 @@ const (
 	fragmentGoPattern   = fragmentPrefix + "<name>" + goFileExtension
 	dynamicRoutePrefix  = "by_"
 	dynamicRoutePattern = dynamicRoutePrefix + "<param>"
+	goInternalDir       = "internal"
 	goIgnoredTestdata   = "testdata"
+	goVendorDir         = "vendor"
 )
 
 var routeIdentPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
@@ -261,8 +263,7 @@ func (scanner *scanner) routeSegment(relPath, name string) (routeSegment, bool) 
 	case strings.HasPrefix(name, "_"):
 		scanner.addProblem(relPath, "route directories must not start with _")
 		return routeSegment{}, false
-	case name == goIgnoredTestdata:
-		scanner.addProblem(relPath, "route directories must not use Go-ignored testdata name")
+	case isGoSpecialDir(name):
 		return routeSegment{}, false
 	case strings.HasPrefix(name, dynamicRoutePrefix):
 		param := strings.TrimPrefix(name, dynamicRoutePrefix)
@@ -280,6 +281,10 @@ func (scanner *scanner) routeSegment(relPath, name string) (routeSegment, bool) 
 	default:
 		return routeSegment{pathSegment: browserPathSegment(name)}, true
 	}
+}
+
+func isGoSpecialDir(name string) bool {
+	return name == goInternalDir || name == goIgnoredTestdata || name == goVendorDir
 }
 
 func (scanner *scanner) sort() {
