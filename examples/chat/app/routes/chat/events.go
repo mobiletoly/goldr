@@ -42,6 +42,7 @@ func Events(w http.ResponseWriter, r *http.Request) {
 			}
 			if err := stream.Component(r, sse.ComponentEvent{
 				ID:        strconv.FormatInt(message.ID, 10),
+				Name:      "chat-message",
 				Component: MessageView(message),
 			}); err != nil {
 				return

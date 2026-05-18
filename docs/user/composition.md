@@ -19,6 +19,34 @@ mux.Handle("/", routes.Handler())
 `/assets/` is application-owned. It is not part of generated route dispatch and
 does not appear in generated URL helpers.
 
+## Goldr Browser Helpers
+
+Goldr browser helpers are also mounted explicitly by the application. For named
+SSE event swaps, mount the `browser` helper before generated routes:
+
+```go
+import (
+	"net/http"
+
+	"myapp/app/routes"
+
+	"github.com/mobiletoly/goldr/browser"
+)
+
+mux := http.NewServeMux()
+mux.Handle("/goldr/", http.StripPrefix("/goldr/", browser.Handler()))
+mux.Handle("/", routes.Handler())
+```
+
+Then load the helper from the layout that uses it:
+
+```html
+<script src="/goldr/goldr-sse-event.js" defer></script>
+```
+
+The helper URL is stable and served with `Cache-Control: no-cache` plus ETag
+revalidation. Do not apply immutable asset cache headers to this stable path.
+
 ## Middleware
 
 Wrap generated routes like any other `http.Handler`:

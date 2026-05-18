@@ -26,6 +26,7 @@ Then use the references:
 - [Coding Agents](coding-agents.md) - copyable `AGENTS.md` guidance for coding
   agents working inside goldr applications.
 - [HTMX](htmx.md) - visible `hx-*` attributes and response headers.
+- [SSE](sse.md) - app-owned streams, event IDs, and named SSE swaps.
 - [Forms](forms.md) - form parsing, validation errors, and redisplay.
 - [CSRF](csrf.md) - signed-cookie tokens for unsafe form and HTMX requests.
 - [Composition](composition.md) - mux, middleware, static assets, and app-owned
@@ -46,7 +47,7 @@ go run ./examples/full_feature
 ```
 
 Use `examples/chat/` when you want to see app-owned server-sent events with
-HTMX and the `sse` protocol helper:
+HTMX, the `sse` protocol helper, and Goldr's named-event browser swap helper:
 
 ```bash
 go run ./examples/chat

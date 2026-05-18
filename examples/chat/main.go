@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/mobiletoly/goldr/browser"
 	"github.com/mobiletoly/goldr/examples/chat/app/routes"
 	"github.com/mobiletoly/goldr/examples/chat/app/routes/chat"
 )
@@ -66,6 +67,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 
 func exampleHandler() http.Handler {
 	mux := http.NewServeMux()
+	mux.Handle("/goldr/", http.StripPrefix("/goldr/", browser.Handler()))
 	mux.HandleFunc(chat.EventsPath, chat.Events)
 	mux.Handle("/", appHeaders(routes.Handler()))
 	return mux

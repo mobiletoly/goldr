@@ -55,7 +55,7 @@ func TestChatPageRendersMessagesAndSSEConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAll() error = %v", err)
 	}
-	for _, want := range []string{`hx-sse:connect="/chat/events?after=`, `hx-indicator="#send-progress"`, "Sign out", "Sending...", "Grace", body} {
+	for _, want := range []string{`hx-sse:connect="/chat/events?after=`, `goldr-sse-event="chat-message"`, `src="/goldr/goldr-sse-event.js"`, `hx-indicator="#send-progress"`, "Sign out", "Sending...", "Grace", body} {
 		if !strings.Contains(string(page), want) {
 			t.Fatalf("page = %q, want %q", page, want)
 		}
@@ -175,6 +175,35 @@ func TestEventStreamReceivesPostedMessage(t *testing.T) {
 	}
 	if !strings.Contains(received.String(), "data: ") {
 		t.Fatalf("received = %q, want SSE data lines", received.String())
+	}
+	if !strings.Contains(received.String(), "event: chat-message") {
+		t.Fatalf("received = %q, want named chat-message event", received.String())
+	}
+	if !strings.Contains(received.String(), "id: ") {
+		t.Fatalf("received = %q, want event id line", received.String())
+	}
+}
+
+func TestGoldrBrowserHelperIsMounted(t *testing.T) {
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/goldr/goldr-sse-event.js", nil)
+	recorder := httptest.NewRecorder()
+
+	exampleHandler().ServeHTTP(recorder, request)
+
+	response := recorder.Result()
+	defer closeBody(t, response.Body)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusOK)
+	}
+	if got := response.Header.Get("Cache-Control"); got != "no-cache" {
+		t.Fatalf("Cache-Control = %q, want no-cache", got)
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("ReadAll() error = %v", err)
+	}
+	if !strings.Contains(string(body), "goldr-sse-event") {
+		t.Fatalf("body = %q, want Goldr SSE event helper", body)
 	}
 }
 

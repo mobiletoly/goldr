@@ -29,6 +29,7 @@ templ PageView(name string, form bind.Form, messages []Message) {
 				id="messages"
 				class="chat-log"
 				hx-sse:connect={ eventsPath(lastMessageID(messages)) }
+				goldr-sse-event="chat-message"
 				hx-swap="beforeend scroll:bottom"
 			>
 				for _, message := range messages {

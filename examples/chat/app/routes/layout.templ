@@ -11,12 +11,13 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 			<title>{ pageTitle(metadata) }</title>
 			if metadata.Description != "" {
 				<meta name="description" content={ metadata.Description }/>
-			}
-			<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3" integrity="sha384-bq4nTap5u8w4XlVP8JHkDioQVZBI5wUx5PxNwlbCq27H5QJ+q0CSeJcTYU+PLdCp" crossorigin="anonymous" defer></script>
-			<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3/dist/ext/hx-sse.min.js" integrity="sha384-hjzxm/dT4rf4fNC5HtgLp0bX4O19nkAq8gt/ZGnGzyB3TuF5R1xsHV3IiN+PqDXc" crossorigin="anonymous" defer></script>
-			<style>
-				:root { color-scheme: light; font-family: system-ui, sans-serif; background: #f6f7f9; color: #1f2937; }
-				body { margin: 0; }
+				}
+				<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3" integrity="sha384-bq4nTap5u8w4XlVP8JHkDioQVZBI5wUx5PxNwlbCq27H5QJ+q0CSeJcTYU+PLdCp" crossorigin="anonymous" defer></script>
+				<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3/dist/ext/hx-sse.min.js" integrity="sha384-hjzxm/dT4rf4fNC5HtgLp0bX4O19nkAq8gt/ZGnGzyB3TuF5R1xsHV3IiN+PqDXc" crossorigin="anonymous" defer></script>
+				<script src="/goldr/goldr-sse-event.js" defer></script>
+				<style>
+					:root { color-scheme: light; font-family: system-ui, sans-serif; background: #f6f7f9; color: #1f2937; }
+					body { margin: 0; }
 				a { color: #0f766e; }
 				.app-shell { max-width: 760px; margin: 0 auto; padding: 32px 20px; }
 				.app-card { background: #ffffff; border: 1px solid #d7dde5; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgb(15 23 42 / 8%); }

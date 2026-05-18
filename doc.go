@@ -63,7 +63,9 @@
 // For server-sent events, applications keep ownership of their stream routes,
 // mux registration, subscriber state, and replay policy. The sse package
 // provides only event-stream wire helpers for headers, comments, event fields,
-// templ-rendered HTML data, and flushing.
+// templ-rendered HTML data, and flushing. The browser package provides an
+// explicitly mounted helper for swapping selected named SSE events in htmx
+// templates; Goldr does not inject that script automatically.
 //
 // For CSRF protection, applications keep ownership of middleware mounting,
 // secrets, auth, sessions, templates, and error responses. The csrf package

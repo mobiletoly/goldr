@@ -5,9 +5,9 @@ goldr is a server-first Go framework for building web/HTMX applications.
 It gives Go projects a predictable filesystem route tree, page layouts,
 fragments, action handlers, generated route wiring, and generated URL helpers.
 It also includes small helpers for form parsing, CSRF tokens, HTMX headers,
-server-sent event wire formatting, and final-file asset fingerprinting. The
-application still owns its `net/http` server, middleware, static asset
-handlers, auth, sessions, data access, and deployment.
+server-sent event wire formatting, named SSE browser swaps, and final-file
+asset fingerprinting. The application still owns its `net/http` server,
+middleware, static asset handlers, auth, sessions, data access, and deployment.
 
 goldr is v0. APIs and conventions may change before v1.
 
@@ -341,6 +341,32 @@ event-stream headers, comments, event fields, templ-rendered HTML data, and
 flushing. The application still owns stream URLs, mux registration,
 subscribers, replay policy, and HTMX attributes.
 
+Unnamed SSE messages use htmx 4's native swap behavior. For semantic named
+events such as `event: chat-message`, mount the `browser` helper and add
+`goldr-sse-event` to the target element:
+
+```go
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr/browser"
+)
+
+mux.Handle("/goldr/", http.StripPrefix("/goldr/", browser.Handler()))
+```
+
+```html
+<script src="/goldr/goldr-sse-event.js" defer></script>
+```
+
+```html
+<div
+  hx-sse:connect="/chat/events"
+  goldr-sse-event="chat-message"
+  hx-swap="beforeend">
+</div>
+```
+
 ## Try the Full Example
 
 From a goldr checkout, run the full-feature example:
@@ -369,8 +395,8 @@ go run ./examples/chat
 ```
 
 The chat example shows ordinary actions for input, app-owned in-memory
-persistence, and an app-owned SSE stream that uses `sse` to push rendered HTML
-to HTMX.
+persistence, and an app-owned SSE stream that uses `sse` and the browser helper
+to push named rendered HTML events to HTMX.
 
 ## Documentation
 
@@ -382,6 +408,7 @@ to HTMX.
 - [Assets](docs/user/assets.md)
 - [Coding Agents](docs/user/coding-agents.md)
 - [HTMX](docs/user/htmx.md)
+- [SSE](docs/user/sse.md)
 - [Forms](docs/user/forms.md)
 - [Composition](docs/user/composition.md)
 
