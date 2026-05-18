@@ -71,14 +71,15 @@
 // form and HTMX requests.
 //
 // Static assets are application-owned and should not live under app/routes. For
-// production cache safety, write final browser-ready files to assets/build,
-// then run:
+// production cache safety, write final browser-ready files to assets/build. The
+// normal generate command fingerprints those files when assets/build exists:
 //
-//	go tool goldr assets dist
+//	go tool goldr generate
 //
-// That command copies fingerprinted files to assets/dist and writes
+// Goldr copies fingerprinted files to assets/dist and writes
 // assets/goldr_assets_gen.go, so templates can reference assets.Path("app.css")
 // and the application can serve assets.FS() under /assets/ from its own mux.
+// The asset-only command remains available as go tool goldr assets dist.
 //
 // For reproducible app-local tooling, add the CLI tools to go.mod:
 //

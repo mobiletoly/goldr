@@ -78,8 +78,9 @@ For a manual first-app walkthrough, read [Getting Started](getting-started.md).
 
 ## Generate
 
-`goldr generate` runs templ generation, scans `app/routes`, and writes
-goldr-owned generated files:
+`goldr generate` runs templ generation, scans `app/routes`, writes route and
+URL helper files, and refreshes fingerprinted assets when `assets/build`
+exists:
 
 ```bash
 go tool goldr generate
@@ -90,6 +91,7 @@ Generated files:
 ```text
 app/routes/goldr_gen.go
 app/urls/goldr_gen.go
+assets/goldr_assets_gen.go when assets/build exists
 ```
 
 Use `--check` in CI or before committing generated files:
@@ -100,8 +102,8 @@ go tool goldr generate --root examples/full_feature --check
 ```
 
 Check mode runs templ check mode, compares goldr-generated output with files on
-disk, reports stale or missing generated files, and exits non-zero without
-writing.
+disk, checks Goldr-managed asset output when `assets/build` exists, reports
+stale or missing generated files, and exits non-zero without writing.
 
 ## Dev
 
@@ -168,7 +170,7 @@ app/routes/Users: GOLDR002 static route directories must use lowercase Go-safe n
 app/routes/page.go: GOLDR003 page /: missing matching .templ file
 GOLDR006 app/routes/goldr_gen.go is stale
 GOLDR007 templ generated files are not up to date; run go tool goldr generate
-GOLDR008 Goldr-managed assets are not current; run go tool goldr assets dist
+GOLDR008 Goldr-managed assets are not current; run go tool goldr generate
 ```
 
 `goldr check` runs templ check mode and asset check mode when asset output is
@@ -181,7 +183,8 @@ start the application server.
 It does not compile CSS, bundle JavaScript, upload to a CDN, or register static
 handlers. For the full workflow, read [Assets](assets.md).
 
-Build fingerprinted files from `assets/build` into `assets/dist`:
+`goldr generate` refreshes fingerprinted assets automatically when
+`assets/build` exists. Use `assets dist` when you want the asset-only step:
 
 ```bash
 go tool goldr assets dist
@@ -194,7 +197,8 @@ Verify asset output without writing:
 go tool goldr assets check
 ```
 
-Remove stale goldr-managed fingerprinted files:
+Remove stale Goldr-managed fingerprinted files without rebuilding current
+outputs:
 
 ```bash
 go tool goldr assets clean

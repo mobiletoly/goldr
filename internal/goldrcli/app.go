@@ -85,7 +85,7 @@ const rootDescription = `Goldr apps keep route source under app/routes and gener
      go test ./...
 
 Use "go tool goldr routes" to inspect the route tree before editing routes.
-Use "go tool goldr assets" only for final static files that already exist in assets/build.
+Use "go tool goldr assets" for asset-only checks, cleanup, and manifest inspection.
 Use "go tool goldr dev" for templ-powered live reload during local development.`
 
 // Run executes the root command and converts urfave exit errors into process exit codes.

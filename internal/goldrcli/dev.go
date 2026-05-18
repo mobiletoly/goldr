@@ -94,7 +94,7 @@ func devCommand() *cli.Command {
 
 const devDescription = `Runs a local development loop using templ watch mode.
 
-goldr dev keeps development on the production asset path: templates keep using assets.Path, apps keep serving assets.FS, and changes under assets/build run goldr assets dist before the app restarts.
+goldr dev keeps development on the production asset path: templates keep using assets.Path, apps keep serving assets.FS, and changes under assets/build run goldr generate before the app restarts.
 
 Run app-owned tools such as Tailwind separately so they write final browser-ready files into assets/build. goldr dev watches assets/build, not assets/src.`
 
@@ -311,9 +311,6 @@ func writeUnixDevWrapper(config devConfig, tempDir string) (string, error) {
 		"#!/bin/sh",
 		"set -eu",
 		shellQuote(config.goldrExecutable) + " generate --root " + shellQuote(config.root),
-		"if [ -d " + shellQuote(filepath.Join(config.root, "assets", "build")) + " ]; then",
-		"  " + shellQuote(config.goldrExecutable) + " assets dist --root " + shellQuote(config.root),
-		"fi",
 		"cd " + shellQuote(config.root),
 		"exec /bin/sh -c " + shellQuote(config.command),
 		"",
@@ -340,9 +337,6 @@ func writeWindowsDevWrapper(config devConfig, tempDir string) (string, error) {
 		"@echo off",
 		"setlocal",
 		windowsQuote(config.goldrExecutable) + " generate --root " + windowsQuote(config.root) + " || exit /b %ERRORLEVEL%",
-		"if exist " + windowsQuote(filepath.Join(config.root, "assets", "build")) + " (",
-		"  " + windowsQuote(config.goldrExecutable) + " assets dist --root " + windowsQuote(config.root) + " || exit /b %ERRORLEVEL%",
-		")",
 		"cd /d " + windowsQuote(config.root) + " || exit /b %ERRORLEVEL%",
 		"cmd /S /C " + windowsQuote(config.command),
 		"",

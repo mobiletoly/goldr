@@ -75,7 +75,7 @@ func TestDevIgnorePatternExcludesGoldrGeneratedOutputs(t *testing.T) {
 	}
 }
 
-func TestDevWrapperRunsGoldrGenerateAssetsDistThenAppCommand(t *testing.T) {
+func TestDevWrapperRunsGoldrGenerateThenAppCommand(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell wrapper content is Unix-specific")
 	}
@@ -99,14 +99,15 @@ func TestDevWrapperRunsGoldrGenerateAssetsDistThenAppCommand(t *testing.T) {
 		"#!/bin/sh",
 		"set -eu",
 		shellQuote(config.goldrExecutable) + " generate --root " + shellQuote(root),
-		"if [ -d " + shellQuote(filepath.Join(root, "assets", "build")) + " ]; then",
-		shellQuote(config.goldrExecutable) + " assets dist --root " + shellQuote(root),
 		"cd " + shellQuote(root),
 		"exec /bin/sh -c " + shellQuote(config.command),
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("wrapper = %q, want %q", source, want)
 		}
+	}
+	if strings.Contains(source, "assets dist") {
+		t.Fatalf("wrapper = %q, must not run assets dist separately", source)
 	}
 }
 

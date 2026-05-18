@@ -29,7 +29,15 @@ your app or your asset tool.
 
 ## Build Fingerprinted Assets
 
-After your app-owned asset tool writes final files into `assets/build`, run:
+After your app-owned asset tool writes final files into `assets/build`, run the
+normal generated-output command:
+
+```bash
+go tool goldr generate
+```
+
+`generate` runs `assets dist` internally when `assets/build` exists. To run the
+asset-only step, use:
 
 ```bash
 go tool goldr assets dist
@@ -41,8 +49,9 @@ Or from another directory, pass the app root:
 go tool goldr assets dist --root examples/full_feature
 ```
 
-Goldr copies each file into `assets/dist` with a content hash in the filename
-and writes `assets/goldr_assets_gen.go`.
+Goldr copies each file into `assets/dist` with a content hash in the filename,
+removes stale Goldr-managed dist files from previous builds, and writes
+`assets/goldr_assets_gen.go`.
 
 Examples:
 
@@ -148,15 +157,16 @@ go tool goldr assets list
 go tool goldr assets list --json
 ```
 
-Remove stale Goldr-managed dist files:
+Run explicit cleanup when you want to remove stale Goldr-managed dist files
+without rebuilding current outputs:
 
 ```bash
 go tool goldr assets clean
 ```
 
-`clean` is fail-closed. It deletes only stale files proven by
-`assets/.goldr/assets.json`; it does not delete arbitrary files from
-`assets/dist`.
+`dist` already performs this cleanup during the normal rebuild path. `clean` is
+fail-closed. It deletes only stale files proven by `assets/.goldr/assets.json`;
+it does not delete arbitrary files from `assets/dist`.
 
 ## Tailwind Example
 
@@ -213,14 +223,13 @@ A typical CI sequence is:
 # app-owned asset build step, if needed
 npx @tailwindcss/cli -i ./assets/src/app.css -o ./assets/build/app.css
 
-go tool goldr assets check
 go tool goldr generate --check
 go tool goldr check
 go test ./...
 ```
 
 If you use a different asset tool, replace only the first command. Keep
-`go tool goldr assets check` after the tool that writes `assets/build`.
+`go tool goldr generate --check` after the tool that writes `assets/build`.
 
 ## What Goldr Does Not Do
 

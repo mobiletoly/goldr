@@ -106,7 +106,7 @@ const assetsDescription = `Fingerprints final browser-ready files only:
 
 Goldr does not compile Tailwind, run npm, bundle JavaScript, minify files, optimize images, upload to a CDN, or register static handlers.
 
-Use "go tool goldr assets dist" to write fingerprinted files, then "go tool goldr assets check" in CI.`
+Use "go tool goldr generate" for the normal app loop. Use "go tool goldr assets" for asset-only checks, cleanup, and manifest inspection.`
 
 func distCommand() *cli.Command {
 	return &cli.Command{
@@ -121,7 +121,7 @@ func distCommand() *cli.Command {
 	}
 }
 
-const assetsDistDescription = `Reads final files from assets/build, copies them to assets/dist with content hashes in their filenames, and writes assets/goldr_assets_gen.go.
+const assetsDistDescription = `Reads final files from assets/build, copies them to assets/dist with content hashes in their filenames, removes stale Goldr-managed dist files, and writes assets/goldr_assets_gen.go.
 
 This is a final safe-cache step. It does not run asset compilers, bundlers, minifiers, or deployment tools.`
 
@@ -145,7 +145,7 @@ Fails if assets/dist, assets/goldr_assets_gen.go, or assets/.goldr/assets.json i
 func cleanCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "clean",
-		Usage:       "remove stale goldr-managed asset files",
+		Usage:       "remove stale Goldr-managed asset files",
 		UsageText:   "goldr assets clean [--root <dir>]",
 		Description: assetsCleanDescription,
 		Flags:       []cli.Flag{rootStringFlag()},
@@ -196,7 +196,12 @@ func rootStringFlag() *cli.StringFlag {
 }
 
 func runDist(options options) error {
-	paths, records, err := buildAssetManifest(options.root)
+	return Dist(options.root)
+}
+
+// Dist writes current Goldr-managed asset outputs for root.
+func Dist(root string) error {
+	paths, records, err := buildAssetManifest(root)
 	if err != nil {
 		return fmt.Errorf("goldr assets dist: %w", err)
 	}
@@ -218,14 +223,37 @@ func runDist(options options) error {
 		return fmt.Errorf("goldr assets dist: %w", err)
 	}
 
-	state, err := mergedState(paths, records)
-	if err != nil {
+	previousState, err := readStateFile(paths)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+	case err != nil:
 		return fmt.Errorf("goldr assets dist: %w", err)
+	default:
+		if err := removeStaleManagedFiles(paths, previousState, records); err != nil {
+			return fmt.Errorf("goldr assets dist: %w", err)
+		}
 	}
-	if err := writeStateFile(paths.stateFile, state); err != nil {
+	if err := writeStateFile(paths.stateFile, currentStateFile(records)); err != nil {
 		return fmt.Errorf("goldr assets dist: %w", err)
 	}
 	return nil
+}
+
+// HasBuildInputs reports whether root has an assets/build path.
+func HasBuildInputs(root string) (bool, error) {
+	paths, err := assetPathsForRoot(root)
+	if err != nil {
+		return false, err
+	}
+	_, err = os.Stat(paths.buildDir)
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, os.ErrNotExist):
+		return false, nil
+	default:
+		return false, err
+	}
 }
 
 func runCheck(options options) error {
@@ -305,33 +333,10 @@ func runClean(options options) error {
 		return fmt.Errorf("goldr assets clean: %w", err)
 	}
 
-	current := stateAssetsByDist(currentStateAssets(records))
-	for _, managed := range state.Managed {
-		abs, err := managedDistPath(paths, managed)
-		if err != nil {
-			return fmt.Errorf("goldr assets clean: %w", err)
-		}
-		if _, ok := current[managed.Dist]; ok {
-			continue
-		}
-		info, err := os.Lstat(abs)
-		switch {
-		case errors.Is(err, os.ErrNotExist):
-			continue
-		case err != nil:
-			return fmt.Errorf("goldr assets clean: %w", err)
-		case !info.Mode().IsRegular():
-			return fmt.Errorf("goldr assets clean: %s is not a regular file", managed.Dist)
-		}
-		if err := os.Remove(abs); err != nil {
-			return fmt.Errorf("goldr assets clean: %w", err)
-		}
+	if err := removeStaleManagedFiles(paths, state, records); err != nil {
+		return fmt.Errorf("goldr assets clean: %w", err)
 	}
-
-	if err := writeStateFile(paths.stateFile, stateFile{
-		Version: stateVersion,
-		Managed: currentStateAssets(records),
-	}); err != nil {
+	if err := writeStateFile(paths.stateFile, currentStateFile(records)); err != nil {
 		return fmt.Errorf("goldr assets clean: %w", err)
 	}
 	return nil
@@ -595,28 +600,37 @@ func checkFile(name string, content []byte, stale *[]string) error {
 	return nil
 }
 
-func mergedState(paths assetPaths, records []manifestAsset) (stateFile, error) {
-	merged := stateFile{
+func currentStateFile(records []manifestAsset) stateFile {
+	return stateFile{
 		Version: stateVersion,
+		Managed: currentStateAssets(records),
 	}
-	existing, err := readStateFile(paths)
-	if err == nil {
-		merged.Managed = append(merged.Managed, existing.Managed...)
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return stateFile{}, err
-	}
-	for _, managed := range merged.Managed {
-		if _, err := managedDistPath(paths, managed); err != nil {
-			return stateFile{}, err
+}
+
+func removeStaleManagedFiles(paths assetPaths, state stateFile, records []manifestAsset) error {
+	current := stateAssetsByDist(currentStateAssets(records))
+	for _, managed := range state.Managed {
+		abs, err := managedDistPath(paths, managed)
+		if err != nil {
+			return err
+		}
+		if _, ok := current[managed.Dist]; ok {
+			continue
+		}
+		info, err := os.Lstat(abs)
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			continue
+		case err != nil:
+			return err
+		case !info.Mode().IsRegular():
+			return fmt.Errorf("%s is not a regular file", managed.Dist)
+		}
+		if err := os.Remove(abs); err != nil {
+			return err
 		}
 	}
-
-	byDist := stateAssetsByDist(merged.Managed)
-	for _, managed := range currentStateAssets(records) {
-		byDist[managed.Dist] = managed
-	}
-	merged.Managed = sortedStateAssets(byDist)
-	return merged, nil
+	return nil
 }
 
 func readStateFile(paths assetPaths) (stateFile, error) {
@@ -662,6 +676,7 @@ func checkStateFile(paths assetPaths, records []manifestAsset, stale *[]string) 
 		return err
 	}
 	managed := stateAssetsByDist(state.Managed)
+	current := stateAssetsByDist(currentStateAssets(records))
 	for _, current := range currentStateAssets(records) {
 		got, ok := managed[current.Dist]
 		if !ok || got.Logical != current.Logical || got.Hash != current.Hash {
@@ -672,6 +687,10 @@ func checkStateFile(paths assetPaths, records []manifestAsset, stale *[]string) 
 	for _, entry := range state.Managed {
 		if _, err := managedDistPath(paths, entry); err != nil {
 			return err
+		}
+		if _, ok := current[entry.Dist]; !ok {
+			*stale = append(*stale, fmt.Sprintf("%s is stale", paths.stateFile))
+			return nil
 		}
 	}
 	return nil

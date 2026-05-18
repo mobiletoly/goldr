@@ -73,20 +73,45 @@ func TestRunDistCheckListAndClean(t *testing.T) {
 	if err := runDist(options{root: root}); err != nil {
 		t.Fatalf("runDist(updated) error = %v", err)
 	}
-	if _, err := os.Stat(appDist); err != nil {
-		t.Fatalf("old dist file Stat() error = %v", err)
+	if _, err := os.Stat(appDist); !os.IsNotExist(err) {
+		t.Fatalf("old dist Stat() error = %v, want missing", err)
 	}
 	writeTestFile(t, root, "assets/dist/keep.txt", "keep\n")
 
 	if err := runClean(options{root: root}); err != nil {
 		t.Fatalf("runClean() error = %v", err)
 	}
-	if _, err := os.Stat(appDist); !os.IsNotExist(err) {
-		t.Fatalf("old dist Stat() error = %v, want missing", err)
-	}
 	requireFileContent(t, filepath.Join(root, "assets", "dist", "keep.txt"), "keep\n")
 	if err := runCheck(options{root: root}); err != nil {
 		t.Fatalf("runCheck(after clean) error = %v", err)
+	}
+}
+
+func TestRunDistRemovesStaleManagedFiles(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "assets/build/app.css", "body {}\n")
+
+	if err := runDist(options{root: root}); err != nil {
+		t.Fatalf("runDist() error = %v", err)
+	}
+	oldHash := shortHash([]byte("body {}\n"))
+	oldDist := filepath.Join(root, "assets", "dist", "app."+oldHash+".css")
+	requireFileContent(t, oldDist, "body {}\n")
+
+	writeTestFile(t, root, "assets/build/app.css", "body { color: black; }\n")
+	writeTestFile(t, root, "assets/dist/keep.txt", "keep\n")
+	if err := runDist(options{root: root}); err != nil {
+		t.Fatalf("runDist(updated) error = %v", err)
+	}
+
+	if _, err := os.Stat(oldDist); !os.IsNotExist(err) {
+		t.Fatalf("old dist Stat() error = %v, want missing", err)
+	}
+	newHash := shortHash([]byte("body { color: black; }\n"))
+	requireFileContent(t, filepath.Join(root, "assets", "dist", "app."+newHash+".css"), "body { color: black; }\n")
+	requireFileContent(t, filepath.Join(root, "assets", "dist", "keep.txt"), "keep\n")
+	if err := runCheck(options{root: root}); err != nil {
+		t.Fatalf("runCheck() error = %v", err)
 	}
 }
 
@@ -105,6 +130,45 @@ func TestRunCheckReportsStaleGeneratedFile(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "goldr_assets_gen.go") || !strings.Contains(err.Error(), "is stale") {
 		t.Fatalf("runCheck() error = %v, want stale generated file", err)
+	}
+}
+
+func TestRunCheckReportsStaleManagedStateEntry(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "assets/build/app.css", "body {}\n")
+
+	if err := runDist(options{root: root}); err != nil {
+		t.Fatalf("runDist() error = %v", err)
+	}
+	oldHash := shortHash([]byte("body {}\n"))
+	oldDist := filepath.Join(root, "assets", "dist", "app."+oldHash+".css")
+
+	writeTestFile(t, root, "assets/build/app.css", "body { color: black; }\n")
+	if err := runDist(options{root: root}); err != nil {
+		t.Fatalf("runDist(updated) error = %v", err)
+	}
+	writeTestFile(t, root, "assets/dist/app."+oldHash+".css", "body {}\n")
+
+	paths, records, err := buildAssetManifest(root)
+	if err != nil {
+		t.Fatalf("buildAssetManifest() error = %v", err)
+	}
+	state := currentStateFile(records)
+	state.Managed = append(state.Managed, stateAsset{
+		Logical: "app.css",
+		Dist:    rootRelativeDistPath(t, root, oldDist),
+		Hash:    oldHash,
+	})
+	if err := writeStateFile(paths.stateFile, state); err != nil {
+		t.Fatalf("writeStateFile() error = %v", err)
+	}
+
+	err = runCheck(options{root: root})
+	if err == nil {
+		t.Fatal("runCheck() error = nil, want stale state file")
+	}
+	if !strings.Contains(err.Error(), "assets/.goldr/assets.json") || !strings.Contains(err.Error(), "is stale") {
+		t.Fatalf("runCheck() error = %v, want stale state file", err)
 	}
 }
 
@@ -212,4 +276,14 @@ func requireFileContent(t *testing.T, path string, want string) {
 	if got != want {
 		t.Fatalf("%s = %q, want %q", path, got, want)
 	}
+}
+
+func rootRelativeDistPath(t *testing.T, root string, name string) string {
+	t.Helper()
+
+	rel, err := filepath.Rel(root, name)
+	if err != nil {
+		t.Fatalf("Rel(%q, %q) error = %v", root, name, err)
+	}
+	return filepath.ToSlash(rel)
 }

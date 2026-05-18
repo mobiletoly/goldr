@@ -44,7 +44,7 @@ func TestRunHelp(t *testing.T) {
 				"go test ./...",
 				"dev",
 				`Use "go tool goldr routes" to inspect the route tree before editing routes.`,
-				`Use "go tool goldr assets" only for final static files`,
+				`Use "go tool goldr assets" for asset-only checks`,
 			} {
 				if !strings.Contains(stdout, want) {
 					t.Fatalf("stdout = %q, want %q", stdout, want)
@@ -95,7 +95,9 @@ func TestRunGenerateHelpExplainsGeneratedFilesAndTemplBoundary(t *testing.T) {
 		[]string{"generate", "--help"},
 		"app/routes/goldr_gen.go",
 		"app/urls/goldr_gen.go",
+		"assets/goldr_assets_gen.go when assets/build exists",
 		"go tool templ generate -path .",
+		"fingerprints assets/build into assets/dist",
 		"verify templ and goldr-generated files",
 	)
 }
@@ -110,7 +112,6 @@ func TestRunCheckHelpExplainsReadOnlyScope(t *testing.T) {
 		"templ-generated file freshness",
 		"Goldr-managed asset freshness",
 		"go tool goldr generate",
-		"go tool goldr assets dist",
 		"does not run tests",
 		"or write files",
 	)
@@ -345,6 +346,63 @@ func TestRunGenerateWritesGeneratedFiles(t *testing.T) {
 	}
 }
 
+func TestRunGenerateWritesAssetsWhenBuildExists(t *testing.T) {
+	root := tempGenerateApp(t)
+	writeFile(t, root, "assets/build/app.css", "body {}\n")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev")
+
+	if code != 0 {
+		t.Fatalf("Run(generate) exit code = %d, want 0; stderr = %q", code, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+
+	generated := readFile(t, filepath.Join(root, "assets", "goldr_assets_gen.go"))
+	for _, want := range []string{
+		"package assets",
+		`Path: "/assets/app.`,
+		"func FS() fs.FS",
+	} {
+		if !strings.Contains(generated, want) {
+			t.Fatalf("assets generated source = %q, want %q", generated, want)
+		}
+	}
+	matches, err := filepath.Glob(filepath.Join(root, "assets", "dist", "app.*.css"))
+	if err != nil {
+		t.Fatalf("Glob(dist app css) error = %v", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("dist matches = %#v, want one app css file", matches)
+	}
+	if got := readFile(t, matches[0]); got != "body {}\n" {
+		t.Fatalf("%s = %q, want app css content", matches[0], got)
+	}
+}
+
+func TestRunGenerateCheckReportsStaleAssets(t *testing.T) {
+	root := tempGenerateApp(t)
+	writeFile(t, root, "assets/build/app.css", "body {}\n")
+	requireRunSuccess(t, "generate", "--root", root)
+	writeFile(t, root, "assets/build/app.css", "body { color: black; }\n")
+
+	requireCommandArgsFailureContains(
+		t,
+		[]string{"generate", "--root", root, "--check"},
+		"goldr generate:",
+		"goldr-managed assets are not current",
+		"go tool goldr generate",
+		"assets/dist/app.",
+		"is missing",
+	)
+}
+
 func TestRunGenerateReportsMissingTemplTool(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "go.mod", "module example.com/notempltool\n\ngo 1.26.3\n")
@@ -576,7 +634,7 @@ func TestRunCheckReportsStaleManagedAssets(t *testing.T) {
 	requireRunSuccess(t, "assets", "dist", "--root", root)
 	writeFile(t, root, "assets/build/app.css", "body { color: black; }\n")
 
-	requireCheckFailureContains(t, root, "goldr check:", checkCodeAssets, "goldr-managed assets are not current", "go tool goldr assets dist", "assets/dist/app.", "is missing")
+	requireCheckFailureContains(t, root, "goldr check:", checkCodeAssets, "goldr-managed assets are not current", "go tool goldr generate", "assets/dist/app.", "is missing")
 }
 
 func TestRunCheckReportsMissingManagedAssetState(t *testing.T) {
@@ -1057,8 +1115,7 @@ func TestRunAssetsShowsSubcommandHelp(t *testing.T) {
 		"goldr assets <command> [options]",
 		"assets/build -> assets/dist",
 		"Goldr does not compile Tailwind",
-		"go tool goldr assets dist",
-		"go tool goldr assets check",
+		"asset-only checks",
 		"dist",
 		"check",
 		"clean",

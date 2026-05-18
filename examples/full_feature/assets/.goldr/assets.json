@@ -2,11 +2,6 @@
   "version": "v0",
   "managed": [
     {
-      "logical": "app.css",
-      "dist": "assets/dist/app.733637bd.css",
-      "hash": "733637bd"
-    },
-    {
       "logical": "app.js",
       "dist": "assets/dist/app.a0e732aa.js",
       "hash": "a0e732aa"

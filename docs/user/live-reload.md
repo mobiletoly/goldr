@@ -43,16 +43,16 @@ go tool goldr dev --cmd "go run ./cmd/web"
   -> reload browser
 
 assets/build change
-  -> goldr assets dist
+  -> goldr generate
   -> restart app
   -> reload browser
 ```
 
 Goldr does not replace templ's proxy or reload mechanism. It asks templ to
 watch `.go`, `.templ`, and `assets/build` files, then creates a temporary
-wrapper command for templ to run after generation. The wrapper runs goldr
-generation, updates fingerprinted assets when `assets/build` exists, then
-starts the app.
+wrapper command for templ to run after generation. The wrapper runs
+`goldr generate`, which updates route files and fingerprinted assets when
+`assets/build` exists, then starts the app.
 
 ## Options
 
@@ -108,7 +108,7 @@ assets/dist       fingerprinted files written by goldr assets dist
 ```
 
 `goldr dev` watches `assets/build`, not `assets/src`. When a file under
-`assets/build` changes, Goldr runs `goldr assets dist`, restarts the app, and
+`assets/build` changes, Goldr runs `goldr generate`, restarts the app, and
 reloads the browser.
 
 ## Regular Assets Workflow

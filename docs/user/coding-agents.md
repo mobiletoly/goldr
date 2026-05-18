@@ -49,16 +49,18 @@ go test ./...
 ```
 
 `goldr generate` runs templ generation before writing goldr-owned generated
-files. `goldr check` also runs templ check mode and validates Goldr-managed
-asset outputs when they exist. Stale generated output fails the loop without
-rewriting files.
+files. When `assets/build` exists, it also refreshes Goldr-managed asset
+outputs. `goldr check` runs templ check mode and validates generated output
+without rewriting files.
 
 If this app has project-specific scripts, use those scripts instead of the raw
 commands above.
 
 ## Static Assets
 
-If the app uses goldr asset fingerprinting:
+If the app uses Goldr asset fingerprinting, `go tool goldr generate` handles
+the normal asset refresh after the app-owned tool writes `assets/build`. Use
+asset-only commands when you need a narrower check or cleanup:
 
 ```bash
 go tool goldr assets dist

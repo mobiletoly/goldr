@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/mobiletoly/goldr/internal/goldrcli/appfs"
+	cliassets "github.com/mobiletoly/goldr/internal/goldrcli/assets"
 	"github.com/mobiletoly/goldr/internal/routing"
 	"github.com/mobiletoly/goldr/internal/wiring"
 	"github.com/urfave/cli/v3"
@@ -74,9 +75,12 @@ func generateCommand() *cli.Command {
 const generateDescription = `Scans app/routes and writes goldr-owned generated files:
   app/routes/goldr_gen.go
   app/urls/goldr_gen.go
+  assets/goldr_assets_gen.go when assets/build exists
 
 Before scanning routes, this command runs:
   go tool templ generate -path .
+
+When assets/build exists, this command also fingerprints assets/build into assets/dist.
 
 Use --check in CI to verify templ and goldr-generated files without writing.`
 
@@ -105,6 +109,9 @@ func runGenerate(ctx context.Context, options generateOptions) error {
 		if err := checkGeneratedFiles(files); err != nil {
 			return fmt.Errorf("goldr generate: %w", err)
 		}
+		if err := runGenerateAssets(options.root, true); err != nil {
+			return fmt.Errorf("goldr generate: %w", err)
+		}
 		return nil
 	}
 
@@ -113,7 +120,27 @@ func runGenerate(ctx context.Context, options generateOptions) error {
 			return fmt.Errorf("goldr generate: %w", err)
 		}
 	}
+	if err := runGenerateAssets(options.root, false); err != nil {
+		return fmt.Errorf("goldr generate: %w", err)
+	}
 	return nil
+}
+
+func runGenerateAssets(root string, check bool) error {
+	hasAssets, err := cliassets.HasBuildInputs(root)
+	if err != nil {
+		return err
+	}
+	if !hasAssets {
+		return nil
+	}
+	if check {
+		if err := cliassets.Check(root); err != nil {
+			return fmt.Errorf("goldr-managed assets are not current; run go tool goldr generate\n%w", err)
+		}
+		return nil
+	}
+	return cliassets.Dist(root)
 }
 
 func runTemplGenerateFiles(ctx context.Context, root string) error {

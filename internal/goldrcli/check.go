@@ -60,7 +60,7 @@ const checkDescription = `Read-only validation for app/routes, templ output, gen
 
 Checks route naming, page/layout/fragment file pairs, action conventions, generated route dispatch readiness, generated URL helper readiness, templ-generated file freshness, goldr-generated file freshness, and Goldr-managed asset freshness when asset outputs exist.
 
-Run after go tool goldr generate and go tool goldr assets dist when assets are used. This command runs templ check mode but does not run tests, start the app, or write files.`
+Run after go tool goldr generate. This command runs templ check mode but does not run tests, start the app, or write files.`
 
 func runCheck(ctx context.Context, options checkOptions) error {
 	paths, err := appPathsForRoot(ctx, options.root)
@@ -128,7 +128,7 @@ func checkManagedAssets(root string) error {
 		return nil
 	}
 	if err := cliassets.Check(root); err != nil {
-		message := fmt.Errorf("goldr-managed assets are not current; run go tool goldr assets dist\n%w", err)
+		message := fmt.Errorf("goldr-managed assets are not current; run go tool goldr generate\n%w", err)
 		return checkMultilineCodeError(checkCodeAssets, message)
 	}
 	return nil
