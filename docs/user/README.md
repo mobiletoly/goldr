@@ -31,6 +31,8 @@ Then use the references:
 - [CSRF](csrf.md) - signed-cookie tokens for unsafe form and HTMX requests.
 - [Composition](composition.md) - mux, middleware, static assets, and app-owned
   server behavior.
+- [Application Dependencies](dependencies.md) - app-owned typed dependencies
+  for generated route packages.
 
 ## What To Build First
 

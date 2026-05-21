@@ -8,11 +8,16 @@ import (
 	"testing"
 
 	"github.com/mobiletoly/goldr/csrf"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 	"github.com/mobiletoly/goldr/examples/full_feature/internal/testcsrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/internal/testmultipart"
 	"github.com/mobiletoly/goldr/hx"
 )
+
+func requestWithDependencies(request *http.Request) *http.Request {
+	return deps.WithRequest(request, &deps.Dependencies{CSRF: security.CSRF})
+}
 
 func TestPostCreateRedisplaysFieldErrors(t *testing.T) {
 	resetContactsForTest()
@@ -27,6 +32,7 @@ func TestPostCreateRedisplaysFieldErrors(t *testing.T) {
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
 	request.Header.Set("Content-Type", contentType)
 	request.AddCookie(cookie)
+	request = requestWithDependencies(request)
 	recorder := httptest.NewRecorder()
 
 	PostCreate(recorder, request)
@@ -66,6 +72,7 @@ func TestPostCreateAddsContact(t *testing.T) {
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
 	request.Header.Set("Content-Type", contentType)
 	request.AddCookie(cookie)
+	request = requestWithDependencies(request)
 	recorder := httptest.NewRecorder()
 
 	PostCreate(recorder, request)
@@ -101,6 +108,7 @@ func TestPostCreateRejectsMissingCSRF(t *testing.T) {
 	}, nil)
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
 	request.Header.Set("Content-Type", contentType)
+	request = requestWithDependencies(request)
 	recorder := httptest.NewRecorder()
 
 	PostCreate(recorder, request)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/csrf"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 )
 
@@ -36,12 +37,13 @@ func PostIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func parseSignInForm(w http.ResponseWriter, r *http.Request) (bind.Form, bool) {
+	appDeps := deps.From(r)
 	form, err := bind.ParseForm(r)
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return bind.Form{}, false
 	}
-	if err := security.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
+	if err := appDeps.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return bind.Form{}, false
 	}

@@ -4,12 +4,14 @@ import (
 	"net/http"
 
 	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 )
 
 func Page(r *http.Request) goldr.RouteResponse {
+	appDeps := deps.From(r)
 	return goldr.NewPage(
-		PageView(security.CSRF.Token(r), security.DemoRole(r)),
+		PageView(appDeps.CSRF.Token(r), security.DemoRole(r)),
 		goldr.PageMetadata{
 			Title:       "Protected Resource Demo - Goldr Example",
 			Description: "Sign in as different demo users before opening a protected page.",

@@ -6,7 +6,7 @@ import (
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/csrf"
-	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/hx"
 )
 
@@ -19,13 +19,14 @@ const (
 )
 
 func PostCreate(w http.ResponseWriter, r *http.Request) {
+	appDeps := deps.From(r)
 	r.Body = http.MaxBytesReader(w, r.Body, maxContactFormBody)
 	form, err := bind.ParseMultipartForm(r, maxContactFormMemory)
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	if err := security.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
+	if err := appDeps.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -49,18 +50,19 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 	hx.Retarget(w, "#users-directory")
 	hx.Reswap(w, "outerHTML")
 	if form.HasErrors() {
-		if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, DirectoryView(form, ListContacts(), security.CSRF.Token(r))); err != nil {
+		if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, DirectoryView(form, ListContacts(), appDeps.CSRF.Token(r))); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 		return
 	}
-	if err := goldr.WriteComponent(w, r, http.StatusOK, DirectoryView(form, ListContacts(), security.CSRF.Token(r))); err != nil {
+	if err := goldr.WriteComponent(w, r, http.StatusOK, DirectoryView(form, ListContacts(), appDeps.CSRF.Token(r))); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }
 
 func PostSavePreview(w http.ResponseWriter, r *http.Request) {
-	if err := security.CSRF.Validate(r, ""); err != nil {
+	appDeps := deps.From(r)
+	if err := appDeps.CSRF.Validate(r, ""); err != nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}

@@ -82,6 +82,34 @@ mux.Handle("/", guard.Middleware(routes.Handler()))
 
 Read [CSRF](csrf.md) for form and HTMX validation patterns.
 
+## Application Dependencies
+
+When several route packages need stable app dependencies such as stores, auth
+managers, configuration, base paths, redirect policy, or CSRF guards, keep the
+dependency shape app-owned and typed. A small package such as `app/deps` can
+attach one `*deps.Dependencies` value at the generated-route boundary:
+
+```go
+appDeps := &deps.Dependencies{
+	Auth:     authManager,
+	CSRF:     csrfGuard,
+	BasePath: cfg.BasePath,
+}
+
+routesHandler := routes.HandlerWithErrors(routes.ErrorHandlers{
+	NotFound: routes.NotFound,
+})
+
+mux.Handle("/", deps.Middleware(appDeps, routesHandler))
+```
+
+Route packages can then read the typed value with the app-owned helper while
+still passing `r.Context()` into stores and services for per-request work.
+
+Read [Application Dependencies](dependencies.md) for the recommended helper
+shape and the boundary between stable app dependencies and request-scoped
+context values.
+
 ## Static Assets
 
 Keep assets outside `app/routes` and serve them through an application handler:

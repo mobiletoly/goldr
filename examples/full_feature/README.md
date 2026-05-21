@@ -78,6 +78,12 @@ headers and a signed-cookie CSRF guard. The users form renders a visible hidden
 CSRF field, and unsafe actions validate the submitted token before mutating
 example state.
 
+The example also includes `app/deps/deps.go`, an app-owned typed dependency
+helper. `main.go` constructs one `*deps.Dependencies` value with the example
+CSRF guard and attaches it at the generated-route boundary. Route packages read
+that value with `deps.From(r)` instead of importing the CSRF global directly,
+while still passing `r.Context()` into per-request work.
+
 Open `/protected-resource-demo` to sign in as a demo admin or member, sign out,
 and open the protected admin page. Opening `/admin` without a demo role returns
 a page-level `303 See Other` redirect to `/sign-in?next=/admin`; signing in as

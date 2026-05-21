@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mobiletoly/goldr/csrf"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 	"github.com/mobiletoly/goldr/examples/full_feature/assets"
 	"github.com/mobiletoly/goldr/examples/full_feature/internal/testcsrf"
@@ -16,11 +17,23 @@ import (
 	"github.com/mobiletoly/goldr/hx"
 )
 
+func testDependencies() *deps.Dependencies {
+	return &deps.Dependencies{CSRF: security.CSRF}
+}
+
+func testHandler() http.Handler {
+	return deps.Middleware(testDependencies(), Handler())
+}
+
+func testHandlerWithErrors(handlers ErrorHandlers) http.Handler {
+	return deps.Middleware(testDependencies(), HandlerWithErrors(handlers))
+}
+
 func recordRoute(t *testing.T, method string, path string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	recorder := httptest.NewRecorder()
-	Handler().ServeHTTP(recorder, httptest.NewRequestWithContext(context.Background(), method, path, nil))
+	testHandler().ServeHTTP(recorder, httptest.NewRequestWithContext(context.Background(), method, path, nil))
 	return recorder
 }
 
@@ -33,7 +46,7 @@ func recordForm(t *testing.T, path string, values url.Values, cookies ...*http.C
 		request.AddCookie(cookie)
 	}
 	recorder := httptest.NewRecorder()
-	Handler().ServeHTTP(recorder, request)
+	testHandler().ServeHTTP(recorder, request)
 	return recorder
 }
 
@@ -162,7 +175,7 @@ func TestHandlerProtectedResourceDemoSignedInState(t *testing.T) {
 	request.AddCookie(&http.Cookie{Name: security.DemoAuthCookie, Value: security.RoleAdmin})
 	recorder := httptest.NewRecorder()
 
-	Handler().ServeHTTP(recorder, request)
+	testHandler().ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -219,7 +232,7 @@ func TestHandlerProtectedPageResponses(t *testing.T) {
 	memberRequest := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin", nil)
 	memberRequest.AddCookie(&http.Cookie{Name: security.DemoAuthCookie, Value: security.RoleMember})
 	member := httptest.NewRecorder()
-	Handler().ServeHTTP(member, memberRequest)
+	testHandler().ServeHTTP(member, memberRequest)
 	if member.Code != http.StatusForbidden {
 		t.Fatalf("member status = %d, want %d", member.Code, http.StatusForbidden)
 	}
@@ -241,7 +254,7 @@ func TestHandlerProtectedPageResponses(t *testing.T) {
 	adminRequest := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin", nil)
 	adminRequest.AddCookie(&http.Cookie{Name: security.DemoAuthCookie, Value: security.RoleAdmin})
 	admin := httptest.NewRecorder()
-	Handler().ServeHTTP(admin, adminRequest)
+	testHandler().ServeHTTP(admin, adminRequest)
 	if admin.Code != http.StatusOK {
 		t.Fatalf("admin status = %d, want %d", admin.Code, http.StatusOK)
 	}
@@ -257,7 +270,7 @@ func TestHandlerProtectedPageResponses(t *testing.T) {
 }
 
 func TestHandlerProtectedPageErrorResponse(t *testing.T) {
-	handler := HandlerWithErrors(ErrorHandlers{
+	handler := testHandlerWithErrors(ErrorHandlers{
 		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
@@ -468,7 +481,7 @@ func TestHandlerMissingPath(t *testing.T) {
 }
 
 func TestHandlerWithErrorsCustomNotFound(t *testing.T) {
-	handler := HandlerWithErrors(ErrorHandlers{
+	handler := testHandlerWithErrors(ErrorHandlers{
 		NotFound: NotFound,
 	})
 	recorder := httptest.NewRecorder()
@@ -500,7 +513,7 @@ func TestHandlerPostCreateAction(t *testing.T) {
 	request.AddCookie(cookie)
 	recorder := httptest.NewRecorder()
 
-	Handler().ServeHTTP(recorder, request)
+	testHandler().ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -528,7 +541,7 @@ func TestHandlerPostCreateRejectsMissingCSRF(t *testing.T) {
 	request.Header.Set("Content-Type", contentType)
 	recorder := httptest.NewRecorder()
 
-	Handler().ServeHTTP(recorder, request)
+	testHandler().ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusForbidden)
@@ -547,7 +560,7 @@ func TestHandlerPostCreateRedisplaysErrors(t *testing.T) {
 	request.AddCookie(cookie)
 	recorder := httptest.NewRecorder()
 
-	Handler().ServeHTTP(recorder, request)
+	testHandler().ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnprocessableEntity)
@@ -569,7 +582,7 @@ func TestHandlerPostSavePreviewAction(t *testing.T) {
 	request.Header.Set(csrf.HeaderName, token)
 	recorder := httptest.NewRecorder()
 
-	Handler().ServeHTTP(recorder, request)
+	testHandler().ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)

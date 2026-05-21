@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/routes"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 	"github.com/mobiletoly/goldr/examples/full_feature/assets"
@@ -66,12 +67,16 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 }
 
 func exampleHandler() http.Handler {
+	appDeps := &deps.Dependencies{
+		CSRF: security.CSRF,
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("/assets/", staticCache(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.FS())))))
 	routesHandler := routes.HandlerWithErrors(routes.ErrorHandlers{
 		NotFound: routes.NotFound,
 	})
-	mux.Handle("/", appHeaders(security.CSRF.Middleware(routesHandler)))
+	mux.Handle("/", appHeaders(deps.Middleware(appDeps, security.CSRF.Middleware(routesHandler))))
 	return mux
 }
 
