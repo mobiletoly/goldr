@@ -12,6 +12,8 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/browser"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/routes"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
@@ -72,15 +74,27 @@ func exampleHandler() http.Handler {
 	}
 
 	mux := http.NewServeMux()
+	mux.Handle("/goldr/", http.StripPrefix("/goldr/", browser.Handler()))
 	mux.Handle("/assets/", staticCache(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.FS())))))
 	routesHandler := routes.HandlerWithOptions(routes.HandlerOptions{
 		ErrorHandlers: routes.ErrorHandlers{
 			NotFound: routes.NotFound,
 		},
-		InspectTemplates: true,
+		TemplateInspection: templateInspectionMode(),
 	})
 	mux.Handle("/", appHeaders(deps.Middleware(appDeps, security.CSRF.Middleware(routesHandler))))
 	return mux
+}
+
+func templateInspectionMode() goldr.TemplateInspectionMode {
+	switch os.Getenv("GOLDR_TEMPLATE_INSPECTION") {
+	case "comments":
+		return goldr.TemplateInspectionComments
+	case "overlay":
+		return goldr.TemplateInspectionOverlay
+	default:
+		return goldr.TemplateInspectionOff
+	}
 }
 
 func appHeaders(next http.Handler) http.Handler {

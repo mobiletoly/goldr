@@ -76,7 +76,7 @@ func GenerateManifest(manifest routing.Manifest, options GenerateOptions) ([]byt
 	needsRender := hasRenderRoutes(routes)
 	needsActionRouteWriter := hasActionRoutes(routes)
 	needsRenderedResponse := needsRender || needsActionRouteWriter
-	writeImports(&buffer, imports, inspectorImportPath, hasDynamicRoutes(routes), len(routes) > 0, needsRenderedResponse, hasSegmentRoutes(routes), needsRenderedResponse)
+	writeImports(&buffer, imports, inspectorImportPath, hasDynamicRoutes(routes), len(routes) > 0, needsRenderedResponse, hasSegmentRoutes(routes), len(routes) > 0)
 	writeTypes(&buffer, len(routes) > 0)
 	writeManifestValue(&buffer, manifest)
 	if len(routes) > 0 {
@@ -104,20 +104,16 @@ func GenerateInspectorSupport(packageName string) ([]byte, error) {
 	"io"
 
 	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
-
-type contextKey struct{}
 
 type Marker struct {
 	StartComment string
 	EndComment   string
 }
 
-func WithEnabled(ctx context.Context) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithValue(ctx, contextKey{}, true)
+func WithMode(ctx context.Context, mode goldr.TemplateInspectionMode) context.Context {
+	return goldr.WithTemplateInspection(ctx, mode)
 }
 
 func Wrap(component templ.Component, marker Marker) templ.Component {
@@ -140,11 +136,7 @@ func Wrap(component templ.Component, marker Marker) templ.Component {
 }
 
 func enabled(ctx context.Context) bool {
-	if ctx == nil {
-		return false
-	}
-	enabled, _ := ctx.Value(contextKey{}).(bool)
-	return enabled
+	return goldr.TemplateInspectionFromContext(ctx) != goldr.TemplateInspectionOff
 }
 `)
 
@@ -431,8 +423,8 @@ type goldrRenderUnit struct {
 }
 
 type HandlerOptions struct {
-	ErrorHandlers    ErrorHandlers
-	InspectTemplates bool
+	ErrorHandlers       ErrorHandlers
+	TemplateInspection goldr.TemplateInspectionMode
 }
 
 `)
@@ -498,8 +490,8 @@ func Handler() http.Handler {
 
 func HandlerWithOptions(options HandlerOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if options.InspectTemplates {
-			r = r.WithContext(goldrinspect.WithEnabled(r.Context()))
+		if options.TemplateInspection != goldr.TemplateInspectionOff {
+			r = r.WithContext(goldrinspect.WithMode(r.Context(), options.TemplateInspection))
 		}
 		routePath := r.URL.EscapedPath()
 `)

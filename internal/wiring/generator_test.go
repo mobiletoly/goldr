@@ -24,6 +24,7 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 		"type goldrAction struct",
 		"type ErrorHandlers struct",
 		"type HandlerOptions struct",
+		"TemplateInspection goldr.TemplateInspectionMode",
 		"var goldrGeneratedManifest = goldrManifest",
 		"func Handler() http.Handler",
 		"func HandlerWithOptions(options HandlerOptions) http.Handler",
@@ -34,6 +35,9 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing %q:\n%s", want, source)
 		}
+	}
+	if strings.Contains(source, "InspectTemplates") {
+		t.Fatalf("generated source contains removed InspectTemplates field:\n%s", source)
 	}
 }
 
@@ -701,6 +705,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/mobiletoly/goldr"
 )
 
 func TestHandlerRoutes(t *testing.T) {
@@ -730,7 +736,7 @@ func TestHandlerRoutes(t *testing.T) {
 
 func TestTemplateInspectorMarkers(t *testing.T) {
 	page := httptest.NewRecorder()
-	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/users", nil))
+	HandlerWithOptions(HandlerOptions{TemplateInspection: goldr.TemplateInspectionComments}).ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/users", nil))
 	if page.Code != http.StatusOK {
 		t.Fatalf("inspected page status = %d, want %d", page.Code, http.StatusOK)
 	}
@@ -753,8 +759,14 @@ func TestTemplateInspectorMarkers(t *testing.T) {
 		t.Fatalf("root layout marker should wrap users layout marker:\n%s", page.Body.String())
 	}
 
+	overlay := httptest.NewRecorder()
+	HandlerWithOptions(HandlerOptions{TemplateInspection: goldr.TemplateInspectionOverlay}).ServeHTTP(overlay, httptest.NewRequest(http.MethodGet, "/users", nil))
+	if !strings.Contains(overlay.Body.String(), "<!--goldr:start id=g_pageusers_page_templ") {
+		t.Fatalf("overlay inspection body missing page marker:\n%s", overlay.Body.String())
+	}
+
 	fragment := httptest.NewRecorder()
-	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(fragment, httptest.NewRequest(http.MethodGet, "/users/frag-table", nil))
+	HandlerWithOptions(HandlerOptions{TemplateInspection: goldr.TemplateInspectionComments}).ServeHTTP(fragment, httptest.NewRequest(http.MethodGet, "/users/frag-table", nil))
 	if fragment.Code != http.StatusOK {
 		t.Fatalf("inspected fragment status = %d, want %d", fragment.Code, http.StatusOK)
 	}
@@ -769,7 +781,7 @@ func TestTemplateInspectorMarkers(t *testing.T) {
 	}
 
 	head := httptest.NewRecorder()
-	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(head, httptest.NewRequest(http.MethodHead, "/users/frag-table", nil))
+	HandlerWithOptions(HandlerOptions{TemplateInspection: goldr.TemplateInspectionComments}).ServeHTTP(head, httptest.NewRequest(http.MethodHead, "/users/frag-table", nil))
 	if head.Body.Len() != 0 {
 		t.Fatalf("inspected HEAD body length = %d, want 0", head.Body.Len())
 	}
@@ -912,13 +924,13 @@ func TestFragmentRouteResponses(t *testing.T) {
 	}
 
 	inspectedRedirect := httptest.NewRecorder()
-	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(inspectedRedirect, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=redirect", nil))
+	HandlerWithOptions(HandlerOptions{TemplateInspection: goldr.TemplateInspectionComments}).ServeHTTP(inspectedRedirect, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=redirect", nil))
 	if strings.Contains(inspectedRedirect.Body.String(), "goldr:") {
 		t.Fatalf("inspected redirect body leaked marker %q", inspectedRedirect.Body.String())
 	}
 
 	inspectedText := httptest.NewRecorder()
-	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(inspectedText, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=text", nil))
+	HandlerWithOptions(HandlerOptions{TemplateInspection: goldr.TemplateInspectionComments}).ServeHTTP(inspectedText, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=text", nil))
 	if inspectedText.Body.String() != "forbidden" {
 		t.Fatalf("inspected text body = %q, want forbidden", inspectedText.Body.String())
 	}
@@ -1221,6 +1233,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/mobiletoly/goldr"
 )
 
 func TestActionRouteResponseUsesLayoutStack(t *testing.T) {
@@ -1239,7 +1253,7 @@ func TestActionRouteResponseUsesLayoutStack(t *testing.T) {
 	}
 
 	inspected := httptest.NewRecorder()
-	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(inspected, httptest.NewRequest(http.MethodPost, "/users/42/keys/create", nil))
+	HandlerWithOptions(HandlerOptions{TemplateInspection: goldr.TemplateInspectionComments}).ServeHTTP(inspected, httptest.NewRequest(http.MethodPost, "/users/42/keys/create", nil))
 	if inspected.Code != http.StatusCreated {
 		t.Fatalf("inspected status = %d, want %d", inspected.Code, http.StatusCreated)
 	}

@@ -409,117 +409,14 @@ render units or the underlying templ render error.
 
 Action error responses and static asset error responses are application-owned.
 
-## Template Inspector
+## Template Inspection
 
-Use `HandlerWithOptions` when local browser debugging should show which Goldr
-template rendered each page region:
+Generated handlers can emit development-only render-unit markers for pages,
+layouts, and fragments. The same markers can also power a visible browser
+overlay for local debugging.
 
-```go
-mux.Handle("/", routes.HandlerWithOptions(routes.HandlerOptions{
-	ErrorHandlers: routes.ErrorHandlers{
-		NotFound: routes.NotFound,
-	},
-	InspectTemplates: os.Getenv("GOLDR_INSPECT_TEMPLATES") == "1",
-}))
-```
-
-`InspectTemplates` is off by default. When it is enabled, generated dispatch
-emits paired HTML comments around page, layout, and fragment render boundaries:
-
-```html
-<!--goldr:start id=g_pageusers_page_templ kind=page route=/users source=app/routes/users/page.templ go=app/routes/users/page.go-->
-...
-<!--goldr:end id=g_pageusers_page_templ-->
-```
-
-The paths are app-relative, never absolute machine paths. Redirect, text,
-error, and `HEAD` response bodies do not emit inspector markers.
-
-Generated dispatch marks direct page, layout, and fragment route responses
-automatically. When a page embeds a first-class fragment, use the generated
-package-local wrapper for that fragment:
-
-```templ
-<div id="users-table-slot">
-	@renderFragTable(FragTableView(contacts))
-</div>
-```
-
-For HTMX refreshes, target the slot with `innerHTML`:
-
-```templ
-<button
-	hx-get={ urls.Users.FragTable.Path() }
-	hx-target="#users-table-slot"
-	hx-swap="innerHTML"
->
-	Load users
-</button>
-```
-
-The inspector boundary comments are siblings of the rendered fragment root. A
-slot keeps those comments inside the HTMX replacement boundary, so repeated
-swaps do not leave stale inspector comments in the DOM.
-
-For comparison, this still renders the same HTML, but does not add an
-inspector boundary around the embedded fragment:
-
-```templ
-@FragTableView(contacts)
-```
-
-The wrapper name follows the fragment file name. For example,
-`frag_table.go` / `frag_table.templ` uses `renderFragTable`. The helper takes
-the component you already render, so the application still chooses the templ
-function and arguments.
-
-Multiple templ declarations inside one `frag_*.templ` file are internal to
-that fragment render unit. Split them into separate `frag_*.go` /
-`frag_*.templ` files when they need separately inspectable fragment identities.
-
-To draw visual browser overlays, save this as a Chrome DevTools Snippet and run
-it on a page rendered with `GOLDR_INSPECT_TEMPLATES=1`:
-
-```js
-(() => {
-  document.querySelectorAll("[data-goldr-overlay]").forEach((node) => node.remove());
-
-  const starts = [];
-  const walker = document.createTreeWalker(document, NodeFilter.SHOW_COMMENT);
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node.nodeValue.trim();
-    if (text.startsWith("goldr:start ")) {
-      starts.push({ node, meta: Object.fromEntries([...text.matchAll(/([a-z]+)=([^ ]+)/g)].map((match) => [match[1], match[2]])) });
-      continue;
-    }
-    if (!text.startsWith("goldr:end ")) {
-      continue;
-    }
-    const id = text.match(/id=([^ ]+)/)?.[1];
-    const index = starts.findLastIndex((entry) => entry.meta.id === id);
-    if (index < 0) {
-      continue;
-    }
-    const [{ node: start, meta }] = starts.splice(index, 1);
-    const range = document.createRange();
-    range.setStartAfter(start);
-    range.setEndBefore(node);
-    for (const rect of range.getClientRects()) {
-      if (rect.width < 1 || rect.height < 1) {
-        continue;
-      }
-      const box = document.createElement("div");
-      box.dataset.goldrOverlay = "1";
-      box.style.cssText = `position:absolute;left:${rect.left + scrollX}px;top:${rect.top + scrollY}px;width:${rect.width}px;height:${rect.height}px;border:2px solid #f59e0b;pointer-events:none;z-index:2147483647`;
-      const label = document.createElement("div");
-      label.textContent = `${meta.kind}: ${meta.source}`;
-      label.style.cssText = "position:absolute;left:0;top:-1.6em;background:#111827;color:white;font:12px sans-serif;padding:2px 4px";
-      box.append(label);
-      document.body.append(box);
-    }
-  }
-})();
-```
+See [Template Inspection](template-inspection.md) for comments mode, overlay
+mode, embedded fragment wrappers, and app-owned env-var wiring.
 
 ## Valid Names
 

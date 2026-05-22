@@ -106,7 +106,7 @@ func TestDevWrapperRunsGoldrGenerateThenAppCommand(t *testing.T) {
 		"cd " + shellQuote(root),
 		"printf '%s\\n' 'goldr dev live reload proxy'",
 		"printf '%s\\n' 'Open this URL in your browser:'",
-		"printf '%s\\n' '  http://127.0.0.1:7331'",
+		"printf '%s\\n' '  🌐 http://127.0.0.1:7331'",
 		"printf '%s\\n' 'Do not open the app server URL directly.'",
 		"exec /bin/sh -c " + shellQuote(config.command),
 	} {
@@ -117,8 +117,8 @@ func TestDevWrapperRunsGoldrGenerateThenAppCommand(t *testing.T) {
 	if strings.Contains(generateCommand, shellQuote(wrapperTempDir)+" ") {
 		t.Fatalf("generate command = %q, must not use templ's default temp root", generateCommand)
 	}
-	assertBefore(t, source, generateCommand, "printf '%s\\n' '  http://127.0.0.1:7331'")
-	assertBefore(t, source, "printf '%s\\n' '  http://127.0.0.1:7331'", "exec /bin/sh -c "+shellQuote(config.command))
+	assertBefore(t, source, generateCommand, "printf '%s\\n' '  🌐 http://127.0.0.1:7331'")
+	assertBefore(t, source, "printf '%s\\n' '  🌐 http://127.0.0.1:7331'", "exec /bin/sh -c "+shellQuote(config.command))
 	if strings.Contains(source, "assets dist") {
 		t.Fatalf("wrapper = %q, must not run assets dist separately", source)
 	}

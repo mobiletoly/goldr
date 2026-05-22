@@ -10,9 +10,19 @@ import (
 )
 
 func TestFSContainsSSEEventHelper(t *testing.T) {
-	file, err := FS().Open(helperPath)
+	assertFSContains(t, sseEventHelperPath, `registerExtension("goldr-sse-event"`)
+}
+
+func TestFSContainsTemplateInspectorHelper(t *testing.T) {
+	assertFSContains(t, templateInspectorHelperPath, `data-goldr-template-inspector`)
+}
+
+func assertFSContains(t *testing.T, name string, want string) {
+	t.Helper()
+
+	file, err := FS().Open(name)
 	if err != nil {
-		t.Fatalf("FS().Open(%q) error = %v, want nil", helperPath, err)
+		t.Fatalf("FS().Open(%q) error = %v, want nil", name, err)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
@@ -24,8 +34,8 @@ func TestFSContainsSSEEventHelper(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAll() error = %v, want nil", err)
 	}
-	if !strings.Contains(string(body), `registerExtension("goldr-sse-event"`) {
-		t.Fatalf("helper body = %q, want goldr-sse-event extension registration", body)
+	if !strings.Contains(string(body), want) {
+		t.Fatalf("helper body = %q, want %q", body, want)
 	}
 }
 
@@ -55,6 +65,29 @@ func TestHandlerServesSSEEventHelper(t *testing.T) {
 	}
 	if !strings.Contains(string(body), `goldr-sse-event`) {
 		t.Fatalf("body = %q, want helper script", body)
+	}
+}
+
+func TestHandlerServesTemplateInspectorHelper(t *testing.T) {
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/goldr-template-inspector.js", nil)
+	recorder := httptest.NewRecorder()
+
+	Handler().ServeHTTP(recorder, request)
+
+	response := recorder.Result()
+	defer closeResponse(t, response)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusOK)
+	}
+	if got := response.Header.Get("Content-Type"); got != "text/javascript; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want text/javascript; charset=utf-8", got)
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("ReadAll() error = %v, want nil", err)
+	}
+	if !strings.Contains(string(body), `goldr:start`) {
+		t.Fatalf("body = %q, want template inspector script", body)
 	}
 }
 

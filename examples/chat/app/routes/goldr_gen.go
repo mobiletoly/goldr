@@ -70,8 +70,8 @@ type ErrorHandlers struct {
 }
 
 type HandlerOptions struct {
-	ErrorHandlers    ErrorHandlers
-	InspectTemplates bool
+	ErrorHandlers      ErrorHandlers
+	TemplateInspection goldr.TemplateInspectionMode
 }
 
 var goldrGeneratedManifest = goldrManifest{
@@ -141,8 +141,8 @@ func Handler() http.Handler {
 
 func HandlerWithOptions(options HandlerOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if options.InspectTemplates {
-			r = r.WithContext(goldrinspect.WithEnabled(r.Context()))
+		if options.TemplateInspection != goldr.TemplateInspectionOff {
+			r = r.WithContext(goldrinspect.WithMode(r.Context(), options.TemplateInspection))
 		}
 		routePath := r.URL.EscapedPath()
 		if routePath == "/" {

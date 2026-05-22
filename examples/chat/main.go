@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/browser"
 	"github.com/mobiletoly/goldr/examples/chat/app/routes"
 	"github.com/mobiletoly/goldr/examples/chat/app/routes/chat"
@@ -69,8 +70,21 @@ func exampleHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/goldr/", http.StripPrefix("/goldr/", browser.Handler()))
 	mux.HandleFunc(chat.EventsPath, chat.Events)
-	mux.Handle("/", appHeaders(routes.Handler()))
+	mux.Handle("/", appHeaders(routes.HandlerWithOptions(routes.HandlerOptions{
+		TemplateInspection: templateInspectionMode(),
+	})))
 	return mux
+}
+
+func templateInspectionMode() goldr.TemplateInspectionMode {
+	switch os.Getenv("GOLDR_TEMPLATE_INSPECTION") {
+	case "comments":
+		return goldr.TemplateInspectionComments
+	case "overlay":
+		return goldr.TemplateInspectionOverlay
+	default:
+		return goldr.TemplateInspectionOff
+	}
 }
 
 func appHeaders(next http.Handler) http.Handler {

@@ -55,7 +55,7 @@ func TestChatPageRendersMessagesAndSSEConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAll() error = %v", err)
 	}
-	for _, want := range []string{`hx-sse:connect="/chat/events?after=`, `goldr-sse-event="chat-message"`, `src="/goldr/goldr-sse-event.js"`, `hx-indicator="#send-progress"`, "Sign out", "Sending...", "Grace", body} {
+	for _, want := range []string{`hx-sse:connect="/chat/events?after=`, `goldr-sse-event="chat-message"`, `src="/goldr/goldr-sse-event.js"`, `hx-indicator="#send-progress"`, "Sign out", "Sending (with 3 seconds day)...", "Grace", body} {
 		if !strings.Contains(string(page), want) {
 			t.Fatalf("page = %q, want %q", page, want)
 		}
@@ -185,25 +185,33 @@ func TestEventStreamReceivesPostedMessage(t *testing.T) {
 }
 
 func TestGoldrBrowserHelperIsMounted(t *testing.T) {
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/goldr/goldr-sse-event.js", nil)
-	recorder := httptest.NewRecorder()
+	for _, test := range []struct {
+		path string
+		want string
+	}{
+		{path: "/goldr/goldr-sse-event.js", want: "goldr-sse-event"},
+		{path: "/goldr/goldr-template-inspector.js", want: "data-goldr-template-inspector"},
+	} {
+		request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, test.path, nil)
+		recorder := httptest.NewRecorder()
 
-	exampleHandler().ServeHTTP(recorder, request)
+		exampleHandler().ServeHTTP(recorder, request)
 
-	response := recorder.Result()
-	defer closeBody(t, response.Body)
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusOK)
-	}
-	if got := response.Header.Get("Cache-Control"); got != "no-cache" {
-		t.Fatalf("Cache-Control = %q, want no-cache", got)
-	}
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		t.Fatalf("ReadAll() error = %v", err)
-	}
-	if !strings.Contains(string(body), "goldr-sse-event") {
-		t.Fatalf("body = %q, want Goldr SSE event helper", body)
+		response := recorder.Result()
+		defer closeBody(t, response.Body)
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d", test.path, response.StatusCode, http.StatusOK)
+		}
+		if got := response.Header.Get("Cache-Control"); got != "no-cache" {
+			t.Fatalf("%s Cache-Control = %q, want no-cache", test.path, got)
+		}
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			t.Fatalf("ReadAll(%s) error = %v", test.path, err)
+		}
+		if !strings.Contains(string(body), test.want) {
+			t.Fatalf("%s body = %q, want %q", test.path, body, test.want)
+		}
 	}
 }
 

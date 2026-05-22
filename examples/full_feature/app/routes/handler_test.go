@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
@@ -27,6 +28,18 @@ func testHandler() http.Handler {
 
 func testHandlerWithOptions(options HandlerOptions) http.Handler {
 	return deps.Middleware(testDependencies(), HandlerWithOptions(options))
+}
+
+func TestTemplateInspectionOverlayIncludesScript(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	testHandlerWithOptions(HandlerOptions{TemplateInspection: goldr.TemplateInspectionOverlay}).ServeHTTP(recorder, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users", nil))
+
+	if !strings.Contains(recorder.Body.String(), `<!--goldr:start id=g_pageusers_page_templ`) {
+		t.Fatalf("body missing inspector marker:\n%s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `<script src="/goldr/goldr-template-inspector.js" defer></script>`) {
+		t.Fatalf("body missing template inspector script:\n%s", recorder.Body.String())
+	}
 }
 
 func recordRoute(t *testing.T, method string, path string) *httptest.ResponseRecorder {

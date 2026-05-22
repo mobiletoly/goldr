@@ -281,6 +281,30 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 		t.Fatalf("js body = %q, want htmx 4 validation responses without custom swap handling", jsBody)
 	}
 
+	inspectorRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+"/goldr/goldr-template-inspector.js", nil)
+	if err != nil {
+		t.Fatalf("NewRequestWithContext(inspector) error = %v", err)
+	}
+	inspectorResponse, err := client.Do(inspectorRequest)
+	if err != nil {
+		t.Fatalf("Do(inspector) error = %v", err)
+	}
+	defer func() {
+		if err := inspectorResponse.Body.Close(); err != nil {
+			t.Errorf("Close(inspector) error = %v", err)
+		}
+	}()
+	if inspectorResponse.StatusCode != http.StatusOK {
+		t.Fatalf("inspector status = %d, want %d", inspectorResponse.StatusCode, http.StatusOK)
+	}
+	inspectorBody, err := io.ReadAll(inspectorResponse.Body)
+	if err != nil {
+		t.Fatalf("ReadAll(inspector) error = %v", err)
+	}
+	if !strings.Contains(string(inspectorBody), "data-goldr-template-inspector") {
+		t.Fatalf("inspector body = %q", inspectorBody)
+	}
+
 	missingRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+"/missing", nil)
 	if err != nil {
 		t.Fatalf("NewRequestWithContext(missing) error = %v", err)

@@ -1,0 +1,182 @@
+# Template Inspection
+
+Template inspection is a development-only way to see which Goldr render unit
+produced a page region.
+
+It is off by default. Normal `routes.Handler()` output does not include
+inspector comments, overlay scripts, or debug elements.
+
+![inspect.png](scr/inspect.png)
+
+## Inspection Modes
+
+Generated route packages expose:
+
+```go
+type HandlerOptions struct {
+	ErrorHandlers       ErrorHandlers
+	TemplateInspection goldr.TemplateInspectionMode
+}
+```
+
+The supported modes are:
+
+- `goldr.TemplateInspectionOff`: no template inspection.
+- `goldr.TemplateInspectionComments`: HTML comment markers only.
+- `goldr.TemplateInspectionOverlay`: HTML comment markers plus Goldr's browser
+  overlay helper when the layout renders `goldr.TemplateInspector()`.
+
+Goldr does not read environment variables by itself. If you want an env var for
+local development, keep that mapping in application code.
+
+## Comment Inspection
+
+Use comments mode when you want DevTools or View Source to show render
+boundaries without adding a visible overlay:
+
+```go
+import "github.com/mobiletoly/goldr"
+
+mux.Handle("/", routes.HandlerWithOptions(routes.HandlerOptions{
+	ErrorHandlers: routes.ErrorHandlers{
+		NotFound: routes.NotFound,
+	},
+	TemplateInspection: goldr.TemplateInspectionComments,
+}))
+```
+
+Generated dispatch emits paired HTML comments around page, layout, and
+fragment render boundaries:
+
+```html
+<!--goldr:start id=g_pageusers_page_templ kind=page route=/users source=app/routes/users/page.templ go=app/routes/users/page.go-->
+...
+<!--goldr:end id=g_pageusers_page_templ-->
+```
+
+The paths are app-relative, never absolute machine paths. Redirect, text,
+error, and `HEAD` response bodies do not emit inspector markers.
+
+## Overlay Inspection
+
+Use overlay mode when you want visible outlines and labels in the browser.
+
+Mount Goldr's browser helper and set the generated handler option:
+
+```go
+package main
+
+import (
+	"net/http"
+
+	"myapp/app/routes"
+
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/browser"
+)
+
+func handler() http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/goldr/", http.StripPrefix("/goldr/", browser.Handler()))
+	mux.Handle("/", routes.HandlerWithOptions(routes.HandlerOptions{
+		TemplateInspection: goldr.TemplateInspectionOverlay,
+	}))
+	return mux
+}
+```
+
+Render the layout helper explicitly, usually near the end of the root layout:
+
+```templ
+<body>
+	@child
+	@goldr.TemplateInspector()
+</body>
+```
+
+`goldr.TemplateInspector()` renders nothing in off or comments mode. In overlay
+mode, it renders a script tag for `/goldr/goldr-template-inspector.js`.
+
+The browser helper reads the inspector comments and draws colored outlines and
+labels over layout, page, and fragment regions. It appends debug overlay nodes
+outside application render regions and does not wrap app content.
+
+## Env Var Example
+
+An application can choose inspection mode from an env var during local
+development:
+
+```go
+func templateInspectionMode() goldr.TemplateInspectionMode {
+	switch os.Getenv("GOLDR_TEMPLATE_INSPECTION") {
+	case "comments":
+		return goldr.TemplateInspectionComments
+	case "overlay":
+		return goldr.TemplateInspectionOverlay
+	default:
+		return goldr.TemplateInspectionOff
+	}
+}
+```
+
+Then pass the mode to the generated handler:
+
+```go
+mux.Handle("/", routes.HandlerWithOptions(routes.HandlerOptions{
+	TemplateInspection: templateInspectionMode(),
+}))
+```
+
+Run locally with the mode you want:
+
+```bash
+GOLDR_TEMPLATE_INSPECTION=comments go run .
+GOLDR_TEMPLATE_INSPECTION=overlay go run .
+```
+
+`GOLDR_TEMPLATE_INSPECTION` is only the env var used by these examples. You can
+choose another name, use flags, or wire the mode directly.
+
+## Embedded Fragments
+
+Generated dispatch marks direct page, layout, and fragment route responses
+automatically. When a page embeds a first-class fragment, use the generated
+package-local wrapper for that fragment:
+
+```templ
+<div id="users-table-slot">
+	@renderFragTable(FragTableView(contacts))
+</div>
+```
+
+For HTMX refreshes, target the slot with `innerHTML`:
+
+```templ
+<button
+	hx-get={ urls.Users.FragTable.Path() }
+	hx-target="#users-table-slot"
+	hx-swap="innerHTML"
+>
+	Load users
+</button>
+```
+
+The inspector boundary comments are siblings of the rendered fragment root. A
+slot keeps those comments inside the HTMX replacement boundary, so repeated
+swaps do not leave stale inspector comments in the DOM.
+
+For comparison, this still renders the same HTML, but does not add an
+inspector boundary around the embedded fragment:
+
+```templ
+@FragTableView(contacts)
+```
+
+The wrapper name follows the fragment file name. For example,
+`frag_table.go` / `frag_table.templ` uses `renderFragTable`. The helper takes
+the component you already render, so the application still chooses the templ
+function and arguments.
+
+Multiple templ declarations inside one `frag_*.templ` file are internal to
+that fragment render unit. Split them into separate `frag_*.go` /
+`frag_*.templ` files when they need separately inspectable fragment identities.

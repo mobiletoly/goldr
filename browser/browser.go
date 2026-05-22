@@ -18,15 +18,23 @@ import (
 	"time"
 )
 
-const helperPath = "goldr-sse-event.js"
+const (
+	sseEventHelperPath          = "goldr-sse-event.js"
+	templateInspectorHelperPath = "goldr-template-inspector.js"
+)
 
-//go:embed goldr-sse-event.js
+//go:embed goldr-sse-event.js goldr-template-inspector.js
 var embedded embed.FS
 
-var (
-	helperContent = mustReadHelper()
-	helperETag    = contentETag(helperContent)
-)
+var helpers = map[string]helperFile{
+	sseEventHelperPath:          mustReadHelper(sseEventHelperPath),
+	templateInspectorHelperPath: mustReadHelper(templateInspectorHelperPath),
+}
+
+type helperFile struct {
+	content []byte
+	etag    string
+}
 
 // FS returns Goldr's embedded browser helper files.
 func FS() fs.FS {
@@ -39,29 +47,34 @@ func Handler() http.Handler {
 }
 
 func serveHelper(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/"+helperPath && r.URL.Path != helperPath {
+	helperName := strings.TrimPrefix(r.URL.Path, "/")
+	helper, ok := helpers[helperName]
+	if !ok {
 		http.NotFound(w, r)
 		return
 	}
 
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-	w.Header().Set("ETag", helperETag)
+	w.Header().Set("ETag", helper.etag)
 
-	if etagMatches(r.Header.Get("If-None-Match"), helperETag) {
+	if etagMatches(r.Header.Get("If-None-Match"), helper.etag) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
 
-	http.ServeContent(w, r, helperPath, time.Time{}, bytes.NewReader(helperContent))
+	http.ServeContent(w, r, helperName, time.Time{}, bytes.NewReader(helper.content))
 }
 
-func mustReadHelper() []byte {
-	content, err := embedded.ReadFile(helperPath)
+func mustReadHelper(name string) helperFile {
+	content, err := embedded.ReadFile(name)
 	if err != nil {
 		panic(err)
 	}
-	return content
+	return helperFile{
+		content: content,
+		etag:    contentETag(content),
+	}
 }
 
 func contentETag(content []byte) string {

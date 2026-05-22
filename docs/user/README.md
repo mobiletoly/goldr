@@ -21,6 +21,8 @@ Then use the references:
 - [CLI](cli.md) - app-local `go tool goldr` commands.
 - [Live Reload](live-reload.md) - `goldr dev`, browser reload, assets, and
   Tailwind workflows.
+- [Template Inspection](template-inspection.md) - local render-unit comments,
+  visible browser overlays, and app-owned env-var wiring.
 - [Assets](assets.md) - fingerprinted static files, cache headers, and
   app-owned asset tooling.
 - [Coding Agents](coding-agents.md) - copyable `AGENTS.md` guidance for coding

@@ -397,7 +397,7 @@ func devProxyBannerLines(config devConfig) []string {
 		"goldr dev live reload proxy",
 		"",
 		"Open this URL in your browser:",
-		"  " + devProxyURL(config),
+		"  🌐 " + devProxyURL(config),
 		"",
 		"Do not open the app server URL directly.",
 		"----------------------------------------",

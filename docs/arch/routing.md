@@ -791,8 +791,8 @@ type ErrorHandlers struct {
 }
 
 type HandlerOptions struct {
-	ErrorHandlers    ErrorHandlers
-	InspectTemplates bool
+	ErrorHandlers       ErrorHandlers
+	TemplateInspection goldr.TemplateInspectionMode
 }
 ```
 
@@ -810,17 +810,20 @@ fragment components and templ render failures. Custom hooks receive
 `goldr.ErrNilComponent` for nil render units or the underlying templ render
 error.
 
-`InspectTemplates` is a development inspection option. When it is true,
-generated dispatch wraps page, layout, and fragment render boundaries in paired
-HTML comments with app-relative `app/routes/...` source paths. It does not
-emit comments for redirects, plain text responses, error responses, or default
-handlers. The default `Handler()` output has no inspector comments.
+`TemplateInspection` is a development inspection option. The zero value is
+`goldr.TemplateInspectionOff`, so `Handler()` output has no inspector comments
+or overlay scripts. `goldr.TemplateInspectionComments` wraps page, layout, and
+fragment render boundaries in paired HTML comments with app-relative
+`app/routes/...` source paths. `goldr.TemplateInspectionOverlay` emits the
+same comments and enables `goldr.TemplateInspector()` to render Goldr's browser
+overlay helper script from an explicit app layout. Redirect, plain text, error,
+and default-handler responses do not emit inspector body markers.
 
 Generated applications also include `app/internal/goldrinspect/goldr_gen.go`.
-The route dispatcher enables inspector mode by attaching generated context to
-the request, then page, layout, and direct fragment routes call the generated
-`goldrinspect.Wrap` helper. The helper is app-internal generated code, not a
-public `goldr` package API.
+The route dispatcher enables inspector mode by attaching the public Goldr
+inspection mode to request context, then page, layout, and direct fragment
+routes call the generated `goldrinspect.Wrap` helper. The wrapping helper is
+app-internal generated code, not a public `goldr` package API.
 
 Embedded fragment boundaries are opt-in at the template call site. For every
 first-class fragment render unit outside the root route package, Goldr writes a

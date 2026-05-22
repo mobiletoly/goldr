@@ -212,9 +212,10 @@ Good shape:
 
 Why it matters:
 
-`InspectTemplates` should not create DOM drift during normal HTMX interaction.
-The slot pattern keeps inspector comments, fragment markup, and future empty or
-loading states inside one replacement boundary.
+`TemplateInspectionComments` and `TemplateInspectionOverlay` should not create
+DOM drift during normal HTMX interaction. The slot pattern keeps inspector
+comments, fragment markup, and future empty or loading states inside one
+replacement boundary.
 
 ## Stale Documentation
 

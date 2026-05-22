@@ -7,20 +7,16 @@ import (
 	"io"
 
 	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 )
-
-type contextKey struct{}
 
 type Marker struct {
 	StartComment string
 	EndComment   string
 }
 
-func WithEnabled(ctx context.Context) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithValue(ctx, contextKey{}, true)
+func WithMode(ctx context.Context, mode goldr.TemplateInspectionMode) context.Context {
+	return goldr.WithTemplateInspection(ctx, mode)
 }
 
 func Wrap(component templ.Component, marker Marker) templ.Component {
@@ -43,9 +39,5 @@ func Wrap(component templ.Component, marker Marker) templ.Component {
 }
 
 func enabled(ctx context.Context) bool {
-	if ctx == nil {
-		return false
-	}
-	enabled, _ := ctx.Value(contextKey{}).(bool)
-	return enabled
+	return goldr.TemplateInspectionFromContext(ctx) != goldr.TemplateInspectionOff
 }
