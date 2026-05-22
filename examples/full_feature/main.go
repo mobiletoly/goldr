@@ -73,8 +73,11 @@ func exampleHandler() http.Handler {
 
 	mux := http.NewServeMux()
 	mux.Handle("/assets/", staticCache(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.FS())))))
-	routesHandler := routes.HandlerWithErrors(routes.ErrorHandlers{
-		NotFound: routes.NotFound,
+	routesHandler := routes.HandlerWithOptions(routes.HandlerOptions{
+		ErrorHandlers: routes.ErrorHandlers{
+			NotFound: routes.NotFound,
+		},
+		InspectTemplates: true,
 	})
 	mux.Handle("/", appHeaders(deps.Middleware(appDeps, security.CSRF.Middleware(routesHandler))))
 	return mux

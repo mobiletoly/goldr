@@ -1,14 +1,14 @@
 package users
 
 import (
-	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/bind"
+	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
 )
 
 templ PageView(form bind.Form, contacts []Contact, csrfToken string) {
 	<section>
-		<h1>[app/routes/users/page.templ] - User Directory</h1>
+		<h1>User Directory</h1>
 		@DirectoryView(form, contacts, csrfToken)
 	</section>
 }
@@ -45,6 +45,15 @@ templ DirectoryView(form bind.Form, contacts []Contact, csrfToken string) {
 			</div>
 			<button type="submit">Add contact</button>
 		</form>
-		@FragTableView(contacts)
+		<div style="margin-top: 20px">
+			<div aria-label="Filter users by status">
+				<button type="button" hx-get={ urls.Users.FragTable.Path() } hx-target="#users-table-slot" hx-swap="innerHTML">All</button>
+				<button type="button" hx-get={ urls.Users.FragTable.Path() + "?status=active" } hx-target="#users-table-slot" hx-swap="innerHTML">Active only</button>
+				<button type="button" hx-get={ urls.Users.FragTable.Path() + "?status=inactive" } hx-target="#users-table-slot" hx-swap="innerHTML">Inactive only</button>
+			</div>
+			<div id="users-table-slot">
+				@renderFragTable(FragTableView(contacts))
+			</div>
+		</div>
 	</section>
 }

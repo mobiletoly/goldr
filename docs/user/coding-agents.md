@@ -36,7 +36,8 @@ Goldr is server-first, HTML-first, HTMX-native, and Go-native.
 - `actions.go` defines ordinary HTTP mutation handlers such as `PostCreate`.
 - Use `by_<name>/` directories for path parameters.
 - Read path parameters with `r.PathValue("<name>")`.
-- Do not hand-edit `app/routes/goldr_gen.go` or `app/urls/goldr_gen.go`.
+- Do not hand-edit Goldr-owned `goldr_gen.go` files or
+  `app/urls/goldr_gen.go`.
 
 ## Normal Change Loop
 

@@ -68,8 +68,8 @@ func PostSavePreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hx.Trigger(w, "user:saved")
-	hx.Retarget(w, "#users-table")
-	hx.Reswap(w, "outerHTML")
+	hx.Retarget(w, "#users-table-slot")
+	hx.Reswap(w, "innerHTML")
 	if err := goldr.WriteComponent(w, r, http.StatusOK, FragTableView(ListContacts())); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}

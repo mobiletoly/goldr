@@ -25,8 +25,8 @@ func testHandler() http.Handler {
 	return deps.Middleware(testDependencies(), Handler())
 }
 
-func testHandlerWithErrors(handlers ErrorHandlers) http.Handler {
-	return deps.Middleware(testDependencies(), HandlerWithErrors(handlers))
+func testHandlerWithOptions(options HandlerOptions) http.Handler {
+	return deps.Middleware(testDependencies(), HandlerWithOptions(options))
 }
 
 func recordRoute(t *testing.T, method string, path string) *httptest.ResponseRecorder {
@@ -110,6 +110,12 @@ func TestHandlerGetPages(t *testing.T) {
 				`<meta name="description" content="Browse and manage example contacts.">`,
 				`hx-post="/users/create"`,
 				`hx-encoding="multipart/form-data"`,
+				`id="users-table-slot"`,
+				`hx-get="/users/frag-table" hx-target="#users-table-slot" hx-swap="innerHTML"`,
+				`hx-get="/users/frag-table?status=active" hx-target="#users-table-slot" hx-swap="innerHTML"`,
+				`hx-get="/users/frag-table?status=inactive" hx-target="#users-table-slot" hx-swap="innerHTML"`,
+				"Active only",
+				"Inactive only",
 				`href="/users/42"`,
 				`<a href="/users" aria-current="page">Users</a>`,
 				`name="name"`,
@@ -270,10 +276,12 @@ func TestHandlerProtectedPageResponses(t *testing.T) {
 }
 
 func TestHandlerProtectedPageErrorResponse(t *testing.T) {
-	handler := testHandlerWithErrors(ErrorHandlers{
-		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(err.Error()))
+	handler := testHandlerWithOptions(HandlerOptions{
+		ErrorHandlers: ErrorHandlers{
+			InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(err.Error()))
+			},
 		},
 	})
 	recorder := httptest.NewRecorder()
@@ -461,6 +469,49 @@ func TestHandlerGetFragmentPartial(t *testing.T) {
 	}
 }
 
+func TestHandlerGetFragmentPartialFiltersByStatus(t *testing.T) {
+	tests := []struct {
+		name    string
+		query   string
+		want    []string
+		wantNot []string
+	}{
+		{
+			name:    "active",
+			query:   "?status=active",
+			want:    []string{"Ada Lovelace", "Grace Hopper"},
+			wantNot: []string{"Katherine Johnson"},
+		},
+		{
+			name:    "inactive",
+			query:   "?status=inactive",
+			want:    []string{"Katherine Johnson"},
+			wantNot: []string{"Ada Lovelace", "Grace Hopper"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := recordRoute(t, http.MethodGet, "/users/frag-table"+test.query)
+
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+			}
+			body := recorder.Body.String()
+			for _, want := range test.want {
+				if !strings.Contains(body, want) {
+					t.Fatalf("body = %q, want %q", body, want)
+				}
+			}
+			for _, wantNot := range test.wantNot {
+				if strings.Contains(body, wantNot) {
+					t.Fatalf("body = %q, want no %q", body, wantNot)
+				}
+			}
+		})
+	}
+}
+
 func TestHandlerHeadRoot(t *testing.T) {
 	recorder := recordRoute(t, http.MethodHead, "/users/42")
 
@@ -480,9 +531,11 @@ func TestHandlerMissingPath(t *testing.T) {
 	}
 }
 
-func TestHandlerWithErrorsCustomNotFound(t *testing.T) {
-	handler := testHandlerWithErrors(ErrorHandlers{
-		NotFound: NotFound,
+func TestHandlerWithOptionsCustomNotFound(t *testing.T) {
+	handler := testHandlerWithOptions(HandlerOptions{
+		ErrorHandlers: ErrorHandlers{
+			NotFound: NotFound,
+		},
 	})
 	recorder := httptest.NewRecorder()
 
@@ -590,11 +643,11 @@ func TestHandlerPostSavePreviewAction(t *testing.T) {
 	if got := recorder.Header().Get(hx.HeaderTrigger); got != "user:saved" {
 		t.Fatalf("%s = %q, want user:saved", hx.HeaderTrigger, got)
 	}
-	if got := recorder.Header().Get(hx.HeaderRetarget); got != "#users-table" {
-		t.Fatalf("%s = %q, want #users-table", hx.HeaderRetarget, got)
+	if got := recorder.Header().Get(hx.HeaderRetarget); got != "#users-table-slot" {
+		t.Fatalf("%s = %q, want #users-table-slot", hx.HeaderRetarget, got)
 	}
-	if got := recorder.Header().Get(hx.HeaderReswap); got != "outerHTML" {
-		t.Fatalf("%s = %q, want outerHTML", hx.HeaderReswap, got)
+	if got := recorder.Header().Get(hx.HeaderReswap); got != "innerHTML" {
+		t.Fatalf("%s = %q, want innerHTML", hx.HeaderReswap, got)
 	}
 	if !strings.Contains(recorder.Body.String(), "User Table Fragment") {
 		t.Fatalf("body = %q", recorder.Body.String())

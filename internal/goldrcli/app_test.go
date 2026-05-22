@@ -94,6 +94,8 @@ func TestRunGenerateHelpExplainsGeneratedFilesAndTemplBoundary(t *testing.T) {
 		t,
 		[]string{"generate", "--help"},
 		"app/routes/goldr_gen.go",
+		"app/routes/**/goldr_gen.go when route packages need generated helpers",
+		"app/internal/goldrinspect/goldr_gen.go",
 		"app/urls/goldr_gen.go",
 		"assets/goldr_assets_gen.go when assets/build exists",
 		"go tool templ generate -path .",
@@ -194,6 +196,7 @@ func TestRunInitCreatesStarterApp(t *testing.T) {
 		"app/routes/layout.go",
 		"app/routes/layout.templ",
 		"app/routes/goldr_gen.go",
+		"app/internal/goldrinspect/goldr_gen.go",
 		"app/urls/goldr_gen.go",
 	} {
 		requireExistingFile(t, filepath.Join(root, filepath.FromSlash(name)))

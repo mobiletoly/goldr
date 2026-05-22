@@ -507,11 +507,14 @@ It writes:
 
 ```text
 <root>/app/routes/goldr_gen.go
+<root>/app/routes/**/goldr_gen.go when route packages need generated helpers
+<root>/app/internal/goldrinspect/goldr_gen.go
 <root>/app/urls/goldr_gen.go
 ```
 
-Route dispatch output is always generated as `package routes`. URL helper
-output is always generated as `package urls`.
+Route dispatch output is generated as `package routes`. Package-local route
+helpers use the package name of the route directory they are generated into.
+URL helper output is always generated as `package urls`.
 
 Nested route packages require a real Go import path. The command derives the
 route-root import path by running `go env GOMOD` with `cwd=<root>`, parsing the
@@ -530,8 +533,8 @@ inside the goldr repository derives:
 github.com/mobiletoly/goldr/examples/full_feature/app/routes
 ```
 
-`goldr generate --check` generates both files in memory and compares them to
-disk without writing. Missing or stale generated files fail the check.
+`goldr generate --check` generates Goldr-owned files in memory and compares
+them to disk without writing. Missing or stale generated files fail the check.
 
 The command does not run `templ generate`; templ-generated Go remains owned by
 templ.
@@ -583,10 +586,10 @@ When a manifest contains at least one runtime route, `goldr_gen.go` includes:
 
 ```go
 func Handler() http.Handler
-func HandlerWithErrors(handlers ErrorHandlers) http.Handler
+func HandlerWithOptions(options HandlerOptions) http.Handler
 ```
 
-`Handler()` delegates to `HandlerWithErrors(ErrorHandlers{})`.
+`Handler()` delegates to `HandlerWithOptions(HandlerOptions{})`.
 
 Generated dispatch splits `r.URL.EscapedPath()` into path segments once per
 request, then routes through private generated segment functions. Static
@@ -786,9 +789,14 @@ type ErrorHandlers struct {
 	MethodNotAllowed    http.HandlerFunc
 	InternalServerError func(http.ResponseWriter, *http.Request, error)
 }
+
+type HandlerOptions struct {
+	ErrorHandlers    ErrorHandlers
+	InspectTemplates bool
+}
 ```
 
-`HandlerWithErrors` accepts this value and applies the hooks only to generated
+`HandlerWithOptions` accepts this value and applies the hooks only to generated
 route dispatch. Nil fields use the default generated behavior independently.
 
 The generated not-found helper handles unmatched generated routes and invalid
@@ -801,6 +809,55 @@ The generated internal-server-error helper handles nil page, layout, or
 fragment components and templ render failures. Custom hooks receive
 `goldr.ErrNilComponent` for nil render units or the underlying templ render
 error.
+
+`InspectTemplates` is a development inspection option. When it is true,
+generated dispatch wraps page, layout, and fragment render boundaries in paired
+HTML comments with app-relative `app/routes/...` source paths. It does not
+emit comments for redirects, plain text responses, error responses, or default
+handlers. The default `Handler()` output has no inspector comments.
+
+Generated applications also include `app/internal/goldrinspect/goldr_gen.go`.
+The route dispatcher enables inspector mode by attaching generated context to
+the request, then page, layout, and direct fragment routes call the generated
+`goldrinspect.Wrap` helper. The helper is app-internal generated code, not a
+public `goldr` package API.
+
+Embedded fragment boundaries are opt-in at the template call site. For every
+first-class fragment render unit outside the root route package, Goldr writes a
+package-local `goldr_gen.go` containing a helper such as:
+
+```go
+func renderFragTable(component templ.Component) templ.Component
+```
+
+The helper name is derived from the fragment file identity:
+`frag_table.go` / `frag_table.templ` maps to `renderFragTable`. Root-package
+fragment helpers are emitted into the existing `app/routes/goldr_gen.go`, so
+each route package has at most one Goldr-generated `goldr_gen.go` file.
+
+Templates can use the helper when an embedded fragment should be visible to the
+inspector:
+
+```templ
+<div id="users-table-slot">
+	@renderFragTable(FragTableView(contacts))
+</div>
+```
+
+When HTMX updates an inspected embedded fragment, the application should target
+the page-owned slot with `innerHTML`, not the fragment root with `outerHTML`.
+Inspector comments wrap the rendered fragment as sibling nodes. The slot keeps
+the marker comments and fragment root inside one replacement boundary.
+
+Calling `@FragTableView(contacts)` directly remains valid and renders the same
+HTML, but no embedded fragment inspector boundary is emitted. Multiple templ
+declarations in one `frag_*.templ` file are internal details of that fragment
+file; separately inspectable fragments require separate `frag_*.go` /
+`frag_*.templ` render units.
+
+Generated helper names are reserved by convention. Goldr does not preflight
+collisions; normal Go compilation reports redeclarations in the affected route
+package.
 
 Action handlers are called directly and remain responsible for their own error
 responses. Static assets are application-owned and are outside this generated

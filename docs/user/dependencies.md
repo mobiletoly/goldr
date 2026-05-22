@@ -95,8 +95,10 @@ appDeps := &deps.Dependencies{
 	BasePath: cfg.BasePath,
 }
 
-routesHandler := routes.HandlerWithErrors(routes.ErrorHandlers{
-	NotFound: routes.NotFound,
+routesHandler := routes.HandlerWithOptions(routes.HandlerOptions{
+	ErrorHandlers: routes.ErrorHandlers{
+		NotFound: routes.NotFound,
+	},
 })
 
 mux := http.NewServeMux()

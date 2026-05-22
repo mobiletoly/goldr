@@ -191,7 +191,7 @@ func ComposerView(form bind.Form) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"composer-actions\"><button type=\"submit\">Send</button> <span id=\"send-progress\" class=\"send-progress\" role=\"status\" aria-live=\"polite\">Sending...</span></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"composer-actions\"><button type=\"submit\">Send</button> <span id=\"send-progress\" class=\"send-progress\" role=\"status\" aria-live=\"polite\">Sending (with 3 seconds day)...</span></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

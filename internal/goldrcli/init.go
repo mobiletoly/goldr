@@ -51,6 +51,7 @@ Writes:
   app/routes/layout.go
   app/routes/layout.templ
   app/routes/goldr_gen.go
+  app/internal/goldrinspect/goldr_gen.go
   app/urls/goldr_gen.go
 
 Does not create go.mod, write main.go, run templ generation, or start a server.`

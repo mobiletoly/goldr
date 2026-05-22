@@ -17,6 +17,9 @@ Open the printed proxy URL. By default, the proxy listens at
 `http://127.0.0.1:7331` and forwards to the app server at
 `http://127.0.0.1:8080`.
 
+`goldr dev` prints the proxy URL in a banner after generation and before the
+app starts or restarts. Open the banner URL, not the app server URL.
+
 ## App Command
 
 The app still owns its HTTP server. By default, `goldr dev` starts the app with:

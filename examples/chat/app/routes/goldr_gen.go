@@ -18,6 +18,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/chat/app/internal/goldrinspect"
 	goldrroute_chat "github.com/mobiletoly/goldr/examples/chat/app/routes/chat"
 )
 
@@ -66,6 +67,11 @@ type ErrorHandlers struct {
 	NotFound            http.HandlerFunc
 	MethodNotAllowed    http.HandlerFunc
 	InternalServerError func(http.ResponseWriter, *http.Request, error)
+}
+
+type HandlerOptions struct {
+	ErrorHandlers    ErrorHandlers
+	InspectTemplates bool
 }
 
 var goldrGeneratedManifest = goldrManifest{
@@ -130,26 +136,29 @@ var goldrGeneratedManifest = goldrManifest{
 }
 
 func Handler() http.Handler {
-	return HandlerWithErrors(ErrorHandlers{})
+	return HandlerWithOptions(HandlerOptions{})
 }
 
-func HandlerWithErrors(handlers ErrorHandlers) http.Handler {
+func HandlerWithOptions(options HandlerOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if options.InspectTemplates {
+			r = r.WithContext(goldrinspect.WithEnabled(r.Context()))
+		}
 		routePath := r.URL.EscapedPath()
 		if routePath == "/" {
-			goldrDispatchRoot(handlers, w, r, nil)
+			goldrDispatchRoot(options, w, r, nil)
 			return
 		}
 		segments := goldrPathSegments(routePath)
 		if len(segments) == 0 {
-			goldrNotFound(handlers, w, r)
+			goldrNotFound(options, w, r)
 			return
 		}
-		goldrDispatchRoot(handlers, w, r, segments)
+		goldrDispatchRoot(options, w, r, segments)
 	})
 }
 
-func goldrDispatchRoot(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 0 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			// page GET,HEAD /
@@ -158,7 +167,7 @@ func goldrDispatchRoot(handlers ErrorHandlers, w http.ResponseWriter, r *http.Re
 			routeResponse := Page(r)
 			response, err := goldr.ResolveRouteResponse(routeResponse)
 			if err != nil {
-				goldrInternalServerError(handlers, w, r, err)
+				goldrInternalServerError(options, w, r, err)
 				return
 			}
 			component := response.Component
@@ -173,20 +182,21 @@ func goldrDispatchRoot(handlers ErrorHandlers, w http.ResponseWriter, r *http.Re
 				goldrWriteTextResponse(w, r, response.Status, response.Body, response.Headers)
 				return
 			case goldr.RouteResponseServerError:
-				goldrInternalServerError(handlers, w, r, response.Error)
+				goldrInternalServerError(options, w, r, response.Error)
 				return
 			case goldr.RouteResponseFragment:
-				goldrInternalServerError(handlers, w, r, goldr.ErrInvalidRouteResponse)
+				goldrInternalServerError(options, w, r, goldr.ErrInvalidRouteResponse)
 				return
 			case goldr.RouteResponsePage:
 			default:
-				goldrInternalServerError(handlers, w, r, goldr.ErrInvalidRouteResponse)
+				goldrInternalServerError(options, w, r, goldr.ErrInvalidRouteResponse)
 				return
 			}
 			if component == nil {
-				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
+				goldrInternalServerError(options, w, r, goldr.ErrNilComponent)
 				return
 			}
+			component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pagepage_templ kind=page route=/ source=app/routes/page.templ go=app/routes/page.go-->", EndComment: "<!--goldr:end id=g_pagepage_templ-->"})
 			layoutContext := goldr.LayoutContext{Metadata: metadata}
 			layoutContext.Child = component
 			// layout /
@@ -194,30 +204,31 @@ func goldrDispatchRoot(handlers ErrorHandlers, w http.ResponseWriter, r *http.Re
 			// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 			component = Layout(r, layoutContext)
 			if component == nil {
-				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
+				goldrInternalServerError(options, w, r, goldr.ErrNilComponent)
 				return
 			}
-			goldrWriteResponse(handlers, w, r, component, status, headers)
+			component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
+			goldrWriteResponse(options, w, r, component, status, headers)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
-		goldrMethodNotAllowed(handlers, w, r)
+		goldrMethodNotAllowed(options, w, r)
 		return
 	}
 	switch segments[0] {
 	case "chat":
-		goldrDispatchRootStaticChat(handlers, w, r, segments)
+		goldrDispatchRootStaticChat(options, w, r, segments)
 		return
 	case "join":
-		goldrDispatchRootStaticJoin(handlers, w, r, segments)
+		goldrDispatchRootStaticJoin(options, w, r, segments)
 		return
 	}
-	goldrNotFound(handlers, w, r)
+	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticChat(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticChat(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) < 1 {
-		goldrNotFound(handlers, w, r)
+		goldrNotFound(options, w, r)
 		return
 	}
 	if len(segments) == 1 {
@@ -228,7 +239,7 @@ func goldrDispatchRootStaticChat(handlers ErrorHandlers, w http.ResponseWriter, 
 			routeResponse := goldrroute_chat.Page(r)
 			response, err := goldr.ResolveRouteResponse(routeResponse)
 			if err != nil {
-				goldrInternalServerError(handlers, w, r, err)
+				goldrInternalServerError(options, w, r, err)
 				return
 			}
 			component := response.Component
@@ -243,20 +254,21 @@ func goldrDispatchRootStaticChat(handlers ErrorHandlers, w http.ResponseWriter, 
 				goldrWriteTextResponse(w, r, response.Status, response.Body, response.Headers)
 				return
 			case goldr.RouteResponseServerError:
-				goldrInternalServerError(handlers, w, r, response.Error)
+				goldrInternalServerError(options, w, r, response.Error)
 				return
 			case goldr.RouteResponseFragment:
-				goldrInternalServerError(handlers, w, r, goldr.ErrInvalidRouteResponse)
+				goldrInternalServerError(options, w, r, goldr.ErrInvalidRouteResponse)
 				return
 			case goldr.RouteResponsePage:
 			default:
-				goldrInternalServerError(handlers, w, r, goldr.ErrInvalidRouteResponse)
+				goldrInternalServerError(options, w, r, goldr.ErrInvalidRouteResponse)
 				return
 			}
 			if component == nil {
-				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
+				goldrInternalServerError(options, w, r, goldr.ErrNilComponent)
 				return
 			}
+			component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pagechat_page_templ kind=page route=/chat source=app/routes/chat/page.templ go=app/routes/chat/page.go-->", EndComment: "<!--goldr:end id=g_pagechat_page_templ-->"})
 			layoutContext := goldr.LayoutContext{Metadata: metadata}
 			layoutContext.Child = component
 			// layout /
@@ -264,30 +276,31 @@ func goldrDispatchRootStaticChat(handlers ErrorHandlers, w http.ResponseWriter, 
 			// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 			component = Layout(r, layoutContext)
 			if component == nil {
-				goldrInternalServerError(handlers, w, r, goldr.ErrNilComponent)
+				goldrInternalServerError(options, w, r, goldr.ErrNilComponent)
 				return
 			}
-			goldrWriteResponse(handlers, w, r, component, status, headers)
+			component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
+			goldrWriteResponse(options, w, r, component, status, headers)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
-		goldrMethodNotAllowed(handlers, w, r)
+		goldrMethodNotAllowed(options, w, r)
 		return
 	}
 	switch segments[1] {
 	case "message":
-		goldrDispatchRootStaticChatStaticMessage(handlers, w, r, segments)
+		goldrDispatchRootStaticChatStaticMessage(options, w, r, segments)
 		return
 	case "sign-out":
-		goldrDispatchRootStaticChatStaticSignOut(handlers, w, r, segments)
+		goldrDispatchRootStaticChatStaticSignOut(options, w, r, segments)
 		return
 	}
-	goldrNotFound(handlers, w, r)
+	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticChatStaticMessage(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticChatStaticMessage(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) < 2 {
-		goldrNotFound(handlers, w, r)
+		goldrNotFound(options, w, r)
 		return
 	}
 	if len(segments) == 2 {
@@ -310,21 +323,22 @@ func goldrDispatchRootStaticChatStaticMessage(handlers ErrorHandlers, w http.Res
 				if component == nil {
 					return goldr.ErrNilComponent
 				}
+				component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
 				return goldrWriteComponentResponse(w, r, component, response.Status, response.Headers)
 			})
 			goldrroute_chat.PostMessage(w, r)
 			return
 		}
 		w.Header().Set("Allow", "POST")
-		goldrMethodNotAllowed(handlers, w, r)
+		goldrMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrNotFound(handlers, w, r)
+	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticChatStaticSignOut(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticChatStaticSignOut(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) < 2 {
-		goldrNotFound(handlers, w, r)
+		goldrNotFound(options, w, r)
 		return
 	}
 	if len(segments) == 2 {
@@ -347,21 +361,22 @@ func goldrDispatchRootStaticChatStaticSignOut(handlers ErrorHandlers, w http.Res
 				if component == nil {
 					return goldr.ErrNilComponent
 				}
+				component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
 				return goldrWriteComponentResponse(w, r, component, response.Status, response.Headers)
 			})
 			goldrroute_chat.PostSignOut(w, r)
 			return
 		}
 		w.Header().Set("Allow", "POST")
-		goldrMethodNotAllowed(handlers, w, r)
+		goldrMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrNotFound(handlers, w, r)
+	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticJoin(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticJoin(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) < 1 {
-		goldrNotFound(handlers, w, r)
+		goldrNotFound(options, w, r)
 		return
 	}
 	if len(segments) == 1 {
@@ -384,19 +399,21 @@ func goldrDispatchRootStaticJoin(handlers ErrorHandlers, w http.ResponseWriter, 
 				if component == nil {
 					return goldr.ErrNilComponent
 				}
+				component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
 				return goldrWriteComponentResponse(w, r, component, response.Status, response.Headers)
 			})
 			PostJoin(w, r)
 			return
 		}
 		w.Header().Set("Allow", "POST")
-		goldrMethodNotAllowed(handlers, w, r)
+		goldrMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrNotFound(handlers, w, r)
+	goldrNotFound(options, w, r)
 }
 
-func goldrNotFound(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request) {
+func goldrNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
+	handlers := options.ErrorHandlers
 	if handlers.NotFound != nil {
 		handlers.NotFound(w, r)
 		return
@@ -404,7 +421,8 @@ func goldrNotFound(handlers ErrorHandlers, w http.ResponseWriter, r *http.Reques
 	http.NotFound(w, r)
 }
 
-func goldrMethodNotAllowed(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request) {
+func goldrMethodNotAllowed(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
+	handlers := options.ErrorHandlers
 	if handlers.MethodNotAllowed != nil {
 		handlers.MethodNotAllowed(w, r)
 		return
@@ -412,7 +430,8 @@ func goldrMethodNotAllowed(handlers ErrorHandlers, w http.ResponseWriter, r *htt
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 
-func goldrInternalServerError(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, err error) {
+func goldrInternalServerError(options HandlerOptions, w http.ResponseWriter, r *http.Request, err error) {
+	handlers := options.ErrorHandlers
 	if handlers.InternalServerError != nil {
 		handlers.InternalServerError(w, r, err)
 		return
@@ -427,9 +446,9 @@ func goldrPathSegments(routePath string) []string {
 	return strings.Split(strings.TrimPrefix(routePath, "/"), "/")
 }
 
-func goldrWriteResponse(handlers ErrorHandlers, w http.ResponseWriter, r *http.Request, component templ.Component, status int, headers http.Header) {
+func goldrWriteResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, component templ.Component, status int, headers http.Header) {
 	if err := goldrWriteComponentResponse(w, r, component, status, headers); err != nil {
-		goldrInternalServerError(handlers, w, r, err)
+		goldrInternalServerError(options, w, r, err)
 		return
 	}
 }

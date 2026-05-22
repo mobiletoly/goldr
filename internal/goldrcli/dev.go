@@ -111,10 +111,6 @@ func runDev(ctx context.Context, options devOptions, stdout, stderr io.Writer) e
 		return fmt.Errorf("goldr dev: %w", err)
 	}
 
-	if _, err := fmt.Fprintf(stdout, "goldr dev proxy listening on http://%s\n", net.JoinHostPort(config.proxyBind, strconv.Itoa(config.proxyPort))); err != nil {
-		return fmt.Errorf("write proxy URL: %w", err)
-	}
-
 	command := exec.CommandContext(ctx, "go", templArgs(config)...)
 	command.Dir = config.root
 	command.Stdin = os.Stdin
@@ -307,14 +303,20 @@ func writeUnixDevWrapper(config devConfig, tempDir string) (string, error) {
 		_ = os.Remove(path)
 		return "", fmt.Errorf("chmod dev wrapper: %w", err)
 	}
-	content := strings.Join([]string{
+	lines := []string{
 		"#!/bin/sh",
 		"set -eu",
-		shellQuote(config.goldrExecutable) + " generate --root " + shellQuote(config.root),
+		unixDevGenerateCommand(config, path),
 		"cd " + shellQuote(config.root),
-		"exec /bin/sh -c " + shellQuote(config.command),
+	}
+	for _, line := range devProxyBannerLines(config) {
+		lines = append(lines, "printf '%s\\n' "+shellQuote(line))
+	}
+	lines = append(lines,
+		"exec /bin/sh -c "+shellQuote(config.command),
 		"",
-	}, "\n")
+	)
+	content := strings.Join(lines, "\n")
 	if _, err := file.WriteString(content); err != nil {
 		_ = file.Close()
 		_ = os.Remove(path)
@@ -333,14 +335,28 @@ func writeWindowsDevWrapper(config devConfig, tempDir string) (string, error) {
 		return "", fmt.Errorf("create dev wrapper: %w", err)
 	}
 	path := file.Name()
-	content := strings.Join([]string{
+	lines := []string{
 		"@echo off",
 		"setlocal",
+		"set \"goldr_templ_dev_mode_root=%TEMPL_DEV_MODE_ROOT%\"",
+		"set \"TEMPL_DEV_MODE_ROOT=" + devGenerateTemplRoot(path) + "\"",
 		windowsQuote(config.goldrExecutable) + " generate --root " + windowsQuote(config.root) + " || exit /b %ERRORLEVEL%",
+		"if defined goldr_templ_dev_mode_root (set \"TEMPL_DEV_MODE_ROOT=%goldr_templ_dev_mode_root%\") else set \"TEMPL_DEV_MODE_ROOT=\"",
+		"set \"goldr_templ_dev_mode_root=\"",
 		"cd /d " + windowsQuote(config.root) + " || exit /b %ERRORLEVEL%",
-		"cmd /S /C " + windowsQuote(config.command),
+	}
+	for _, line := range devProxyBannerLines(config) {
+		if line == "" {
+			lines = append(lines, "echo.")
+			continue
+		}
+		lines = append(lines, "echo "+line)
+	}
+	lines = append(lines,
+		"cmd /S /C "+windowsQuote(config.command),
 		"",
-	}, "\r\n")
+	)
+	content := strings.Join(lines, "\r\n")
 	if _, err := file.WriteString(content); err != nil {
 		_ = file.Close()
 		_ = os.Remove(path)
@@ -357,6 +373,34 @@ func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
+func unixDevGenerateCommand(config devConfig, wrapperPath string) string {
+	// Keep templ's non-watch cleanup away from templ watch-mode text files.
+	return "TEMPL_DEV_MODE_ROOT=" + shellQuote(devGenerateTemplRoot(wrapperPath)) + " " + shellQuote(config.goldrExecutable) + " generate --root " + shellQuote(config.root)
+}
+
+func devGenerateTemplRoot(wrapperPath string) string {
+	return wrapperPath + "-templ-root"
+}
+
 func windowsQuote(value string) string {
 	return `"` + strings.ReplaceAll(value, `"`, `""`) + `"`
+}
+
+func devProxyURL(config devConfig) string {
+	return "http://" + net.JoinHostPort(config.proxyBind, strconv.Itoa(config.proxyPort))
+}
+
+func devProxyBannerLines(config devConfig) []string {
+	return []string{
+		"",
+		"----------------------------------------",
+		"goldr dev live reload proxy",
+		"",
+		"Open this URL in your browser:",
+		"  " + devProxyURL(config),
+		"",
+		"Do not open the app server URL directly.",
+		"----------------------------------------",
+		"",
+	}
 }

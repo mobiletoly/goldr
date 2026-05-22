@@ -211,6 +211,7 @@ app/routes/page.templ
 app/routes/layout.go
 app/routes/layout.templ
 app/routes/goldr_gen.go
+app/internal/goldrinspect/goldr_gen.go
 app/urls/goldr_gen.go
 ```
 

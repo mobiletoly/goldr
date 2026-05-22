@@ -149,6 +149,8 @@ goldr generates:
 
 ```text
 app/routes/goldr_gen.go
+app/routes/**/goldr_gen.go when route packages need generated helpers
+app/internal/goldrinspect/goldr_gen.go
 app/urls/goldr_gen.go
 ```
 

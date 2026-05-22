@@ -83,10 +83,13 @@ func TestDevWrapperRunsGoldrGenerateThenAppCommand(t *testing.T) {
 	config := devConfig{
 		root:            root,
 		goldrExecutable: filepath.Join(root, "bin", "goldr test"),
+		proxyBind:       "127.0.0.1",
+		proxyPort:       7331,
 		command:         `go run . --message "hello dev"`,
 	}
 
-	wrapper, err := writeUnixDevWrapper(config, t.TempDir())
+	wrapperTempDir := t.TempDir()
+	wrapper, err := writeUnixDevWrapper(config, wrapperTempDir)
 	if err != nil {
 		t.Fatalf("writeUnixDevWrapper() error = %v", err)
 	}
@@ -95,19 +98,59 @@ func TestDevWrapperRunsGoldrGenerateThenAppCommand(t *testing.T) {
 	}()
 
 	source := readFile(t, wrapper)
+	generateCommand := "TEMPL_DEV_MODE_ROOT=" + shellQuote(devGenerateTemplRoot(wrapper)) + " " + shellQuote(config.goldrExecutable) + " generate --root " + shellQuote(root)
 	for _, want := range []string{
 		"#!/bin/sh",
 		"set -eu",
-		shellQuote(config.goldrExecutable) + " generate --root " + shellQuote(root),
+		generateCommand,
 		"cd " + shellQuote(root),
+		"printf '%s\\n' 'goldr dev live reload proxy'",
+		"printf '%s\\n' 'Open this URL in your browser:'",
+		"printf '%s\\n' '  http://127.0.0.1:7331'",
+		"printf '%s\\n' 'Do not open the app server URL directly.'",
 		"exec /bin/sh -c " + shellQuote(config.command),
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("wrapper = %q, want %q", source, want)
 		}
 	}
+	if strings.Contains(generateCommand, shellQuote(wrapperTempDir)+" ") {
+		t.Fatalf("generate command = %q, must not use templ's default temp root", generateCommand)
+	}
+	assertBefore(t, source, generateCommand, "printf '%s\\n' '  http://127.0.0.1:7331'")
+	assertBefore(t, source, "printf '%s\\n' '  http://127.0.0.1:7331'", "exec /bin/sh -c "+shellQuote(config.command))
 	if strings.Contains(source, "assets dist") {
 		t.Fatalf("wrapper = %q, must not run assets dist separately", source)
+	}
+	if strings.Contains(source, "unset TEMPL_DEV_MODE") {
+		t.Fatalf("wrapper = %q, must keep templ dev mode available to the app", source)
+	}
+}
+
+func TestDevProxyURLUsesHostPortFormatting(t *testing.T) {
+	config := devConfig{
+		proxyBind: "::1",
+		proxyPort: 7331,
+	}
+
+	got := devProxyURL(config)
+	if got != "http://[::1]:7331" {
+		t.Fatalf("devProxyURL() = %q, want %q", got, "http://[::1]:7331")
+	}
+}
+
+func assertBefore(t *testing.T, source string, first string, second string) {
+	t.Helper()
+	firstIndex := strings.Index(source, first)
+	if firstIndex < 0 {
+		t.Fatalf("source = %q, want %q", source, first)
+	}
+	secondIndex := strings.Index(source, second)
+	if secondIndex < 0 {
+		t.Fatalf("source = %q, want %q", source, second)
+	}
+	if firstIndex >= secondIndex {
+		t.Fatalf("source = %q, want %q before %q", source, first, second)
 	}
 }
 

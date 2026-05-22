@@ -13,18 +13,23 @@ package users
 import "example.com/hello-goldr/app/urls"
 
 templ DirectoryView() {
-	<button
-		hx-get={ urls.Users.FragTable.Path() }
-		hx-target="#users-table"
-		hx-swap="outerHTML"
-	>
-		Load users
-	</button>
+	<div>
+		<button
+			hx-get={ urls.Users.FragTable.Path() }
+			hx-target="#users-table-slot"
+			hx-swap="innerHTML"
+		>
+			Load users
+		</button>
+	</div>
+	<div id="users-table-slot">
+		@renderFragTable(FragTableView(contacts))
+	</div>
 	<form
 		method="post"
 		hx-post={ urls.Users.Create.Path() }
-		hx-target="#users-table"
-		hx-swap="outerHTML"
+		hx-target="#users-table-slot"
+		hx-swap="innerHTML"
 	>
 		<button type="submit">Add user</button>
 	</form>
@@ -33,6 +38,12 @@ templ DirectoryView() {
 
 URL helpers remove hard-coded paths. HTMX still owns the interaction through
 visible attributes such as `hx-get`, `hx-post`, `hx-target`, and `hx-swap`.
+
+When a control refreshes a fragment, prefer a page-owned slot as the HTMX
+replacement boundary and put `hx-target` / `hx-swap` on the triggering element.
+The slot uses `innerHTML`; the fragment root remains inside the slot for
+semantic markup, styling, and fragment-local IDs. This shape stays correct when
+the template inspector emits comment markers around embedded fragments.
 
 ## Response Headers
 
@@ -50,8 +61,8 @@ import (
 )
 
 func PostCreate(w http.ResponseWriter, r *http.Request) {
-	hx.Retarget(w, "#users-table")
-	hx.Reswap(w, "outerHTML")
+	hx.Retarget(w, "#users-table-slot")
+	hx.Reswap(w, "innerHTML")
 	hx.Trigger(w, "user:created")
 	if err := goldr.WriteComponent(w, r, http.StatusOK, UsersTable()); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)

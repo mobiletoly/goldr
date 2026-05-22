@@ -105,7 +105,20 @@ func checkGeneratedManifestReadiness(paths appPaths, manifest routing.Manifest) 
 	if err != nil {
 		return nil, checkCodeError(checkCodeURLGenerate, err)
 	}
-	return []generatedFile{routesFile, urlsFile}, nil
+	inspectorFile, err := generateInspectorSupportFile(paths)
+	if err != nil {
+		return nil, checkCodeError(checkCodeRouteGenerate, err)
+	}
+	fragmentWrapperFiles, err := generateFragmentWrapperFiles(paths, manifest)
+	if err != nil {
+		return nil, checkCodeError(checkCodeRouteGenerate, err)
+	}
+	files := []generatedFile{routesFile, urlsFile, inspectorFile}
+	files = append(files, fragmentWrapperFiles...)
+	if err := checkStaleManagedGeneratedFiles(paths, files); err != nil {
+		return nil, checkCodeError(checkCodeGeneratedFiles, err)
+	}
+	return files, nil
 }
 
 func checkTemplGeneratedFiles(ctx context.Context, root string) error {

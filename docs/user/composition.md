@@ -52,8 +52,10 @@ revalidation. Do not apply immutable asset cache headers to this stable path.
 Wrap generated routes like any other `http.Handler`:
 
 ```go
-handler := appHeaders(routes.HandlerWithErrors(routes.ErrorHandlers{
-	NotFound: routes.NotFound,
+handler := appHeaders(routes.HandlerWithOptions(routes.HandlerOptions{
+	ErrorHandlers: routes.ErrorHandlers{
+		NotFound: routes.NotFound,
+	},
 }))
 
 mux.Handle("/", handler)
@@ -96,8 +98,10 @@ appDeps := &deps.Dependencies{
 	BasePath: cfg.BasePath,
 }
 
-routesHandler := routes.HandlerWithErrors(routes.ErrorHandlers{
-	NotFound: routes.NotFound,
+routesHandler := routes.HandlerWithOptions(routes.HandlerOptions{
+	ErrorHandlers: routes.ErrorHandlers{
+		NotFound: routes.NotFound,
+	},
 })
 
 mux.Handle("/", deps.Middleware(appDeps, routesHandler))
@@ -169,8 +173,10 @@ pages, private fragments, or action responses.
 Generated route dispatch supports optional error hooks:
 
 ```go
-mux.Handle("/", routes.HandlerWithErrors(routes.ErrorHandlers{
-	NotFound: routes.NotFound,
+mux.Handle("/", routes.HandlerWithOptions(routes.HandlerOptions{
+	ErrorHandlers: routes.ErrorHandlers{
+		NotFound: routes.NotFound,
+	},
 }))
 ```
 

@@ -193,6 +193,29 @@ Why it matters:
 Tests should protect behavior without making refactoring expensive. goldr wants
 minimal, high-signal tests.
 
+## Inspector-Safe HTMX Fragment Targets
+
+Look for HTMX controls that `outerHTML`-swap the root element of an embedded
+fragment rendered through an inspector wrapper.
+
+Bad shape:
+- `@renderFragTable(...)` renders sibling inspector comments around the fragment
+  root
+- controls target the fragment root such as `hx-target="#users-table"`
+- controls use `hx-swap="outerHTML"` and leave old inspector comments outside
+  the replaced element
+
+Good shape:
+- the page owns a stable slot such as `id="users-table-slot"`
+- triggering controls target the slot and use `hx-swap="innerHTML"`
+- the inspected fragment root remains inside the slot
+
+Why it matters:
+
+`InspectTemplates` should not create DOM drift during normal HTMX interaction.
+The slot pattern keeps inspector comments, fragment markup, and future empty or
+loading states inside one replacement boundary.
+
 ## Stale Documentation
 
 Look for docs, specs, comments, or examples that preserve abandoned history.

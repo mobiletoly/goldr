@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -74,6 +75,8 @@ func generateCommand() *cli.Command {
 
 const generateDescription = `Scans app/routes and writes goldr-owned generated files:
   app/routes/goldr_gen.go
+  app/routes/**/goldr_gen.go when route packages need generated helpers
+  app/internal/goldrinspect/goldr_gen.go
   app/urls/goldr_gen.go
   assets/goldr_assets_gen.go when assets/build exists
 
@@ -109,6 +112,9 @@ func runGenerate(ctx context.Context, options generateOptions) error {
 		if err := checkGeneratedFiles(files); err != nil {
 			return fmt.Errorf("goldr generate: %w", err)
 		}
+		if err := checkStaleManagedGeneratedFiles(paths, files); err != nil {
+			return fmt.Errorf("goldr generate: %w", err)
+		}
 		if err := runGenerateAssets(options.root, true); err != nil {
 			return fmt.Errorf("goldr generate: %w", err)
 		}
@@ -119,6 +125,9 @@ func runGenerate(ctx context.Context, options generateOptions) error {
 		if err := writeGeneratedFile(file); err != nil {
 			return fmt.Errorf("goldr generate: %w", err)
 		}
+	}
+	if err := removeStaleManagedGeneratedFiles(paths, files); err != nil {
+		return fmt.Errorf("goldr generate: %w", err)
 	}
 	if err := runGenerateAssets(options.root, false); err != nil {
 		return fmt.Errorf("goldr generate: %w", err)
@@ -245,21 +254,61 @@ func generateManifestFiles(paths appPaths, manifest routing.Manifest) ([]generat
 		return nil, err
 	}
 
-	return []generatedFile{
+	inspectorFile, err := generateInspectorSupportFile(paths)
+	if err != nil {
+		return nil, err
+	}
+
+	fragmentWrapperFiles, err := generateFragmentWrapperFiles(paths, manifest)
+	if err != nil {
+		return nil, err
+	}
+
+	files := []generatedFile{
 		routesFile,
 		urlsFile,
-	}, nil
+		inspectorFile,
+	}
+	files = append(files, fragmentWrapperFiles...)
+	return files, nil
 }
 
 func generateRouteManifestFile(paths appPaths, manifest routing.Manifest) (generatedFile, error) {
 	source, err := wiring.GenerateManifest(manifest, wiring.GenerateOptions{
 		PackageName:         "routes",
 		RouteRootImportPath: paths.routeImportPath,
+		InspectorImportPath: inspectorImportPath(paths),
 	})
 	if err != nil {
 		return generatedFile{}, err
 	}
 	return generatedFile{path: filepath.Join(paths.routesDir, wiring.GeneratedFileName), content: source}, nil
+}
+
+func generateInspectorSupportFile(paths appPaths) (generatedFile, error) {
+	source, err := wiring.GenerateInspectorSupport("goldrinspect")
+	if err != nil {
+		return generatedFile{}, err
+	}
+	return generatedFile{path: filepath.Join(paths.root, "app", "internal", "goldrinspect", wiring.InspectorGeneratedFileName), content: source}, nil
+}
+
+func generateFragmentWrapperFiles(paths appPaths, manifest routing.Manifest) ([]generatedFile, error) {
+	files, err := wiring.GenerateFragmentWrappers(manifest, wiring.GenerateOptions{
+		RouteRootImportPath: paths.routeImportPath,
+		InspectorImportPath: inspectorImportPath(paths),
+	})
+	if err != nil {
+		return nil, err
+	}
+	generated := make([]generatedFile, 0, len(files))
+	for _, file := range files {
+		generated = append(generated, generatedFile{
+			path:    filepath.Join(paths.routesDir, filepath.FromSlash(file.Dir), wiring.GeneratedFileName),
+			content: file.Content,
+		})
+	}
+	return generated, nil
 }
 
 func generateURLHelperFile(paths appPaths, manifest routing.Manifest) (generatedFile, error) {
@@ -270,6 +319,10 @@ func generateURLHelperFile(paths appPaths, manifest routing.Manifest) (generated
 		return generatedFile{}, err
 	}
 	return generatedFile{path: filepath.Join(paths.root, "app", "urls", wiring.URLGeneratedFileName), content: source}, nil
+}
+
+func inspectorImportPath(paths appPaths) string {
+	return path.Join(path.Dir(paths.routeImportPath), "internal/goldrinspect")
 }
 
 func routeRootImportPath(ctx context.Context, appRoot string, routesDir string) (string, error) {
@@ -384,4 +437,71 @@ func checkGeneratedFiles(files []generatedFile) error {
 		return errors.New(strings.Join(stale, "\n"))
 	}
 	return nil
+}
+
+func checkStaleManagedGeneratedFiles(paths appPaths, files []generatedFile) error {
+	stale, err := staleManagedGeneratedFiles(paths, files)
+	if err != nil {
+		return err
+	}
+	if len(stale) > 0 {
+		for index, file := range stale {
+			stale[index] = fmt.Sprintf("%s is stale", file)
+		}
+		return errors.New(strings.Join(stale, "\n"))
+	}
+	return nil
+}
+
+func removeStaleManagedGeneratedFiles(paths appPaths, files []generatedFile) error {
+	stale, err := staleManagedGeneratedFiles(paths, files)
+	if err != nil {
+		return err
+	}
+	for _, file := range stale {
+		if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	return nil
+}
+
+func staleManagedGeneratedFiles(paths appPaths, files []generatedFile) ([]string, error) {
+	expected := make(map[string]bool, len(files))
+	for _, file := range files {
+		expected[filepath.Clean(file.path)] = true
+	}
+
+	var stale []string
+	err := filepath.WalkDir(paths.routesDir, func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || entry.Name() != wiring.GeneratedFileName {
+			return nil
+		}
+		cleanName := filepath.Clean(name)
+		if !expected[cleanName] {
+			generated, err := isGoldrGeneratedFile(cleanName)
+			if err != nil {
+				return err
+			}
+			if generated {
+				stale = append(stale, cleanName)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return stale, nil
+}
+
+func isGoldrGeneratedFile(name string) (bool, error) {
+	content, err := os.ReadFile(name)
+	if err != nil {
+		return false, err
+	}
+	return bytes.HasPrefix(content, []byte("// Code generated by goldr; DO NOT EDIT.")), nil
 }

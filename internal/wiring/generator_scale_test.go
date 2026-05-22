@@ -74,7 +74,7 @@ func TestGeneratedDispatchScaleBenchmarkRatios(t *testing.T) {
 	manifest := dispatchBenchmarkManifest(1000)
 	source := generateOK(t, manifest)
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", source)
+	writeGeneratedRoutes(t, tempDir, source)
 	writeTempFile(t, tempDir, "routes/actions.go", scaleActionsSource(manifest.Actions))
 	writeTempFile(t, tempDir, "routes/dispatch_benchmark_test.go", `package routes
 
@@ -214,7 +214,7 @@ func assertScaleManifestCompiles(t *testing.T, manifest routing.Manifest, source
 	t.Helper()
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", source)
+	writeGeneratedRoutes(t, tempDir, source)
 	writeTempFile(t, tempDir, "routes/actions.go", scaleActionsSource(manifest.Actions))
 	runGoTest(t, tempDir)
 }

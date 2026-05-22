@@ -62,6 +62,7 @@ app/routes/page.templ
 app/routes/layout.go
 app/routes/layout.templ
 app/routes/goldr_gen.go
+app/internal/goldrinspect/goldr_gen.go
 app/urls/goldr_gen.go
 ```
 
@@ -90,6 +91,8 @@ Generated files:
 
 ```text
 app/routes/goldr_gen.go
+app/routes/**/goldr_gen.go when route packages need generated helpers
+app/internal/goldrinspect/goldr_gen.go
 app/urls/goldr_gen.go
 assets/goldr_assets_gen.go when assets/build exists
 ```
@@ -142,7 +145,7 @@ It checks:
 - route dispatch generation readiness
 - URL helper generation readiness
 - freshness of templ-generated files
-- freshness of `app/routes/goldr_gen.go` and `app/urls/goldr_gen.go`
+- freshness of Goldr-owned `goldr_gen.go` files and `app/urls/goldr_gen.go`
 - freshness of `assets/dist`, `assets/goldr_assets_gen.go`, and
   `assets/.goldr/assets.json` when Goldr-managed asset output exists
 

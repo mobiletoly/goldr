@@ -172,11 +172,11 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 	if got := helperResponse.Header.Get(hx.HeaderTrigger); got != "user:saved" {
 		t.Fatalf("helper %s = %q, want %q", hx.HeaderTrigger, got, "user:saved")
 	}
-	if got := helperResponse.Header.Get(hx.HeaderRetarget); got != "#users-table" {
-		t.Fatalf("helper %s = %q, want %q", hx.HeaderRetarget, got, "#users-table")
+	if got := helperResponse.Header.Get(hx.HeaderRetarget); got != "#users-table-slot" {
+		t.Fatalf("helper %s = %q, want %q", hx.HeaderRetarget, got, "#users-table-slot")
 	}
-	if got := helperResponse.Header.Get(hx.HeaderReswap); got != "outerHTML" {
-		t.Fatalf("helper %s = %q, want %q", hx.HeaderReswap, got, "outerHTML")
+	if got := helperResponse.Header.Get(hx.HeaderReswap); got != "innerHTML" {
+		t.Fatalf("helper %s = %q, want %q", hx.HeaderReswap, got, "innerHTML")
 	}
 	helperBody, err := io.ReadAll(helperResponse.Body)
 	if err != nil {

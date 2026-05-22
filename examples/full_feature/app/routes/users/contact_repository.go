@@ -20,7 +20,7 @@ type contactRepository struct {
 var contacts = newContactRepository([]Contact{
 	{ID: "42", Name: "Ada Lovelace", Status: "Active"},
 	{ID: "7", Name: "Grace Hopper", Status: "Active"},
-	{ID: "11", Name: "Katherine Johnson", Status: "Active"},
+	{ID: "11", Name: "Katherine Johnson", Status: "Inactive"},
 })
 
 func newContactRepository(values []Contact) *contactRepository {

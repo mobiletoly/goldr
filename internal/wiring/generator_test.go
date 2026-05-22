@@ -23,12 +23,13 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 		"type goldrManifest struct",
 		"type goldrAction struct",
 		"type ErrorHandlers struct",
+		"type HandlerOptions struct",
 		"var goldrGeneratedManifest = goldrManifest",
 		"func Handler() http.Handler",
-		"func HandlerWithErrors(handlers ErrorHandlers) http.Handler",
+		"func HandlerWithOptions(options HandlerOptions) http.Handler",
 		"Route:  \"/\"",
 		"RoutePrefix: \"/\"",
-		"goldrWriteResponse(handlers, w, r, component, status, headers)",
+		"goldrWriteResponse(options, w, r, component, status, headers)",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing %q:\n%s", want, source)
@@ -127,6 +128,82 @@ func TestGenerateManifestParsesAsGo(t *testing.T) {
 	}
 }
 
+func TestGenerateFragmentWrappersWritesPackageGoldrGenFileContent(t *testing.T) {
+	tempDir := tempGoldrModule(t)
+	manifest := routing.Manifest{
+		Root: filepath.Join(tempDir, "routes"),
+		Fragments: []routing.ManifestFragment{
+			{Name: "table", RoutePrefix: "/users", Unit: completeUnit("users/frag_table.go")},
+			{Name: "row", RoutePrefix: "/users/{id}", Params: []string{"id"}, Unit: completeUnit("users/by_id/frag_row.go")},
+		},
+	}
+	writeTempFile(t, tempDir, "routes/users/frag_table.go", `package users
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func FragTable(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(nil)
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/by_id/frag_row.go", `package by_id
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func FragRow(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(nil)
+}
+`)
+
+	files, err := GenerateFragmentWrappers(manifest, GenerateOptions{RouteRootImportPath: "example.com/app/routes"})
+	if err != nil {
+		t.Fatalf("GenerateFragmentWrappers() error = %v, want nil", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("len(files) = %d, want 2", len(files))
+	}
+	tests := map[string][]string{
+		"users": {
+			"package users",
+			`"example.com/app/internal/goldrinspect"`,
+			"func renderFragTable(component templ.Component) templ.Component",
+			"route=/users/frag-table",
+			"source=app/routes/users/frag_table.templ",
+			"go=app/routes/users/frag_table.go",
+		},
+		"users/by_id": {
+			"package by_id",
+			"func renderFragRow(component templ.Component) templ.Component",
+			"route=/users/{id}/frag-row",
+		},
+	}
+	for _, file := range files {
+		wants, ok := tests[file.Dir]
+		if !ok {
+			t.Fatalf("unexpected generated wrapper dir %q", file.Dir)
+		}
+		for _, want := range wants {
+			if !strings.Contains(string(file.Content), want) {
+				t.Fatalf("wrapper file %q missing %q:\n%s", file.Dir, want, file.Content)
+			}
+		}
+		if _, err := parser.ParseFile(token.NewFileSet(), GeneratedFileName, file.Content, parser.SkipObjectResolution); err != nil {
+			t.Fatalf("ParseFile(%q) error = %v\n%s", file.Dir, err, file.Content)
+		}
+		delete(tests, file.Dir)
+	}
+	if len(tests) != 0 {
+		t.Fatalf("missing generated wrapper dirs: %v", tests)
+	}
+}
+
 func TestGenerateURLHelpersWritesRouteNodes(t *testing.T) {
 	source := generateURLHelpersOK(t, urlHelperManifest())
 
@@ -173,7 +250,7 @@ func TestGenerateURLHelpersCompileAndEscapeParams(t *testing.T) {
 	manifest := urlHelperManifest()
 	tempDir := tempGoldrModule(t)
 	writeTempFile(t, tempDir, "urls/goldr_gen.go", generateURLHelpersOK(t, manifest))
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/page.go", `package routes
 
 import (
@@ -441,7 +518,7 @@ func TestGenerateManifestRuntimeDispatchAndLayoutStack(t *testing.T) {
 	if !strings.Contains(source, "goldr.LayoutContext{Metadata: metadata}") {
 		t.Fatalf("generated source missing layout context wiring:\n%s", source)
 	}
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", source)
+	writeGeneratedRoutes(t, tempDir, source)
 	writeTempFile(t, tempDir, "routes/page.go", `package routes
 
 import (
@@ -497,9 +574,15 @@ import (
 )
 
 func Page(r *http.Request) goldr.RouteResponse {
-	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
-		_, err := io.WriteString(writer, "<h1>Users</h1>")
+	fragment := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		_, err := io.WriteString(writer, "<tbody>Users fragment</tbody>")
 		return err
+	})
+	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		if _, err := io.WriteString(writer, "<h1>Users</h1>"); err != nil {
+			return err
+		}
+		return renderFragTable(fragment).Render(ctx, writer)
 	})
 	return goldr.NewPage(component, goldr.PageMetadata{Title: "Users", Description: "users"})
 }
@@ -610,11 +693,13 @@ func FragRow(r *http.Request) goldr.RouteResponse {
 	}))
 }
 `)
+	writeGeneratedFragmentWrappers(t, tempDir, runtimeManifest())
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
 
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -624,7 +709,7 @@ func TestHandlerRoutes(t *testing.T) {
 		body string
 	}{
 		{"/", "<root title=\"Root\"><h1>Root</h1></root>"},
-		{"/users", "<root title=\"Users\"><users section=\"users\"><h1>Users</h1></users></root>"},
+		{"/users", "<root title=\"Users\"><users section=\"users\"><h1>Users</h1><tbody>Users fragment</tbody></users></root>"},
 		{"/users/42", "<root title=\"User 42\"><users section=\"users\"><user id=\"42\" title=\"User 42\"><h1>User 42</h1></user></users></root>"},
 		{"/users/42%2F43", "<root title=\"User 42/43\"><users section=\"users\"><user id=\"42/43\" title=\"User 42/43\"><h1>User 42/43</h1></user></users></root>"},
 		{"/users/frag-table", "<tbody>Users fragment</tbody>"},
@@ -640,6 +725,53 @@ func TestHandlerRoutes(t *testing.T) {
 		if recorder.Body.String() != test.body {
 			t.Fatalf("%s body = %q, want %q", test.path, recorder.Body.String(), test.body)
 		}
+	}
+}
+
+func TestTemplateInspectorMarkers(t *testing.T) {
+	page := httptest.NewRecorder()
+	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/users", nil))
+	if page.Code != http.StatusOK {
+		t.Fatalf("inspected page status = %d, want %d", page.Code, http.StatusOK)
+	}
+	for _, want := range []string{
+		"<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->",
+		"<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->",
+		"<!--goldr:start id=g_pageusers_page_templ kind=page route=/users source=app/routes/users/page.templ go=app/routes/users/page.go-->",
+		"<!--goldr:start id=g_fragmentusers_frag_table_templ kind=fragment route=/users/frag-table source=app/routes/users/frag_table.templ go=app/routes/users/frag_table.go-->",
+		"<tbody>Users fragment</tbody>",
+		"<!--goldr:end id=g_fragmentusers_frag_table_templ-->",
+		"<!--goldr:end id=g_pageusers_page_templ-->",
+		"<!--goldr:end id=g_layoutusers_layout_templ-->",
+		"<!--goldr:end id=g_layoutlayout_templ-->",
+	} {
+		if !strings.Contains(page.Body.String(), want) {
+			t.Fatalf("inspected page body missing %q:\n%s", want, page.Body.String())
+		}
+	}
+	if strings.Index(page.Body.String(), "id=g_layoutlayout_templ") > strings.Index(page.Body.String(), "id=g_layoutusers_layout_templ") {
+		t.Fatalf("root layout marker should wrap users layout marker:\n%s", page.Body.String())
+	}
+
+	fragment := httptest.NewRecorder()
+	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(fragment, httptest.NewRequest(http.MethodGet, "/users/frag-table", nil))
+	if fragment.Code != http.StatusOK {
+		t.Fatalf("inspected fragment status = %d, want %d", fragment.Code, http.StatusOK)
+	}
+	for _, want := range []string{
+		"<!--goldr:start id=g_fragmentusers_frag_table_templ kind=fragment route=/users/frag-table source=app/routes/users/frag_table.templ go=app/routes/users/frag_table.go-->",
+		"<tbody>Users fragment</tbody>",
+		"<!--goldr:end id=g_fragmentusers_frag_table_templ-->",
+	} {
+		if !strings.Contains(fragment.Body.String(), want) {
+			t.Fatalf("inspected fragment body missing %q:\n%s", want, fragment.Body.String())
+		}
+	}
+
+	head := httptest.NewRecorder()
+	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(head, httptest.NewRequest(http.MethodHead, "/users/frag-table", nil))
+	if head.Body.Len() != 0 {
+		t.Fatalf("inspected HEAD body length = %d, want 0", head.Body.Len())
 	}
 }
 
@@ -687,7 +819,7 @@ func TestGenerateManifestFragmentRouteResponses(t *testing.T) {
 	}
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/users/frag_table.go", `package users
 
 import (
@@ -779,25 +911,37 @@ func TestFragmentRouteResponses(t *testing.T) {
 		t.Fatalf("text X-Robots-Tag = %q, want noindex", got)
 	}
 
+	inspectedRedirect := httptest.NewRecorder()
+	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(inspectedRedirect, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=redirect", nil))
+	if strings.Contains(inspectedRedirect.Body.String(), "goldr:") {
+		t.Fatalf("inspected redirect body leaked marker %q", inspectedRedirect.Body.String())
+	}
+
+	inspectedText := httptest.NewRecorder()
+	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(inspectedText, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=text", nil))
+	if inspectedText.Body.String() != "forbidden" {
+		t.Fatalf("inspected text body = %q, want forbidden", inspectedText.Body.String())
+	}
+
 	var serverErr error
 	errorResponse := httptest.NewRecorder()
-	HandlerWithErrors(ErrorHandlers{
+	HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
 		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
 			serverErr = err
 			http.Error(w, "custom error", http.StatusInternalServerError)
 		},
-	}).ServeHTTP(errorResponse, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=error", nil))
+	}}).ServeHTTP(errorResponse, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=error", nil))
 	if serverErr == nil || !strings.Contains(serverErr.Error(), "boom") {
 		t.Fatalf("serverErr = %v, want boom", serverErr)
 	}
 
 	invalidPage := httptest.NewRecorder()
-	HandlerWithErrors(ErrorHandlers{
+	HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
 		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
 			serverErr = err
 			http.Error(w, "custom error", http.StatusInternalServerError)
 		},
-	}).ServeHTTP(invalidPage, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=page", nil))
+	}}).ServeHTTP(invalidPage, httptest.NewRequest(http.MethodGet, "/users/frag-table?mode=page", nil))
 	if !errors.Is(serverErr, goldr.ErrInvalidRouteResponse) {
 		t.Fatalf("invalid page error = %v, want ErrInvalidRouteResponse", serverErr)
 	}
@@ -818,7 +962,7 @@ func TestGenerateManifestDoesNotLeakRouteHeadersOnRenderError(t *testing.T) {
 	}
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/page.go", `package routes
 
 import (
@@ -868,11 +1012,11 @@ import (
 )
 
 func TestRouteHeadersAreDelayedUntilRenderSuccess(t *testing.T) {
-	handler := HandlerWithErrors(ErrorHandlers{
+	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
 		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
 			http.Error(w, "custom error", http.StatusInternalServerError)
 		},
-	})
+	}})
 
 	page := httptest.NewRecorder()
 	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -905,7 +1049,7 @@ func TestGenerateManifestActionWritesRouteResponseWithoutLayouts(t *testing.T) {
 	}
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/actions.go", `package routes
 
 import (
@@ -971,7 +1115,7 @@ func TestGenerateManifestActionWritesRouteResponseWithLayoutStack(t *testing.T) 
 	}
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/layout.go", `package routes
 
 import (
@@ -1075,6 +1219,7 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -1091,6 +1236,26 @@ func TestActionRouteResponseUsesLayoutStack(t *testing.T) {
 	want := "<root title=\"Created 42\"><users section=\"keys\"><user id=\"42\"><p>created 42</p></user></users></root>"
 	if recorder.Body.String() != want {
 		t.Fatalf("body = %q, want %q", recorder.Body.String(), want)
+	}
+
+	inspected := httptest.NewRecorder()
+	HandlerWithOptions(HandlerOptions{InspectTemplates: true}).ServeHTTP(inspected, httptest.NewRequest(http.MethodPost, "/users/42/keys/create", nil))
+	if inspected.Code != http.StatusCreated {
+		t.Fatalf("inspected status = %d, want %d", inspected.Code, http.StatusCreated)
+	}
+	for _, want := range []string{
+		"<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->",
+		"<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->",
+		"<p>created 42</p>",
+		"<!--goldr:end id=g_layoutusers_layout_templ-->",
+		"<!--goldr:end id=g_layoutlayout_templ-->",
+	} {
+		if !strings.Contains(inspected.Body.String(), want) {
+			t.Fatalf("inspected body missing %q:\n%s", want, inspected.Body.String())
+		}
+	}
+	if strings.Contains(inspected.Body.String(), "kind=page") {
+		t.Fatalf("inspected action response should not claim an action-owned page template:\n%s", inspected.Body.String())
 	}
 }
 `)
@@ -1109,7 +1274,7 @@ func TestGenerateManifestPassesZeroMetadataToLayouts(t *testing.T) {
 	}
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/page.go", `package routes
 
 import (
@@ -1185,7 +1350,7 @@ func TestGenerateManifestCustomErrorHandlers(t *testing.T) {
 	}
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/page.go", `package routes
 
 import (
@@ -1229,7 +1394,7 @@ import (
 )
 
 func TestCustomErrorHandlers(t *testing.T) {
-	handler := HandlerWithErrors(ErrorHandlers{
+	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
 		NotFound: func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte("custom missing"))
@@ -1245,7 +1410,7 @@ func TestCustomErrorHandlers(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte("custom boom"))
 		},
-	})
+	}})
 
 	missing := httptest.NewRecorder()
 	handler.ServeHTTP(missing, httptest.NewRequest(http.MethodGet, "/missing", nil))
@@ -1273,12 +1438,12 @@ func TestCustomErrorHandlers(t *testing.T) {
 }
 
 func TestNilErrorHandlersFallBackIndependently(t *testing.T) {
-	handler := HandlerWithErrors(ErrorHandlers{
+	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
 		NotFound: func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte("custom missing"))
 		},
-	})
+	}})
 
 	missing := httptest.NewRecorder()
 	handler.ServeHTTP(missing, httptest.NewRequest(http.MethodGet, "/missing", nil))
@@ -1318,7 +1483,7 @@ func TestGenerateManifestPageResponses(t *testing.T) {
 	}
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/layout.go", `package routes
 
 import (
@@ -1425,12 +1590,12 @@ import (
 )
 
 func TestPageResponses(t *testing.T) {
-	handler := HandlerWithErrors(ErrorHandlers{
+	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
 		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte("internal: " + err.Error()))
 		},
-	})
+	}})
 
 	redirect := httptest.NewRecorder()
 	handler.ServeHTTP(redirect, httptest.NewRequest(http.MethodGet, "/redirect", nil))
@@ -1519,7 +1684,7 @@ func TestGenerateManifestActionOnlyRuntimeDispatch(t *testing.T) {
 	}
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", source)
+	writeGeneratedRoutes(t, tempDir, source)
 	writeTempFile(t, tempDir, "routes/actions.go", `package routes
 
 import "net/http"
@@ -1580,7 +1745,7 @@ func TestGenerateManifestPageFragmentActionDispatch(t *testing.T) {
 	}
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/users/page.go", `package users
 
 import (
@@ -1687,7 +1852,7 @@ func TestActionDispatch(t *testing.T) {
 
 func TestGenerateManifestStaticRouteWinsOverDynamic(t *testing.T) {
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, staticPriorityManifest()))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, staticPriorityManifest()))
 	writeTempFile(t, tempDir, "routes/users/profile/page.go", `package profile
 
 import (
@@ -1793,7 +1958,7 @@ func TestGenerateManifestDispatchHelperNamesAreUnique(t *testing.T) {
 	}
 
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/users/actions.go", `package users
 
 import "net/http"
@@ -1867,7 +2032,7 @@ func TestGenerateManifestFragmentRenderFailures(t *testing.T) {
 		},
 	}
 	tempDir := tempGoldrModule(t)
-	writeTempFile(t, tempDir, "routes/goldr_gen.go", generateOK(t, manifest))
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
 	writeTempFile(t, tempDir, "routes/frag_nil.go", `package routes
 
 import (
@@ -1922,12 +2087,12 @@ func TestFragmentRenderFailures(t *testing.T) {
 
 func TestFragmentRenderFailureErrorsReachHandler(t *testing.T) {
 	var internalErr error
-	handler := HandlerWithErrors(ErrorHandlers{
+	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
 		InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
 			internalErr = err
 			w.WriteHeader(http.StatusInternalServerError)
 		},
-	})
+	}})
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/frag-nil", nil))
@@ -2089,6 +2254,38 @@ func generateOK(t *testing.T, manifest routing.Manifest) string {
 		t.Fatalf("GenerateManifest() error = %v, want nil", err)
 	}
 	return string(source)
+}
+
+func inspectorSupportOK(t *testing.T) string {
+	t.Helper()
+
+	source, err := GenerateInspectorSupport("goldrinspect")
+	if err != nil {
+		t.Fatalf("GenerateInspectorSupport() error = %v, want nil", err)
+	}
+	return string(source)
+}
+
+func writeGeneratedRoutes(t *testing.T, root string, source string) {
+	t.Helper()
+
+	writeTempFile(t, root, "routes/goldr_gen.go", source)
+	writeTempFile(t, root, "internal/goldrinspect/goldr_gen.go", inspectorSupportOK(t))
+}
+
+func writeGeneratedFragmentWrappers(t *testing.T, root string, manifest routing.Manifest) {
+	t.Helper()
+
+	manifest.Root = filepath.Join(root, "routes")
+	files, err := GenerateFragmentWrappers(manifest, GenerateOptions{
+		RouteRootImportPath: "example.com/app/routes",
+	})
+	if err != nil {
+		t.Fatalf("GenerateFragmentWrappers() error = %v, want nil", err)
+	}
+	for _, file := range files {
+		writeTempFile(t, root, filepath.Join("routes", filepath.FromSlash(file.Dir), GeneratedFileName), string(file.Content))
+	}
 }
 
 func generateURLHelpersOK(t *testing.T, manifest routing.Manifest) string {
