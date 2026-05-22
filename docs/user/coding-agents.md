@@ -4,6 +4,10 @@ Many coding agents read `AGENTS.md` or similar repository instruction files
 before editing. If your application uses goldr, give the agent the framework
 rules in the app repository, not only in chat.
 
+If your agent supports installable skills, you can also install the
+[Goldr App skill](../skills/goldr-app/SKILL.md). The skill is self-contained
+and gives agents an operational workflow for editing Goldr applications.
+
 Copy this into your application's `AGENTS.md` and adjust the command list to
 match your project scripts:
 

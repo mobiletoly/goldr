@@ -35,6 +35,8 @@ Then use the references:
   server behavior.
 - [Application Dependencies](dependencies.md) - app-owned typed dependencies
   for generated route packages.
+- [Goldr App Skill](../skills/goldr-app/SKILL.md) - installable skill package
+  for agents working inside goldr applications.
 
 ## What To Build First
 
