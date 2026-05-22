@@ -17,24 +17,23 @@ Read these first:
 
 Then use the references:
 
-- [Routes](routes.md) - filesystem conventions and runtime behavior.
 - [CLI](cli.md) - app-local `go tool goldr` commands.
-- [Live Reload](live-reload.md) - `goldr dev`, browser reload, assets, and
-  Tailwind workflows.
-- [Template Inspection](template-inspection.md) - local render-unit comments,
-  visible browser overlays, and app-owned env-var wiring.
+- [Routes](routes.md) - filesystem conventions and runtime behavior.
+- [HTMX](htmx.md) - visible `hx-*` attributes and response headers.
+- [Forms](forms.md) - form parsing, validation errors, and redisplay.
 - [Assets](assets.md) - fingerprinted static files, cache headers, and
   app-owned asset tooling.
-- [Coding Agents](coding-agents.md) - copyable `AGENTS.md` guidance for coding
-  agents working inside goldr applications.
-- [HTMX](htmx.md) - visible `hx-*` attributes and response headers.
 - [SSE](sse.md) - app-owned streams, event IDs, and named SSE swaps.
-- [Forms](forms.md) - form parsing, validation errors, and redisplay.
 - [CSRF](csrf.md) - signed-cookie tokens for unsafe form and HTMX requests.
 - [Composition](composition.md) - mux, middleware, static assets, and app-owned
   server behavior.
 - [Application Dependencies](dependencies.md) - app-owned typed dependencies
   for generated route packages.
+- [Live Reload](live-reload.md) - `goldr dev`, browser reload, assets, and
+  Tailwind workflows.
+- [Template Inspection](template-inspection.md) - local render-unit comments,
+  visible browser overlays, and app-owned env-var wiring.
+
 - [Goldr App Skill](../skills/goldr-app/SKILL.md) - installable skill package
   for agents working inside goldr applications.
 

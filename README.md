@@ -65,7 +65,7 @@ templ is Goldr's render contract: route functions return templ components, and
 `.templ` files own HTML rendering. Goldr owns the filesystem route model,
 generated route wiring, URL helpers, and validation around that workflow.
 
-The current module targets Go 1.26.
+Use Go 1.26 or newer.
 
 Add goldr, templ, and app-local CLI tools to your module:
 
@@ -254,6 +254,7 @@ app/routes/page.templ
 app/routes/layout.go
 app/routes/layout.templ
 app/routes/goldr_gen.go
+app/internal/goldrinspect/goldr_gen.go
 app/urls/goldr_gen.go
 ```
 
@@ -311,23 +312,30 @@ import "example.com/hello-goldr/app/urls"
 templ DirectoryView() {
 	<button
 		hx-get={ urls.Users.FragTable.Path() }
-		hx-target="#users-table"
-		hx-swap="outerHTML"
+		hx-target="#users-table-slot"
+		hx-swap="innerHTML"
 	>
 		Load users
 	</button>
+	<div id="users-table-slot">
+		@renderFragTable(FragTableView())
+	</div>
 }
 ```
+
+Use a page-owned slot as the HTMX replacement boundary when refreshing an
+embedded fragment. The slot swaps with `innerHTML`, and the fragment root stays
+inside the slot.
 
 Handlers that need HTMX response headers can use the small `hx` package before
 writing the rendered component:
 
 ```go
 func PostCreate(w http.ResponseWriter, r *http.Request) {
-	hx.Retarget(w, "#users-table")
-	hx.Reswap(w, "outerHTML")
+	hx.Retarget(w, "#users-table-slot")
+	hx.Reswap(w, "innerHTML")
 	hx.Trigger(w, "user:created")
-	if err := goldr.WriteComponent(w, r, http.StatusOK, UsersTable()); err != nil {
+	if err := goldr.WriteComponent(w, r, http.StatusOK, FragTableView()); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }
