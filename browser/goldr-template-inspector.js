@@ -52,54 +52,123 @@
     return (meta.kind || "template") + ": " + (meta.source || meta.go || meta.route || "unknown");
   }
 
-  function colorWithAlpha(color, alpha) {
-    var match = /^#([0-9a-f]{6})$/i.exec(color);
-    if (!match) {
-      return color;
-    }
-    var value = match[1];
-    return "rgba(" + parseInt(value.slice(0, 2), 16) + "," +
-      parseInt(value.slice(2, 4), 16) + "," +
-      parseInt(value.slice(4, 6), 16) + "," + alpha + ")";
+  function sameAnchor(a, b) {
+    return Math.abs(a.left - b.left) < 8 && Math.abs(a.top - b.top) < 8;
   }
 
-  function appendBox(root, rect, meta) {
+  function trackedBoxes() {
+    var boxes = [];
+    markers().forEach(function (pair) {
+      var range = document.createRange();
+      range.setStartAfter(pair.start);
+      range.setEndBefore(pair.end);
+      var rect = range.getBoundingClientRect();
+      range.detach();
+
+      if (rect.width < 1 || rect.height < 1) {
+        return;
+      }
+
+      var track = 0;
+      boxes.forEach(function (box) {
+        if (sameAnchor(rect, box.rect)) {
+          track = Math.max(track, box.track + 1);
+        }
+      });
+      boxes.push({ rect: rect, meta: pair.meta, track: track });
+    });
+    return boxes;
+  }
+
+  function appendBox(root, rect, meta, track) {
     if (rect.width < 1 || rect.height < 1) {
       return;
     }
 
     var color = colors[meta.kind] || "#7c3aed";
+    var inset = Math.min(track * 3, Math.floor(Math.min(rect.width, rect.height) / 4));
     var box = document.createElement("div");
+    box.setAttribute("data-goldr-template-stack", String(track));
     box.style.cssText = [
       "position:fixed",
-      "left:" + rect.left + "px",
-      "top:" + rect.top + "px",
-      "width:" + rect.width + "px",
-      "height:" + rect.height + "px",
+      "left:" + (rect.left + inset) + "px",
+      "top:" + (rect.top + inset) + "px",
+      "width:" + Math.max(0, rect.width - inset * 2) + "px",
+      "height:" + Math.max(0, rect.height - inset * 2) + "px",
       "box-sizing:border-box",
       "border:2px solid " + color,
       "pointer-events:none"
     ].join(";");
 
+    root.appendChild(box);
+    appendLabel(root, rect, meta, inset);
+  }
+
+  function appendLabel(root, rect, meta, inset) {
+    var color = colors[meta.kind] || "#7c3aed";
     var label = document.createElement("div");
+    label.setAttribute("data-goldr-template-label", "1");
     label.textContent = labelText(meta);
     label.style.cssText = [
-      "position:absolute",
-      "left:-2px",
-      "top:-2px",
+      "position:fixed",
+      "left:" + (rect.left + inset - 2) + "px",
+      "top:" + (rect.top + inset - 2) + "px",
       "max-width:min(520px,calc(100% - 8px),90vw)",
       "overflow:hidden",
       "text-overflow:ellipsis",
       "white-space:nowrap",
-      "background:" + colorWithAlpha(color, 0.7),
+      "background:" + color,
       "color:white",
       "font:11px/15px system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif",
       "padding:1px 4px",
       "border-radius:2px"
     ].join(";");
 
-    box.appendChild(label);
-    root.appendChild(box);
+    root.appendChild(label);
+  }
+
+  function paddedOverlap(a, b, padding) {
+    return a.left < b.right + padding &&
+      a.right + padding > b.left &&
+      a.top < b.bottom + padding &&
+      a.bottom + padding > b.top;
+  }
+
+  function labelRectAt(rect, top) {
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: top,
+      bottom: top + rect.height
+    };
+  }
+
+  function layoutLabels(root) {
+    var placed = [];
+    var labels = Array.prototype.slice.call(root.querySelectorAll("[data-goldr-template-label]"));
+    labels.sort(function (a, b) {
+      var aRect = a.getBoundingClientRect();
+      var bRect = b.getBoundingClientRect();
+      return (aRect.top - bRect.top) || (aRect.left - bRect.left);
+    });
+
+    labels.forEach(function (label) {
+      var rect = label.getBoundingClientRect();
+      var top = rect.top;
+      var moved = true;
+      while (moved) {
+        moved = false;
+        placed.forEach(function (placedRect) {
+          if (paddedOverlap(labelRectAt(rect, top), placedRect, 4)) {
+            top = Math.max(top, placedRect.bottom + 4);
+            moved = true;
+          }
+        });
+      }
+      label.style.top = top + "px";
+      label.setAttribute("data-goldr-template-label-row", String(Math.round(top - rect.top)));
+      placed.push(labelRectAt(rect, top));
+    });
   }
 
   function draw() {
@@ -115,16 +184,13 @@
       "z-index:2147483647"
     ].join(";");
 
-    markers().forEach(function (pair) {
-      var range = document.createRange();
-      range.setStartAfter(pair.start);
-      range.setEndBefore(pair.end);
-      appendBox(root, range.getBoundingClientRect(), pair.meta);
-      range.detach();
+    trackedBoxes().forEach(function (box) {
+      appendBox(root, box.rect, box.meta, box.track);
     });
 
     if (root.childNodes.length > 0) {
       document.body.appendChild(root);
+      layoutLabels(root);
     }
   }
 

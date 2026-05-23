@@ -17,6 +17,12 @@ func TestFSContainsTemplateInspectorHelper(t *testing.T) {
 	assertFSContains(t, templateInspectorHelperPath, `data-goldr-template-inspector`)
 }
 
+func TestFSContainsTemplateInspectorStackingBehavior(t *testing.T) {
+	assertFSContains(t, templateInspectorHelperPath, `data-goldr-template-stack`)
+	assertFSContains(t, templateInspectorHelperPath, `data-goldr-template-label-row`)
+	assertFSContains(t, templateInspectorHelperPath, `sameAnchor`)
+}
+
 func assertFSContains(t *testing.T, name string, want string) {
 	t.Helper()
 
