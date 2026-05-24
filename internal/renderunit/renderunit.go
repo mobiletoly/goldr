@@ -55,10 +55,11 @@ func ValidateManifest(manifest routing.Manifest) error {
 	var problems []Problem
 
 	for _, page := range manifest.Pages {
-		validateUnit(&problems, manifest.Root, KindPage, page.Route, page.Unit, signatureRule{
-			function: "Page",
-			message:  "page handlers must use func Page(*http.Request) goldr.RouteResponse",
-			valid:    validPageSignature,
+		validateSignature(&problems, manifest.Root, KindPage, page.Route, page.Unit.GoFile, signatureRule{
+			function:       "Page",
+			message:        "page handlers must use func Page(*http.Request) goldr.RouteResponse",
+			missingMessage: "page handlers must use func Page(*http.Request) goldr.RouteResponse",
+			valid:          validPageSignature,
 		})
 	}
 	for _, layout := range manifest.Layouts {
@@ -90,9 +91,10 @@ func Render(ctx context.Context, writer io.Writer, component templ.Component) er
 }
 
 type signatureRule struct {
-	function string
-	message  string
-	valid    func(*ast.FuncType) bool
+	function       string
+	message        string
+	missingMessage string
+	valid          func(*ast.FuncType) bool
 }
 
 func validateUnit(problems *[]Problem, root, kind, identifier string, unit routing.RenderUnit, rule signatureRule) {
@@ -141,11 +143,16 @@ func validateSignature(problems *[]Problem, root, kind, identifier, goFile strin
 		return
 	}
 
+	message := rule.missingMessage
+	if message == "" {
+		message = "missing " + rule.function + " function"
+	}
+
 	*problems = append(*problems, Problem{
 		Kind:       kind,
 		Identifier: identifier,
 		GoFile:     goFile,
-		Message:    "missing " + rule.function + " function",
+		Message:    message,
 	})
 }
 

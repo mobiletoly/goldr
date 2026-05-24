@@ -40,8 +40,8 @@ Go-special directories such as `internal`, `testdata`, and `vendor`.
 
 ## Pages
 
-`page.go` defines a page route for its directory and has a matching
-`page.templ`.
+`page.go` defines a page route for its directory. `page.templ` is optional and
+is used for page-owned HTML written in templ.
 
 ```go
 func Page(r *http.Request) goldr.RouteResponse {

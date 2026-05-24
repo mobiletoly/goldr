@@ -37,9 +37,9 @@ go tool goldr generate
 go tool goldr check
 ```
 
-`goldr generate` runs templ generation before writing Goldr-owned files. Use
-`go tool templ generate` directly only when the app's own workflow needs a
-templ-specific step.
+`goldr generate` runs templ generation when `.templ` files exist before writing
+Goldr-owned files. Use `go tool templ generate` directly only when the app's
+own workflow needs a templ-specific step.
 
 Prefer project wrapper scripts when the app already defines them. If the app's
 Go version or tool policy cannot use `go get -tool`, do not invent a parallel
@@ -202,9 +202,10 @@ go test ./...
 go run .
 ```
 
-`goldr generate` runs templ generation before writing Goldr-owned generated
-files. When `assets/build` exists, it also refreshes Goldr-managed asset
-outputs. `goldr check` validates generated files without rewriting them.
+`goldr generate` runs templ generation when `.templ` files exist before writing
+Goldr-owned generated files. When `assets/build` exists, it also refreshes
+Goldr-managed asset outputs. `goldr check` validates generated files without
+rewriting them.
 
 ## Optional Scaffold
 

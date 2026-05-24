@@ -2229,8 +2229,8 @@ func TestGenerateManifestRejectsNestedRuntimeWithoutImportPath(t *testing.T) {
 
 func TestGenerateManifestReturnsRenderUnitValidationErrors(t *testing.T) {
 	manifest := routing.Manifest{
-		Pages: []routing.ManifestPage{
-			{Route: "/", Unit: routing.RenderUnit{GoFile: "page.go"}},
+		Layouts: []routing.ManifestLayout{
+			{RoutePrefix: "/", Unit: routing.RenderUnit{GoFile: "layout.go"}},
 		},
 	}
 
@@ -2240,9 +2240,34 @@ func TestGenerateManifestReturnsRenderUnitValidationErrors(t *testing.T) {
 		t.Fatalf("GenerateManifest() error = %T, want *renderunit.ValidationError", err)
 	}
 
-	want := renderunit.Problem{Kind: renderunit.KindPage, Identifier: "/", GoFile: "page.go", Message: "missing matching .templ file"}
+	want := renderunit.Problem{Kind: renderunit.KindLayout, Identifier: "/", GoFile: "layout.go", Message: "missing matching .templ file"}
 	if len(validationErr.Problems) != 1 || validationErr.Problems[0] != want {
 		t.Fatalf("problems = %#v, want %#v", validationErr.Problems, []renderunit.Problem{want})
+	}
+}
+
+func TestGenerateManifestAcceptsPageWithoutTempl(t *testing.T) {
+	manifest := routing.Manifest{
+		Pages: []routing.ManifestPage{
+			{Route: "/", Unit: routing.RenderUnit{GoFile: "page.go"}},
+		},
+	}
+
+	source, err := GenerateManifest(manifest, GenerateOptions{
+		PackageName:         "routes",
+		RouteRootImportPath: "example.com/app/routes",
+	})
+	if err != nil {
+		t.Fatalf("GenerateManifest() error = %v, want nil", err)
+	}
+	for _, want := range []string{
+		`GoFile:    "page.go"`,
+		`TemplFile: ""`,
+		`source=app/routes/page.go go=app/routes/page.go`,
+	} {
+		if !strings.Contains(string(source), want) {
+			t.Fatalf("generated source missing %q:\n%s", want, source)
+		}
 	}
 }
 

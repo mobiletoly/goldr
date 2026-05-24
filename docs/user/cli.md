@@ -79,9 +79,9 @@ For a manual first-app walkthrough, read [Getting Started](getting-started.md).
 
 ## Generate
 
-`goldr generate` runs templ generation, scans `app/routes`, writes route and
-URL helper files, and refreshes fingerprinted assets when `assets/build`
-exists:
+`goldr generate` runs templ generation when `.templ` files exist, scans
+`app/routes`, writes route and URL helper files, and refreshes fingerprinted
+assets when `assets/build` exists:
 
 ```bash
 go tool goldr generate
@@ -104,9 +104,10 @@ go tool goldr generate --check
 go tool goldr generate --root examples/full_feature --check
 ```
 
-Check mode runs templ check mode, compares goldr-generated output with files on
-disk, checks Goldr-managed asset output when `assets/build` exists, reports
-stale or missing generated files, and exits non-zero without writing.
+Check mode runs templ check mode when `.templ` files exist, compares
+goldr-generated output with files on disk, checks Goldr-managed asset output
+when `assets/build` exists, reports stale or missing generated files, and exits
+non-zero without writing.
 
 ## Dev
 
@@ -141,17 +142,19 @@ go tool goldr check --root examples/full_feature
 It checks:
 
 - `app/routes` naming and action conventions
-- page, layout, and fragment `.go` / `.templ` pairs
+- page handler signatures
+- layout and fragment `.go` / `.templ` pairs
 - route dispatch generation readiness
 - URL helper generation readiness
-- freshness of templ-generated files
+- freshness of templ-generated files when `.templ` files exist
 - freshness of Goldr-owned `goldr_gen.go` files and `app/urls/goldr_gen.go`
 - freshness of `assets/dist`, `assets/goldr_assets_gen.go`, and
   `assets/.goldr/assets.json` when Goldr-managed asset output exists
 
 It prints nothing and exits `0` when the app is clean. It reports diagnostics
 to stderr and exits non-zero when validation fails. It requires the app-local
-templ tool added with `go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020`.
+templ tool added with `go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020`
+only when `.templ` files exist.
 
 Diagnostic categories:
 
@@ -159,7 +162,7 @@ Diagnostic categories:
 | --- | --- |
 | `GOLDR001` | App root, Go module, or `app/routes` resolution failed. |
 | `GOLDR002` | Route tree, route naming, fragment naming, action convention, or route scan failed. |
-| `GOLDR003` | A page, layout, or fragment is missing its matching `.templ` file. |
+| `GOLDR003` | A page handler signature is invalid, or a layout or fragment is missing its matching `.templ` file. |
 | `GOLDR004` | Generated route dispatch is not ready. |
 | `GOLDR005` | Generated URL helpers are not ready. |
 | `GOLDR006` | A goldr-owned generated file is missing or stale. |
@@ -170,15 +173,15 @@ Examples:
 
 ```text
 app/routes/Users: GOLDR002 static route directories must use lowercase Go-safe names
-app/routes/page.go: GOLDR003 page /: missing matching .templ file
+app/routes/page.go: GOLDR003 page /: page handlers must use func Page(*http.Request) goldr.RouteResponse
 GOLDR006 app/routes/goldr_gen.go is stale
 GOLDR007 templ generated files are not up to date; run go tool goldr generate
 GOLDR008 Goldr-managed assets are not current; run go tool goldr generate
 ```
 
-`goldr check` runs templ check mode and asset check mode when asset output is
-present. It does not write templ output, write asset output, run tests, or
-start the application server.
+`goldr check` runs templ check mode when `.templ` files exist and asset check
+mode when asset output is present. It does not write templ output, write asset
+output, run tests, or start the application server.
 
 ## Assets
 

@@ -56,11 +56,11 @@ func checkCommand() *cli.Command {
 	}
 }
 
-const checkDescription = `Read-only validation for app/routes, templ output, generated files, and Goldr-managed assets.
+const checkDescription = `Read-only validation for app/routes, templ output when present, generated files, and Goldr-managed assets.
 
-Checks route naming, page/layout/fragment file pairs, action conventions, generated route dispatch readiness, generated URL helper readiness, templ-generated file freshness, goldr-generated file freshness, and Goldr-managed asset freshness when asset outputs exist.
+Checks route naming, page handler signatures, layout/fragment file pairs, action conventions, generated route dispatch readiness, generated URL helper readiness, templ-generated file freshness when .templ files exist, goldr-generated file freshness, and Goldr-managed asset freshness when asset outputs exist.
 
-Run after go tool goldr generate. This command runs templ check mode but does not run tests, start the app, or write files.`
+Run after go tool goldr generate. This command runs templ check mode when .templ files exist but does not run tests, start the app, or write files.`
 
 func runCheck(ctx context.Context, options checkOptions) error {
 	paths, err := appPathsForRoot(ctx, options.root)
@@ -83,8 +83,14 @@ func runCheck(ctx context.Context, options checkOptions) error {
 		return fmt.Errorf("goldr check: %w", err)
 	}
 
-	if err := checkTemplGeneratedFiles(ctx, paths.root); err != nil {
-		return fmt.Errorf("goldr check: %w", err)
+	hasTempl, err := hasTemplFiles(paths.root)
+	if err != nil {
+		return fmt.Errorf("goldr check: %w", checkCodeError(checkCodeTemplGenerated, err))
+	}
+	if hasTempl {
+		if err := checkTemplGeneratedFiles(ctx, paths.root); err != nil {
+			return fmt.Errorf("goldr check: %w", err)
+		}
 	}
 
 	if err := checkGeneratedFiles(generatedFiles); err != nil {

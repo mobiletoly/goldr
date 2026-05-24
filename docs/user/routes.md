@@ -25,11 +25,15 @@ app/routes/settings/build_info/page.go -> /settings/build-info
 app/routes/users/by_id/page.go         -> /users/{id}
 ```
 
-Each page must have a matching `.templ` file and must provide:
+Each page must provide:
 
 ```go
 func Page(r *http.Request) goldr.RouteResponse
 ```
+
+`page.templ` is optional. Use it for page-owned HTML written in templ. A page
+that always redirects, returns text, or delegates to `goldr.ServerError` does
+not need a marker-only template file.
 
 Use `goldr.NewPage` for a normal rendered page:
 

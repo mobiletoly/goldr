@@ -100,7 +100,7 @@ func TestRunGenerateHelpExplainsGeneratedFilesAndTemplBoundary(t *testing.T) {
 		"assets/goldr_assets_gen.go when assets/build exists",
 		"go tool templ generate -path .",
 		"fingerprints assets/build into assets/dist",
-		"verify templ and goldr-generated files",
+		"verify templ files when present and goldr-generated files",
 	)
 }
 
@@ -610,6 +610,26 @@ func TestRunCheckCleanApp(t *testing.T) {
 	requireRunSuccess(t, "check", "--root", root)
 }
 
+func TestRunGenerateAndCheckAcceptPageWithoutTempl(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "go.mod", "module example.com/pageonly\n\ngo 1.26.3\n")
+	writeFile(t, root, "app/routes/page.go", `package routes
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(_ *http.Request) goldr.RouteResponse {
+	return goldr.Redirect{Location: "/sign-in", Status: http.StatusSeeOther}
+}
+`)
+
+	requireRunSuccess(t, "generate", "--root", root)
+	requireRunSuccess(t, "check", "--root", root)
+}
+
 func TestRunCheckSkipsAssetsWhenOnlyBuildExists(t *testing.T) {
 	root := tempGenerateApp(t)
 	requireRunSuccess(t, "generate", "--root", root)
@@ -723,11 +743,56 @@ func TestRunCheckReportsInvalidRouteNames(t *testing.T) {
 func TestRunCheckReportsMissingRenderUnitPairs(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "go.mod", "module example.com/missingpairs\n\ngo 1.26.3\n")
-	writeFile(t, root, "app/routes/page.go", "package routes\n")
+	writeFile(t, root, "app/routes/page.go", `package routes
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(_ *http.Request) goldr.RouteResponse {
+	return goldr.Redirect{Location: "/sign-in", Status: http.StatusSeeOther}
+}
+`)
 	writeFile(t, root, "app/routes/layout.go", "package routes\n")
 	writeFile(t, root, "app/routes/frag_row.go", "package routes\n")
 
-	requireCheckFailureContains(t, root, checkCodeRenderUnit, "app/routes/page.go", "page /", "app/routes/layout.go", "layout /", "app/routes/frag_row.go", "fragment /:row", "missing matching .templ file")
+	requireCheckFailureContains(t, root, checkCodeRenderUnit, "app/routes/layout.go", "layout /", "app/routes/frag_row.go", "fragment /:row", "missing matching .templ file")
+}
+
+func TestRunCheckReportsInvalidPageWithoutTempl(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{
+			name: "invalid signature",
+			source: `package routes
+
+import "net/http"
+
+func Page(_ *http.Request) string { return "" }
+`,
+		},
+		{
+			name: "missing page function",
+			source: `package routes
+
+func Helper() {}
+`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeFile(t, root, "go.mod", "module example.com/badpage\n\ngo 1.26.3\n")
+			writeFile(t, root, "app/routes/page.go", test.source)
+
+			requireCheckFailureContains(t, root, checkCodeRenderUnit, "app/routes/page.go", "page /", "page handlers must use func Page(*http.Request) goldr.RouteResponse")
+		})
+	}
 }
 
 func TestRunCheckReportsActionProblems(t *testing.T) {

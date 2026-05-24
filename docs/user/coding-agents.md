@@ -53,10 +53,10 @@ go tool goldr check
 go test ./...
 ```
 
-`goldr generate` runs templ generation before writing goldr-owned generated
-files. When `assets/build` exists, it also refreshes Goldr-managed asset
-outputs. `goldr check` runs templ check mode and validates generated output
-without rewriting files.
+`goldr generate` runs templ generation when `.templ` files exist before
+writing goldr-owned generated files. When `assets/build` exists, it also
+refreshes Goldr-managed asset outputs. `goldr check` runs templ check mode when
+`.templ` files exist and validates generated output without rewriting files.
 
 If this app has project-specific scripts, use those scripts instead of the raw
 commands above.

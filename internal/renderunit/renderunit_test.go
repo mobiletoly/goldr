@@ -73,12 +73,98 @@ func TestValidateManifestCollectsMissingTemplPairs(t *testing.T) {
 	}
 
 	want := []Problem{
-		{Kind: KindPage, Identifier: "/", GoFile: "page.go", Message: "missing matching .templ file"},
 		{Kind: KindLayout, Identifier: "/users", GoFile: "users/layout.go", Message: "missing matching .templ file"},
 		{Kind: KindFragment, Identifier: "/users:row", GoFile: "users/frag_row.go", Message: "missing matching .templ file"},
 	}
 	if !reflect.DeepEqual(validationErr.Problems, want) {
 		t.Fatalf("problems = %#v, want %#v", validationErr.Problems, want)
+	}
+}
+
+func TestValidateManifestAcceptsPageWithoutTempl(t *testing.T) {
+	root := t.TempDir()
+	writeRenderUnitFile(t, root, "page.go", `package routes
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(_ *http.Request) goldr.RouteResponse {
+	return goldr.Redirect{Location: "/sign-in", Status: http.StatusSeeOther}
+}
+`)
+
+	manifest := routing.Manifest{
+		Root: root,
+		Pages: []routing.ManifestPage{
+			{
+				Route: "/",
+				Unit:  routing.RenderUnit{GoFile: "page.go"},
+			},
+		},
+	}
+
+	if err := ValidateManifest(manifest); err != nil {
+		t.Fatalf("ValidateManifest() error = %v, want nil", err)
+	}
+}
+
+func TestValidateManifestChecksPageSignatureWithoutTempl(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{
+			name: "invalid signature",
+			source: `package routes
+
+import "net/http"
+
+func Page(r *http.Request) string { return "" }
+`,
+		},
+		{
+			name: "missing page function",
+			source: `package routes
+
+func Helper() {}
+`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeRenderUnitFile(t, root, "page.go", test.source)
+
+			manifest := routing.Manifest{
+				Root: root,
+				Pages: []routing.ManifestPage{
+					{
+						Route: "/",
+						Unit:  routing.RenderUnit{GoFile: "page.go"},
+					},
+				},
+			}
+
+			err := ValidateManifest(manifest)
+			var validationErr *ValidationError
+			if !errors.As(err, &validationErr) {
+				t.Fatalf("ValidateManifest() error = %T, want *ValidationError", err)
+			}
+
+			want := Problem{
+				Kind:       KindPage,
+				Identifier: "/",
+				GoFile:     "page.go",
+				Message:    "page handlers must use func Page(*http.Request) goldr.RouteResponse",
+			}
+			if len(validationErr.Problems) != 1 || validationErr.Problems[0] != want {
+				t.Fatalf("problems = %#v, want %#v", validationErr.Problems, []Problem{want})
+			}
+		})
 	}
 }
 

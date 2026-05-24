@@ -70,7 +70,7 @@ Static source identifiers map to browser path segments by replacing `_` with
 The scanner validates the forms goldr supports:
 - lowercase static route directories
 - `by_<param>/` dynamic route directories
-- `page.go` and `page.templ`
+- `page.go`, with optional `page.templ`
 - `layout.go` and `layout.templ`
 - `frag_*.go` and `frag_*.templ`
 - `actions.go`
@@ -125,15 +125,16 @@ Parameter names are preserved in route traversal order.
 The scanner records templ-pair presence:
 
 ```text
-page.go       page.templ
-layout.go     layout.templ
-frag_row.go   frag_row.templ
+page.go       page.templ optional
+layout.go     layout.templ required
+frag_row.go   frag_row.templ required
 ```
 
 Missing templ pairs do not fail the scanner.
 
-Strict render-unit pairing is enforced after manifest assembly by
-`internal/renderunit`.
+Layout and fragment render-unit pairing is enforced after manifest assembly by
+`internal/renderunit`. Page signature validation is enforced from `page.go`
+even when `page.templ` is absent.
 
 ## Determinism
 
@@ -231,7 +232,8 @@ HasTempl
 The manifest records whether a matching `.templ` file exists. It does not make
 missing `.templ` files an error.
 
-Strict render-unit pairing is outside routing.
+Page signature validation and layout/fragment render-unit pairing are outside
+routing.
 
 ## Manifest Determinism
 
@@ -262,19 +264,29 @@ The manifest does not:
 
 ## Render-Unit Validation
 
-`internal/renderunit` owns strict render-unit validation.
+`internal/renderunit` owns render-unit validation.
 
 It consumes a `Manifest` and validates that every page, layout, and fragment
-render unit has:
+render unit has the expected Go function signature:
+
+```go
+func Page(*http.Request) goldr.RouteResponse
+func Layout(*http.Request, goldr.LayoutContext) templ.Component
+func FragName(*http.Request) goldr.RouteResponse
+```
+
+For layouts and fragments, it also validates that the render unit has:
 - `HasTempl` set
 - a non-empty templ file path
 
-Validation is file-pair based only. It does not parse `.templ` files, inspect
-generated templ Go files, require component names, register HTTP handlers,
-resolve layouts, or assign fragment URLs.
+Page render units may omit `page.templ`.
 
-Missing render-unit pairs are collected into one validation error so callers
-can report all missing `.templ` files together.
+Validation does not parse `.templ` files, inspect generated templ Go files,
+require component names, register HTTP handlers, resolve layouts, or assign
+fragment URLs.
+
+Missing layout and fragment render-unit pairs are collected into one validation
+error so callers can report all missing `.templ` files together.
 
 ## templ Rendering
 
@@ -458,9 +470,9 @@ the layout-map model. The layout map is an inspection view; it must not
 introduce a second router, route registry, matcher, generated runtime contract,
 or JSON schema.
 
-The route surface does not validate strict `.go` / `.templ` pairing. Missing
-render-unit pairs remain visible in `goldr routes`; `internal/renderunit` and
-`goldr check` own strict health validation.
+The route surface does not validate render-unit health. Missing layout or
+fragment template pairs remain visible in `goldr routes`; `internal/renderunit`
+and `goldr check` own health validation.
 
 Rows sort root first, then by generated runtime path priority, kind order,
 method order, and source path.

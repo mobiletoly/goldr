@@ -80,12 +80,12 @@ const generateDescription = `Scans app/routes and writes goldr-owned generated f
   app/urls/goldr_gen.go
   assets/goldr_assets_gen.go when assets/build exists
 
-Before scanning routes, this command runs:
+When .templ files exist, this command runs:
   go tool templ generate -path .
 
 When assets/build exists, this command also fingerprints assets/build into assets/dist.
 
-Use --check in CI to verify templ and goldr-generated files without writing.`
+Use --check in CI to verify templ files when present and goldr-generated files without writing.`
 
 func runGenerate(ctx context.Context, options generateOptions) error {
 	paths, err := appPathsForRoot(ctx, options.root)
@@ -93,13 +93,19 @@ func runGenerate(ctx context.Context, options generateOptions) error {
 		return fmt.Errorf("goldr generate: %w", err)
 	}
 
-	if options.check {
-		if err := runTemplGenerateCheck(ctx, paths.root); err != nil {
-			return fmt.Errorf("goldr generate: %w", err)
-		}
-	} else {
-		if err := runTemplGenerateFiles(ctx, paths.root); err != nil {
-			return fmt.Errorf("goldr generate: %w", err)
+	hasTempl, err := hasTemplFiles(paths.root)
+	if err != nil {
+		return fmt.Errorf("goldr generate: %w", err)
+	}
+	if hasTempl {
+		if options.check {
+			if err := runTemplGenerateCheck(ctx, paths.root); err != nil {
+				return fmt.Errorf("goldr generate: %w", err)
+			}
+		} else {
+			if err := runTemplGenerateFiles(ctx, paths.root); err != nil {
+				return fmt.Errorf("goldr generate: %w", err)
+			}
 		}
 	}
 
@@ -192,6 +198,30 @@ func runTemplGenerateCheck(ctx context.Context, root string) error {
 		message.WriteString(trimmed)
 	}
 	return errors.New(message.String())
+}
+
+func hasTemplFiles(root string) (bool, error) {
+	hasTempl := false
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) == ".templ" {
+			hasTempl = true
+			return fs.SkipAll
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return hasTempl, nil
 }
 
 func generateFiles(ctx context.Context, root string) ([]generatedFile, error) {

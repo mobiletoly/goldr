@@ -44,13 +44,14 @@ for `{id}`.
 Pages, layouts, and fragments are render units:
 
 ```text
-page.go       page.templ
-layout.go     layout.templ
-frag_table.go frag_table.templ
+page.go       page.templ optional
+layout.go     layout.templ required
+frag_table.go frag_table.templ required
 ```
 
 The `.go` file owns request handling, data loading, and render state. The
-`.templ` file owns HTML.
+`.templ` file owns HTML. Pages that only redirect, return text, or return
+server errors can omit `page.templ`.
 
 ## Pages
 
