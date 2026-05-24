@@ -666,6 +666,44 @@ func TestHandlerPostSavePreviewAction(t *testing.T) {
 	}
 }
 
+func TestHandlerRouteMiddlewareUsesInjectedCSRFGuard(t *testing.T) {
+	guard, err := csrf.New(csrf.Config{Secret: []byte("full-feature-route-test-csrf-secret")})
+	if err != nil {
+		t.Fatalf("csrf.New() error = %v", err)
+	}
+	handler := deps.Middleware(&deps.Dependencies{CSRF: guard}, Handler())
+
+	cookie := routeCSRFCookie(t, handler, "/users")
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/save-preview", nil)
+	request.AddCookie(cookie)
+	request.Header.Set(csrf.HeaderName, cookie.Value)
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+}
+
+func routeCSRFCookie(t *testing.T, handler http.Handler, path string) *http.Cookie {
+	t.Helper()
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET %s status = %d, want %d; body = %q", path, recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	for _, cookie := range recorder.Result().Cookies() {
+		if cookie.Name == csrf.DefaultCookieName {
+			return cookie
+		}
+	}
+	t.Fatalf("GET %s Set-Cookie = %v, want %s", path, recorder.Result().Cookies(), csrf.DefaultCookieName)
+	return nil
+}
+
 func TestHandlerRejectsMethods(t *testing.T) {
 	tests := []struct {
 		name   string

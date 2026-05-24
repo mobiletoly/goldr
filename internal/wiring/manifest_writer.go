@@ -98,10 +98,11 @@ func writeImports(buffer *bytes.Buffer, imports []routeImport, inspectorImportPa
 
 func writeTypes(buffer *bytes.Buffer, needsRuntime bool) {
 	buffer.WriteString(`type goldrManifest struct {
-	Pages     []goldrPage
-	Layouts   []goldrLayout
-	Fragments []goldrFragment
-	Actions   []goldrAction
+	Pages       []goldrPage
+	Layouts     []goldrLayout
+	Fragments   []goldrFragment
+	Actions     []goldrAction
+	Middlewares []goldrMiddleware
 }
 
 type goldrPage struct {
@@ -131,6 +132,12 @@ type goldrAction struct {
 	Function string
 	Suffix   string
 	Segment  string
+}
+
+type goldrMiddleware struct {
+	RoutePrefix string
+	Params      []string
+	GoFile      string
 }
 
 type goldrRenderUnit struct {
@@ -198,6 +205,15 @@ func writeManifestValue(buffer *bytes.Buffer, manifest routing.Manifest) {
 		fmt.Fprintf(buffer, "\t\t\tFunction: %s,\n", strconv.Quote(action.Function))
 		fmt.Fprintf(buffer, "\t\t\tSuffix: %s,\n", strconv.Quote(action.Suffix))
 		fmt.Fprintf(buffer, "\t\t\tSegment: %s,\n", strconv.Quote(action.Segment))
+		buffer.WriteString("\t\t},\n")
+	}
+	buffer.WriteString("\t},\n")
+	buffer.WriteString("\tMiddlewares: []goldrMiddleware{\n")
+	for _, middleware := range manifest.Middlewares {
+		buffer.WriteString("\t\t{\n")
+		fmt.Fprintf(buffer, "\t\t\tRoutePrefix: %s,\n", strconv.Quote(middleware.RoutePrefix))
+		writeParams(buffer, middleware.Params)
+		fmt.Fprintf(buffer, "\t\t\tGoFile: %s,\n", strconv.Quote(middleware.GoFile))
 		buffer.WriteString("\t\t},\n")
 	}
 	buffer.WriteString("\t},\n")

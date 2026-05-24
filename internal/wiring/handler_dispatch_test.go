@@ -388,6 +388,331 @@ func TestActionOnlyHandler(t *testing.T) {
 	runGoTest(t, tempDir)
 }
 
+func TestGenerateManifestRouteTreeMiddleware(t *testing.T) {
+	manifest := routing.Manifest{
+		Pages: []routing.ManifestPage{
+			{Route: "/", Unit: completeUnit("page.go")},
+			{Route: "/users", Unit: completeUnit("users/page.go")},
+			{Route: "/users/admin", Unit: completeUnit("users/admin/page.go")},
+			{Route: "/users/sibling", Unit: completeUnit("users/sibling/page.go")},
+		},
+		Layouts: []routing.ManifestLayout{
+			{RoutePrefix: "/", Unit: completeUnit("layout.go")},
+		},
+		Fragments: []routing.ManifestFragment{
+			{Name: "table", RoutePrefix: "/users", Unit: completeUnit("users/frag_table.go")},
+		},
+		Actions: []routing.ManifestAction{
+			{Method: "POST", Route: "/users/create", GoFile: "users/actions.go", Function: "PostCreate", Suffix: "Create", Segment: "create"},
+		},
+		Middlewares: []routing.ManifestMiddleware{
+			{RoutePrefix: "/", GoFile: "middleware.go"},
+			{RoutePrefix: "/users", GoFile: "users/middleware.go"},
+			{RoutePrefix: "/users/admin", GoFile: "users/admin/middleware.go"},
+			{RoutePrefix: "/users/sibling", GoFile: "users/sibling/middleware.go"},
+			{RoutePrefix: "/users/create", GoFile: "users/create/middleware.go"},
+		},
+	}
+
+	tempDir := tempGoldrModule(t)
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
+	writeTempFile(t, tempDir, "routectx/routectx.go", `package routectx
+
+import (
+	"context"
+	"net/http"
+	"strings"
+)
+
+type key struct{}
+
+func Append(r *http.Request, value string) *http.Request {
+	values := append(OrderValues(r), value)
+	return r.WithContext(context.WithValue(r.Context(), key{}, values))
+}
+
+func Order(r *http.Request) string {
+	return strings.Join(OrderValues(r), ">")
+}
+
+func OrderValues(r *http.Request) []string {
+	values, _ := r.Context().Value(key{}).([]string)
+	return append([]string(nil), values...)
+}
+`)
+	writeTempFile(t, tempDir, "routes/middleware.go", `package routes
+
+import (
+	"net/http"
+
+	"example.com/app/routectx"
+)
+
+func Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("X-Middleware", "root")
+		next.ServeHTTP(w, routectx.Append(r, "root"))
+	})
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/middleware.go", `package users
+
+import (
+	"net/http"
+
+	"example.com/app/routectx"
+)
+
+func Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("X-Middleware", "users")
+		next.ServeHTTP(w, routectx.Append(r, "users"))
+	})
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/admin/middleware.go", `package admin
+
+import (
+	"net/http"
+
+	"example.com/app/routectx"
+)
+
+func Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("X-Middleware", "admin")
+		r = routectx.Append(r, "admin")
+		if r.URL.Query().Get("stop") == "1" {
+			w.WriteHeader(http.StatusTeapot)
+			_, _ = w.Write([]byte("stopped " + routectx.Order(r)))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/sibling/middleware.go", `package sibling
+
+import (
+	"net/http"
+
+	"example.com/app/routectx"
+)
+
+func Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("X-Middleware", "sibling")
+		next.ServeHTTP(w, routectx.Append(r, "sibling"))
+	})
+}
+`)
+	writeTempFile(t, tempDir, "routes/page.go", `package routes
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"example.com/app/routectx"
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(r *http.Request) goldr.RouteResponse {
+	order := routectx.Order(r)
+	return goldr.NewPage(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		_, err := io.WriteString(writer, "page:"+order)
+		return err
+	}), goldr.PageMetadata{})
+}
+`)
+	writeTempFile(t, tempDir, "routes/layout.go", `package routes
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"example.com/app/routectx"
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func Layout(r *http.Request, layout goldr.LayoutContext) templ.Component {
+	order := routectx.Order(r)
+	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		if _, err := io.WriteString(writer, "layout:"+order+"|"); err != nil {
+			return err
+		}
+		return layout.Child.Render(ctx, writer)
+	})
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/page.go", `package users
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"example.com/app/routectx"
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(r *http.Request) goldr.RouteResponse {
+	order := routectx.Order(r)
+	return goldr.NewPage(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		_, err := io.WriteString(writer, "page:"+order)
+		return err
+	}), goldr.PageMetadata{})
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/admin/page.go", `package admin
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"example.com/app/routectx"
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(r *http.Request) goldr.RouteResponse {
+	order := routectx.Order(r)
+	return goldr.NewPage(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		_, err := io.WriteString(writer, "page:"+order)
+		return err
+	}), goldr.PageMetadata{})
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/sibling/page.go", `package sibling
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"example.com/app/routectx"
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(r *http.Request) goldr.RouteResponse {
+	order := routectx.Order(r)
+	return goldr.NewPage(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		_, err := io.WriteString(writer, "page:"+order)
+		return err
+	}), goldr.PageMetadata{})
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/frag_table.go", `package users
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	"example.com/app/routectx"
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func FragTable(r *http.Request) goldr.RouteResponse {
+	order := routectx.Order(r)
+	return goldr.NewFragment(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		_, err := io.WriteString(writer, "fragment:"+order)
+		return err
+	}))
+}
+`)
+	writeTempFile(t, tempDir, "routes/users/actions.go", `package users
+
+import (
+	"net/http"
+
+	"example.com/app/routectx"
+)
+
+func PostCreate(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write([]byte("action:" + routectx.Order(r)))
+}
+`)
+	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+	"testing"
+)
+
+func TestMiddlewareRoutes(t *testing.T) {
+	tests := []struct {
+		method string
+		path string
+		body string
+		middleware []string
+	}{
+		{http.MethodGet, "/", "layout:root|page:root", []string{"root"}},
+		{http.MethodGet, "/users", "layout:root>users|page:root>users", []string{"root", "users"}},
+		{http.MethodGet, "/users/admin", "layout:root>users>admin|page:root>users>admin", []string{"root", "users", "admin"}},
+		{http.MethodGet, "/users/sibling", "layout:root>users>sibling|page:root>users>sibling", []string{"root", "users", "sibling"}},
+		{http.MethodGet, "/users/frag-table", "fragment:root>users", []string{"root", "users"}},
+		{http.MethodPost, "/users/create", "action:root>users", []string{"root", "users"}},
+	}
+	for _, test := range tests {
+		recorder := httptest.NewRecorder()
+		Handler().ServeHTTP(recorder, httptest.NewRequest(test.method, test.path, nil))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("%s %s status = %d, want 200; body = %q", test.method, test.path, recorder.Code, recorder.Body.String())
+		}
+		if recorder.Body.String() != test.body {
+			t.Fatalf("%s %s body = %q, want %q", test.method, test.path, recorder.Body.String(), test.body)
+		}
+		if got := recorder.Header().Values("X-Middleware"); !reflect.DeepEqual(got, test.middleware) {
+			t.Fatalf("%s %s middleware = %#v, want %#v", test.method, test.path, got, test.middleware)
+		}
+	}
+}
+
+func TestMiddlewareCanShortCircuit(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/users/admin?stop=1", nil))
+	if recorder.Code != http.StatusTeapot {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusTeapot)
+	}
+	if recorder.Body.String() != "stopped root>users>admin" {
+		t.Fatalf("body = %q", recorder.Body.String())
+	}
+}
+
+func TestMiddlewareDoesNotWrapGeneratedErrors(t *testing.T) {
+	missing := httptest.NewRecorder()
+	Handler().ServeHTTP(missing, httptest.NewRequest(http.MethodGet, "/missing", nil))
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("missing status = %d, want %d", missing.Code, http.StatusNotFound)
+	}
+	if got := missing.Header().Values("X-Middleware"); len(got) != 0 {
+		t.Fatalf("missing middleware = %#v, want none", got)
+	}
+
+	method := httptest.NewRecorder()
+	Handler().ServeHTTP(method, httptest.NewRequest(http.MethodPost, "/", nil))
+	if method.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("method status = %d, want %d", method.Code, http.StatusMethodNotAllowed)
+	}
+	if got := method.Header().Values("X-Middleware"); len(got) != 0 {
+		t.Fatalf("method middleware = %#v, want none", got)
+	}
+}
+`)
+
+	runGoTest(t, tempDir)
+}
+
 func TestGenerateManifestStaticRouteWinsOverDynamic(t *testing.T) {
 	tempDir := tempGoldrModule(t)
 	writeGeneratedRoutes(t, tempDir, generateOK(t, staticPriorityManifest()))

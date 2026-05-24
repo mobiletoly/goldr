@@ -22,10 +22,11 @@ import (
 )
 
 type goldrManifest struct {
-	Pages     []goldrPage
-	Layouts   []goldrLayout
-	Fragments []goldrFragment
-	Actions   []goldrAction
+	Pages       []goldrPage
+	Layouts     []goldrLayout
+	Fragments   []goldrFragment
+	Actions     []goldrAction
+	Middlewares []goldrMiddleware
 }
 
 type goldrPage struct {
@@ -55,6 +56,12 @@ type goldrAction struct {
 	Function string
 	Suffix   string
 	Segment  string
+}
+
+type goldrMiddleware struct {
+	RoutePrefix string
+	Params      []string
+	GoFile      string
 }
 
 type goldrRenderUnit struct {
@@ -132,6 +139,7 @@ var goldrGeneratedManifest = goldrManifest{
 			Segment:  "join",
 		},
 	},
+	Middlewares: []goldrMiddleware{},
 }
 
 func Handler() http.Handler {

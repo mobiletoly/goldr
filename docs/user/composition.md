@@ -47,7 +47,7 @@ Then load the helper from the layout that uses it:
 The helper URL is stable and served with `Cache-Control: no-cache` plus ETag
 revalidation. Do not apply immutable asset cache headers to this stable path.
 
-## Middleware
+## Mux-Level Middleware
 
 Wrap generated routes like any other `http.Handler`:
 
@@ -64,8 +64,8 @@ mux.Handle("/", handler)
 Middleware can handle authentication, sessions, CSRF, logging, recovery,
 security headers, request IDs, or other application concerns.
 
-goldr does not provide a framework middleware stack. Keeping middleware as
-plain `net/http` keeps behavior explicit and lets applications use ordinary Go
+Application policy stays application-owned. Keeping middleware as plain
+`net/http` keeps behavior explicit and lets applications use ordinary Go
 libraries.
 
 Goldr's `csrf` package provides a small signed-cookie token guard. Applications
@@ -83,6 +83,33 @@ mux.Handle("/", guard.TokenMiddleware(routes.Handler()))
 ```
 
 Read [CSRF](csrf.md) for form and HTMX validation patterns.
+
+## Route-Tree Middleware
+
+When middleware belongs to a route subtree, colocate it in `app/routes`:
+
+```go
+package routes
+
+import "net/http"
+
+func Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Frame-Options", "DENY")
+		next.ServeHTTP(w, r)
+	})
+}
+```
+
+Goldr discovers `middleware.go` by route directory and wraps matched pages,
+actions, and fragments in generated dispatch. Inherited middleware runs
+root-to-leaf. Layouts are rendered inside the already wrapped request and do
+not receive separate middleware execution.
+
+Use route-tree middleware for route-owned concerns such as root CSRF token
+issuance or admin-subtree principal context. Goldr still does not provide
+CSRF validation policy, auth, roles, rate limits, or session policy through
+this convention.
 
 ## Application Dependencies
 

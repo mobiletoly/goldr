@@ -8,11 +8,12 @@ import (
 )
 
 type Manifest struct {
-	Root      string
-	Pages     []ManifestPage
-	Layouts   []ManifestLayout
-	Fragments []ManifestFragment
-	Actions   []ManifestAction
+	Root        string
+	Pages       []ManifestPage
+	Layouts     []ManifestLayout
+	Fragments   []ManifestFragment
+	Actions     []ManifestAction
+	Middlewares []ManifestMiddleware
 }
 
 type RenderUnit struct {
@@ -50,13 +51,20 @@ type ManifestAction struct {
 	Segment  string
 }
 
+type ManifestMiddleware struct {
+	RoutePrefix string
+	Params      []string
+	GoFile      string
+}
+
 func BuildManifest(tree Tree) Manifest {
 	manifest := Manifest{
-		Root:      tree.Root,
-		Pages:     make([]ManifestPage, 0, len(tree.Pages)),
-		Layouts:   make([]ManifestLayout, 0, len(tree.Layouts)),
-		Fragments: make([]ManifestFragment, 0, len(tree.Fragments)),
-		Actions:   make([]ManifestAction, 0, len(tree.Actions)),
+		Root:        tree.Root,
+		Pages:       make([]ManifestPage, 0, len(tree.Pages)),
+		Layouts:     make([]ManifestLayout, 0, len(tree.Layouts)),
+		Fragments:   make([]ManifestFragment, 0, len(tree.Fragments)),
+		Actions:     make([]ManifestAction, 0, len(tree.Actions)),
+		Middlewares: make([]ManifestMiddleware, 0, len(tree.Middlewares)),
 	}
 
 	for _, page := range tree.Pages {
@@ -108,6 +116,14 @@ func BuildManifest(tree Tree) Manifest {
 		})
 	}
 
+	for _, middleware := range tree.Middlewares {
+		manifest.Middlewares = append(manifest.Middlewares, ManifestMiddleware{
+			RoutePrefix: middleware.RoutePrefix,
+			Params:      slices.Clone(middleware.Params),
+			GoFile:      middleware.GoFile,
+		})
+	}
+
 	sortManifest(&manifest)
 
 	return manifest
@@ -125,5 +141,8 @@ func sortManifest(manifest *Manifest) {
 	})
 	slices.SortFunc(manifest.Actions, func(a, b ManifestAction) int {
 		return compareActionOrder(a.Route, a.Method, a.Function, b.Route, b.Method, b.Function)
+	})
+	slices.SortFunc(manifest.Middlewares, func(a, b ManifestMiddleware) int {
+		return compareRouteOrder(a.RoutePrefix, a.GoFile, b.RoutePrefix, b.GoFile)
 	})
 }

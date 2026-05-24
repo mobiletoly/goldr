@@ -206,6 +206,9 @@ func fullFeatureManifest() routing.Manifest {
 			{Method: "POST", Route: "/users/create", GoFile: "users/actions.go", Function: "PostCreate", Suffix: "Create", Segment: "create"},
 			{Method: "POST", Route: "/users/save-preview", GoFile: "users/actions.go", Function: "PostSavePreview", Suffix: "SavePreview", Segment: "save-preview"},
 		},
+		Middlewares: []routing.ManifestMiddleware{
+			{RoutePrefix: "/", GoFile: "middleware.go"},
+		},
 	}
 }
 

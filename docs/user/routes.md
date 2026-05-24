@@ -391,6 +391,58 @@ POST /users -> PostIndex
 For matched paths with unsupported methods, generated dispatch returns `405`
 and sets `Allow` to the supported methods for that path.
 
+## Route-Tree Middleware
+
+`middleware.go` defines ordinary `net/http` middleware for its route directory
+and child route directories.
+
+```text
+app/routes/middleware.go                  -> / and below
+app/routes/main/admin/middleware.go       -> /main/admin and below
+app/routes/main/admin/tenants/middleware.go -> /main/admin/tenants and below
+```
+
+Each middleware file must provide:
+
+```go
+func Middleware(next http.Handler) http.Handler
+```
+
+Goldr discovers middleware by route directory and composes it into generated
+dispatch. Runtime execution is root-to-leaf:
+
+```text
+app/routes/Middleware
+app/routes/main/Middleware
+app/routes/main/admin/Middleware
+endpoint
+```
+
+Middleware wraps matched route endpoints:
+
+- pages
+- actions
+- fragments
+
+Layouts are not standalone middleware targets. Page layout rendering happens
+inside the already wrapped endpoint request. Actions can still render a full
+page through `goldr.WriteRouteResponse`; that rendering also happens inside the
+action middleware request.
+
+Middleware inheritance follows the route package tree, not runtime URL prefix
+matching. A middleware in `app/routes/users/create/middleware.go` does not wrap
+`PostCreate` from `app/routes/users/actions.go` just because that action maps
+to `/users/create`.
+
+Goldr does not own CSRF, auth, roles, rate limits, sessions, or adapter policy.
+Middleware remains application code. Common patterns are:
+
+- `app/routes/middleware.go` issuing CSRF tokens for a cookie/session HTML app
+- `app/routes/main/admin/middleware.go` authenticating, checking an admin role,
+  and attaching a principal to request context for `/main/admin/**`
+
+Generated 404 and 405 responses do not run route-tree middleware.
+
 ## Custom Error Responses
 
 Use `HandlerWithOptions` when generated route dispatch should render custom

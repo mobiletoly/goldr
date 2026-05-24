@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/mobiletoly/goldr/internal/actionscan"
+	"github.com/mobiletoly/goldr/internal/middlewarescan"
 )
 
 const (
@@ -41,11 +42,12 @@ var routeIdentPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 // Tree is the scanner output for one route root.
 type Tree struct {
-	Root      string
-	Pages     []Page
-	Layouts   []Layout
-	Fragments []Fragment
-	Actions   []Action
+	Root        string
+	Pages       []Page
+	Layouts     []Layout
+	Fragments   []Fragment
+	Actions     []Action
+	Middlewares []Middleware
 }
 
 type Page struct {
@@ -81,6 +83,12 @@ type Action struct {
 	Function string
 	Suffix   string
 	Segment  string
+}
+
+type Middleware struct {
+	RoutePrefix string
+	Params      []string
+	GoFile      string
 }
 
 type Problem struct {
@@ -252,6 +260,16 @@ func (scanner *scanner) scanFile(relDir, name, route string, params []string, fi
 				Segment:  action.Segment,
 			})
 		}
+	case name == middlewarescan.FileName:
+		if err := middlewarescan.Scan(filepath.Join(scanner.root, filepath.FromSlash(relPath))); err != nil {
+			scanner.addMiddlewareProblems(relPath, err)
+			return
+		}
+		scanner.tree.Middlewares = append(scanner.tree.Middlewares, Middleware{
+			RoutePrefix: route,
+			Params:      slices.Clone(params),
+			GoFile:      relPath,
+		})
 	}
 }
 
@@ -300,6 +318,9 @@ func (scanner *scanner) sort() {
 	slices.SortFunc(scanner.tree.Actions, func(a, b Action) int {
 		return compareActionOrder(a.Route, a.Method, a.Function, b.Route, b.Method, b.Function)
 	})
+	slices.SortFunc(scanner.tree.Middlewares, func(a, b Middleware) int {
+		return compareRouteOrder(a.RoutePrefix, a.GoFile, b.RoutePrefix, b.GoFile)
+	})
 }
 
 func (scanner *scanner) addProblem(relPath, message string) {
@@ -314,6 +335,17 @@ func (scanner *scanner) addProblem(relPath, message string) {
 
 func (scanner *scanner) addActionProblems(relPath string, err error) {
 	var scanErr *actionscan.ScanError
+	if !errors.As(err, &scanErr) {
+		scanner.addProblem(relPath, err.Error())
+		return
+	}
+	for _, problem := range scanErr.Problems {
+		scanner.addProblem(relPath, problem.Function+": "+problem.Message)
+	}
+}
+
+func (scanner *scanner) addMiddlewareProblems(relPath string, err error) {
+	var scanErr *middlewarescan.ScanError
 	if !errors.As(err, &scanErr) {
 		scanner.addProblem(relPath, err.Error())
 		return

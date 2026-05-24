@@ -216,25 +216,49 @@ func writePathDispatch(buffer *bytes.Buffer, routePath runtimePath, indent strin
 func writeMethodDispatch(buffer *bytes.Buffer, route runtimeRoute, indent string) {
 	if route.page != nil {
 		fmt.Fprintf(buffer, "%sif r.Method == http.MethodGet || r.Method == http.MethodHead {\n", indent)
-		writeRenderRoute(buffer, route, indent+"\t")
+		writeEndpointDispatch(buffer, route, indent+"\t", writeRenderRoute)
 		fmt.Fprintf(buffer, "%s}\n", indent)
 		return
 	}
 	if route.fragment != nil {
 		fmt.Fprintf(buffer, "%sif r.Method == http.MethodGet || r.Method == http.MethodHead {\n", indent)
-		writeRenderRoute(buffer, route, indent+"\t")
+		writeEndpointDispatch(buffer, route, indent+"\t", writeRenderRoute)
 		fmt.Fprintf(buffer, "%s}\n", indent)
 		return
 	}
 
 	methodConst := httpMethodConst(route.action.action.Method)
 	fmt.Fprintf(buffer, "%sif r.Method == %s {\n", indent, methodConst)
-	actionCall := routeFunc(route.action.action.GoFile, route.action.action.Function)
-	writeActionCallComment(buffer, indent+"\t", route.action.action)
-	writeActionRoutePageRenderer(buffer, route.action.layouts, indent+"\t")
-	fmt.Fprintf(buffer, "%s\t%s(w, r)\n", indent, actionCall)
-	fmt.Fprintf(buffer, "%s\treturn\n", indent)
+	writeEndpointDispatch(buffer, route, indent+"\t", writeActionRoute)
 	fmt.Fprintf(buffer, "%s}\n", indent)
+}
+
+func writeEndpointDispatch(buffer *bytes.Buffer, route runtimeRoute, indent string, writeEndpoint func(*bytes.Buffer, runtimeRoute, string)) {
+	middlewares := routeMiddlewares(route)
+	if len(middlewares) == 0 {
+		writeEndpoint(buffer, route, indent)
+		return
+	}
+
+	fmt.Fprintf(buffer, "%sgoldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n", indent)
+	writeEndpoint(buffer, route, indent+"\t")
+	fmt.Fprintf(buffer, "%s})\n", indent)
+	fmt.Fprintf(buffer, "%sgoldrHandler := http.Handler(goldrEndpoint)\n", indent)
+	for index := len(middlewares) - 1; index >= 0; index-- {
+		middlewareCall := routeFunc(middlewares[index].GoFile, "Middleware")
+		writeMiddlewareCallComment(buffer, indent, middlewares[index])
+		fmt.Fprintf(buffer, "%sgoldrHandler = %s(goldrHandler)\n", indent, middlewareCall)
+	}
+	fmt.Fprintf(buffer, "%sgoldrHandler.ServeHTTP(w, r)\n", indent)
+	fmt.Fprintf(buffer, "%sreturn\n", indent)
+}
+
+func writeActionRoute(buffer *bytes.Buffer, route runtimeRoute, indent string) {
+	actionCall := routeFunc(route.action.action.GoFile, route.action.action.Function)
+	writeActionCallComment(buffer, indent, route.action.action)
+	writeActionRoutePageRenderer(buffer, route.action.layouts, indent)
+	fmt.Fprintf(buffer, "%s%s(w, r)\n", indent, actionCall)
+	fmt.Fprintf(buffer, "%sreturn\n", indent)
 }
 
 func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, indent string) {
@@ -326,6 +350,10 @@ func writeActionCallComment(buffer *bytes.Buffer, indent string, action routing.
 	summary := fmt.Sprintf("action %s %s", action.Method, action.Route)
 	signature := fmt.Sprintf("func %s(http.ResponseWriter, *http.Request) { ... }", action.Function)
 	writeExpectedCallComment(buffer, indent, summary, action.GoFile, signature)
+}
+
+func writeMiddlewareCallComment(buffer *bytes.Buffer, indent string, middleware routing.ManifestMiddleware) {
+	writeExpectedCallComment(buffer, indent, "middleware "+middleware.RoutePrefix, middleware.GoFile, "func Middleware(http.Handler) http.Handler { ... }")
 }
 
 func writeExpectedCallComment(buffer *bytes.Buffer, indent, summary, goFile, signature string) {

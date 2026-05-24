@@ -120,6 +120,30 @@ PostSavePreview -> POST /users/save-preview
 Actions own status codes, headers, redirects, HTMX response headers, and body
 writing.
 
+## Route-Tree Middleware
+
+Use `middleware.go` when ordinary `net/http` middleware belongs to a route
+subtree.
+
+```go
+func Middleware(next http.Handler) http.Handler
+```
+
+Goldr discovers middleware by route directory and wraps matched pages, actions,
+and fragments in generated dispatch. Inherited middleware runs root-to-leaf.
+Layouts are not standalone middleware targets; they render inside the already
+wrapped page or action request.
+
+Examples:
+
+- `app/routes/middleware.go` can issue CSRF tokens for a cookie/session HTML
+  app.
+- `app/routes/main/admin/middleware.go` can authenticate, check an admin role,
+  and attach a principal to request context.
+
+Goldr does not own CSRF validation policy, auth, roles, rate limits, sessions,
+or adapters through this convention. Keep those rules in app-owned middleware.
+
 ## URL Helpers
 
 Goldr generates app-specific URL helpers in `app/urls/goldr_gen.go`.

@@ -20,6 +20,10 @@ func TestBuildManifestMapsScannerTree(t *testing.T) {
 		Actions: []Action{
 			{Method: "POST", Route: "/users/{id}/save", Params: []string{"id"}, GoFile: "users/by_id/actions.go", Function: "PostSave", Suffix: "Save", Segment: "save"},
 		},
+		Middlewares: []Middleware{
+			{RoutePrefix: "/", GoFile: "middleware.go"},
+			{RoutePrefix: "/users/{id}", Params: []string{"id"}, GoFile: "users/by_id/middleware.go"},
+		},
 	}
 
 	got := BuildManifest(tree)
@@ -57,6 +61,17 @@ func TestBuildManifestMapsScannerTree(t *testing.T) {
 				Segment:  "save",
 			},
 		},
+		Middlewares: []ManifestMiddleware{
+			{
+				RoutePrefix: "/",
+				GoFile:      "middleware.go",
+			},
+			{
+				RoutePrefix: "/users/{id}",
+				Params:      []string{"id"},
+				GoFile:      "users/by_id/middleware.go",
+			},
+		},
 	}
 
 	if !reflect.DeepEqual(got, want) {
@@ -83,6 +98,10 @@ func TestBuildManifestSortsOutput(t *testing.T) {
 			{Method: "PUT", Route: "/users/save", GoFile: "users/actions.go", Function: "PutSave"},
 			{Method: "POST", Route: "/users/create", GoFile: "users/actions.go", Function: "PostCreate"},
 		},
+		Middlewares: []Middleware{
+			{RoutePrefix: "/zeta", GoFile: "zeta/middleware.go"},
+			{RoutePrefix: "/alpha", GoFile: "alpha/middleware.go"},
+		},
 	}
 
 	got := BuildManifest(tree)
@@ -108,6 +127,13 @@ func TestBuildManifestSortsOutput(t *testing.T) {
 	if !reflect.DeepEqual(got.Actions, wantActions) {
 		t.Fatalf("actions = %#v, want %#v", got.Actions, wantActions)
 	}
+	wantMiddlewares := []ManifestMiddleware{
+		{RoutePrefix: "/alpha", GoFile: "alpha/middleware.go"},
+		{RoutePrefix: "/zeta", GoFile: "zeta/middleware.go"},
+	}
+	if !reflect.DeepEqual(got.Middlewares, wantMiddlewares) {
+		t.Fatalf("middleware = %#v, want %#v", got.Middlewares, wantMiddlewares)
+	}
 }
 
 func TestBuildManifestClonesParams(t *testing.T) {
@@ -115,6 +141,7 @@ func TestBuildManifestClonesParams(t *testing.T) {
 	layoutParams := []string{"layout_id"}
 	fragmentParams := []string{"fragment_id"}
 	actionParams := []string{"action_id"}
+	middlewareParams := []string{"middleware_id"}
 	tree := Tree{
 		Pages: []Page{
 			{Route: "/pages/{page_id}", Params: pageParams, GoFile: "pages/by_page_id/page.go"},
@@ -128,6 +155,9 @@ func TestBuildManifestClonesParams(t *testing.T) {
 		Actions: []Action{
 			{Method: "PATCH", Route: "/actions/{action_id}", Params: actionParams, GoFile: "actions/by_action_id/actions.go", Function: "PatchIndex"},
 		},
+		Middlewares: []Middleware{
+			{RoutePrefix: "/middleware/{middleware_id}", Params: middlewareParams, GoFile: "middleware/by_middleware_id/middleware.go"},
+		},
 	}
 
 	got := BuildManifest(tree)
@@ -135,6 +165,7 @@ func TestBuildManifestClonesParams(t *testing.T) {
 	layoutParams[0] = "changed"
 	fragmentParams[0] = "changed"
 	actionParams[0] = "changed"
+	middlewareParams[0] = "changed"
 
 	if got.Pages[0].Params[0] != "page_id" {
 		t.Fatalf("page params = %#v, want cloned params", got.Pages[0].Params)
@@ -147,6 +178,9 @@ func TestBuildManifestClonesParams(t *testing.T) {
 	}
 	if got.Actions[0].Params[0] != "action_id" {
 		t.Fatalf("action params = %#v, want cloned params", got.Actions[0].Params)
+	}
+	if got.Middlewares[0].Params[0] != "middleware_id" {
+		t.Fatalf("middleware params = %#v, want cloned params", got.Middlewares[0].Params)
 	}
 }
 

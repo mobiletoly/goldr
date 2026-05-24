@@ -197,6 +197,66 @@ func PatchProfile(w http.ResponseWriter, r *http.Request) {}
 	}
 }
 
+func TestScanMiddleware(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "middleware.go", `package routes
+
+import "net/http"
+
+func Middleware(next http.Handler) http.Handler {
+	return next
+}
+`)
+	writeFile(t, root, "users/middleware.go", `package users
+
+import "net/http"
+
+func Middleware(next http.Handler) http.Handler {
+	return next
+}
+`)
+	writeFile(t, root, "users/by_id/middleware.go", `package by_id
+
+import "net/http"
+
+func Middleware(next http.Handler) http.Handler {
+	return next
+}
+`)
+
+	tree := scanOK(t, root)
+
+	want := []Middleware{
+		{RoutePrefix: "/", GoFile: "middleware.go"},
+		{RoutePrefix: "/users", GoFile: "users/middleware.go"},
+		{RoutePrefix: "/users/{id}", Params: []string{"id"}, GoFile: "users/by_id/middleware.go"},
+	}
+	if !reflect.DeepEqual(tree.Middlewares, want) {
+		t.Fatalf("middleware = %#v, want %#v", tree.Middlewares, want)
+	}
+}
+
+func TestScanReportsMiddlewareProblems(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "users/middleware.go", `package users
+
+import "net/http"
+
+func Middleware(next http.Handler) {}
+`)
+
+	_, err := Scan(root)
+	var scanErr *ScanError
+	if !errors.As(err, &scanErr) {
+		t.Fatalf("Scan() error = %T, want *ScanError", err)
+	}
+
+	want := "Middleware: middleware must use func Middleware(next http.Handler) http.Handler"
+	if !hasProblem(scanErr.Problems, "users/middleware.go", want) {
+		t.Fatalf("problems = %#v, want %q", scanErr.Problems, want)
+	}
+}
+
 func TestScanReportsActionProblems(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "users/actions.go", `package users

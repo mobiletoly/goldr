@@ -26,11 +26,12 @@ The scanner reads a route root and returns a deterministic tree of:
 - layouts
 - fragments
 - actions
+- middleware
 
 It records matching `.templ` files when present.
 
 It does not:
-- parse Go files other than `actions.go`
+- parse Go files other than `actions.go` and `middleware.go`
 - parse templ files
 - render HTML
 - register HTTP handlers
@@ -74,6 +75,7 @@ The scanner validates the forms goldr supports:
 - `layout.go` and `layout.templ`
 - `frag_*.go` and `frag_*.templ`
 - `actions.go`
+- `middleware.go`
 
 The scanner rejects:
 - underscore-prefixed route directories
@@ -146,6 +148,8 @@ Fragments sort by route prefix and fragment name.
 
 Actions sort by route, method, and function symbol.
 
+Middleware sorts by route prefix and Go file path.
+
 No dependency, package-load, or filesystem timestamp ordering should affect scanner output.
 
 ## Action Discovery
@@ -185,6 +189,30 @@ lowercase kebab-case child segment.
 The scanner combines action metadata with the route directory path and params.
 An `actions.go` file with no supported action functions adds no action rows.
 
+## Middleware Discovery
+
+`internal/middlewarescan` owns parsing `middleware.go`.
+
+It parses only files named:
+
+```text
+middleware.go
+```
+
+The middleware parser looks for one top-level function declaration:
+
+```go
+func Middleware(next http.Handler) http.Handler
+```
+
+Middleware is ordinary application-owned `net/http` middleware. Goldr does not
+own CSRF validation policy, auth, role checks, rate limits, session policy, or
+adapter behavior through this convention.
+
+The scanner combines middleware metadata with the route directory path and
+params. Middleware inheritance is resolved later from source-directory
+ancestry, not from runtime URL prefix matching.
+
 ## Ignored Files
 
 Non-convention Go files in route directories are ignored by the scanner.
@@ -197,7 +225,8 @@ post_save.go
 actions_helper.go
 ```
 
-Only `actions.go` has action-routing meaning.
+Only `actions.go` and `middleware.go` have scanner meaning beyond render-unit
+files.
 
 ## Route Manifest
 
@@ -209,12 +238,13 @@ containing:
 - layouts
 - fragments
 - actions
+- middleware
 - render-unit file pairs
 - route params
 
 The manifest preserves the scanner's route paths, route prefixes, fragment
-names, action methods, action functions, Go files, templ files, and `HasTempl`
-values.
+names, action methods, action functions, middleware route prefixes, Go files,
+templ files, and `HasTempl` values.
 
 Manifest params are cloned from scanner output. Callers must not rely on shared
 slice ownership between scanner trees and manifests.
@@ -246,6 +276,8 @@ Layouts sort by route prefix.
 Fragments sort by route prefix and fragment name.
 
 Actions sort by route, method, and function symbol.
+
+Middleware sorts by route prefix and Go file path.
 
 Tie breakers use Go file paths to keep ordering stable for malformed or
 manually constructed input.
@@ -597,15 +629,28 @@ Application code owns the outer HTTP composition:
 Static asset handlers should be registered on a more specific path such as
 `/assets/` before generated routes are registered at `/`.
 
+Goldr also supports route-tree middleware through `middleware.go` files under
+`app/routes`. Generated dispatch wraps matched pages, actions, and fragments
+with inherited middleware from root to leaf. This is compile-time filesystem
+composition over ordinary `net/http` middleware, not a runtime registry or URL
+prefix matcher.
+
+Layouts are not middleware endpoints. Layout rendering happens inside the
+already wrapped page request or inside an action request when the action calls
+`goldr.WriteRouteResponse`.
+
+Generated 404 and 405 responses do not run route-tree middleware. Custom error
+hooks still apply only inside generated route dispatch.
+
 Generated error hooks apply only inside generated route dispatch. They do not
 customize errors returned by application-owned static asset handlers or other
 handlers mounted beside generated routes.
 
 The `goldr assets` command fingerprints final static files and generates an
 asset manifest package, but applications still own static handler registration
-and cache policy. Goldr should not add a middleware stack, broad asset
-pipeline, deployment integration, or automatic asset injection without a
-separate spec.
+and cache policy. Goldr should not add framework-owned middleware policy, a
+broad asset pipeline, deployment integration, or automatic asset injection
+without a separate spec.
 
 ## Runtime Page Routing
 

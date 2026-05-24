@@ -73,10 +73,11 @@ document title, description, canonical path, and active navigation. The `/users`
 and `/users/42` pages share the users section shell from `users/layout.templ`;
 `/users/frag-table` renders only the fragment partial.
 
-Generated route dispatch is wrapped with app-owned middleware for security
-headers and a signed-cookie CSRF guard. The users form renders a visible hidden
-CSRF field, and unsafe actions validate the submitted token before mutating
-example state.
+Generated route dispatch uses app-owned route-tree middleware in
+`app/routes/middleware.go` to issue signed-cookie CSRF tokens. The outer server
+still wraps the handler with app-owned security headers. The users form renders
+a visible hidden CSRF field, and unsafe actions validate the submitted token
+before mutating example state.
 
 The example also includes `app/deps/deps.go`, an app-owned typed dependency
 helper. `main.go` constructs one `*deps.Dependencies` value with the example
@@ -103,8 +104,8 @@ the root layout and `assets.FS()` for the app-owned `/assets/` handler. The
 example includes browser-ready CSS and JavaScript under `assets/build`; Goldr
 fingerprints both without owning a CSS or JavaScript pipeline. The asset
 handler is registered before generated routes and sets immutable cache headers
-in application code. Generated route dispatch is wrapped with a tiny app-owned
-middleware that sets `X-Content-Type-Options: nosniff`.
+in application code. The generated route handler is also wrapped by app-owned
+server middleware that sets `X-Content-Type-Options: nosniff`.
 
 For the broader asset workflow, read `docs/user/assets.md`.
 

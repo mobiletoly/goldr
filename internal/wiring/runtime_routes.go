@@ -17,21 +17,24 @@ import (
 )
 
 type runtimePage struct {
-	page     routing.ManifestPage
-	segments []string
-	layouts  []routing.ManifestLayout
+	page        routing.ManifestPage
+	segments    []string
+	layouts     []routing.ManifestLayout
+	middlewares []routing.ManifestMiddleware
 }
 
 type runtimeFragment struct {
-	fragment routing.ManifestFragment
-	route    string
-	segments []string
+	fragment    routing.ManifestFragment
+	route       string
+	segments    []string
+	middlewares []routing.ManifestMiddleware
 }
 
 type runtimeAction struct {
-	action   routing.ManifestAction
-	segments []string
-	layouts  []routing.ManifestLayout
+	action      routing.ManifestAction
+	segments    []string
+	layouts     []routing.ManifestLayout
+	middlewares []routing.ManifestMiddleware
 }
 
 type runtimeRoute struct {
@@ -60,9 +63,10 @@ func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 	routes := make([]runtimeRoute, 0, len(manifest.Pages)+len(manifest.Fragments)+len(manifest.Actions))
 	for _, page := range manifest.Pages {
 		runtimePage := runtimePage{
-			page:     page,
-			segments: routeSegments(page.Route),
-			layouts:  layoutStack(page.Route, manifest.Layouts),
+			page:        page,
+			segments:    routeSegments(page.Route),
+			layouts:     layoutStack(page.Route, manifest.Layouts),
+			middlewares: middlewareStack(page.Unit.GoFile, manifest.Middlewares),
 		}
 		routes = append(routes, runtimeRoute{
 			route:    page.Route,
@@ -74,9 +78,10 @@ func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 	for _, fragment := range manifest.Fragments {
 		route := fragmentRoute(fragment)
 		runtimeFragment := runtimeFragment{
-			fragment: fragment,
-			route:    route,
-			segments: routeSegments(route),
+			fragment:    fragment,
+			route:       route,
+			segments:    routeSegments(route),
+			middlewares: middlewareStack(fragment.Unit.GoFile, manifest.Middlewares),
 		}
 		routes = append(routes, runtimeRoute{
 			route:    route,
@@ -87,9 +92,10 @@ func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 	}
 	for _, action := range manifest.Actions {
 		runtimeAction := runtimeAction{
-			action:   action,
-			segments: routeSegments(action.Route),
-			layouts:  layoutStack(action.Route, manifest.Layouts),
+			action:      action,
+			segments:    routeSegments(action.Route),
+			layouts:     layoutStack(action.Route, manifest.Layouts),
+			middlewares: middlewareStack(action.GoFile, manifest.Middlewares),
 		}
 		routes = append(routes, runtimeRoute{
 			route:    action.Route,
@@ -274,6 +280,44 @@ func layoutStack(pageRoute string, layouts []routing.ManifestLayout) []routing.M
 	return stack
 }
 
+func middlewareStack(goFile string, middlewares []routing.ManifestMiddleware) []routing.ManifestMiddleware {
+	endpointDir := routeSourceDir(goFile)
+	stack := make([]routing.ManifestMiddleware, 0, len(middlewares))
+	for _, middleware := range middlewares {
+		if sourceDirContains(routeSourceDir(middleware.GoFile), endpointDir) {
+			stack = append(stack, middleware)
+		}
+	}
+	slices.SortFunc(stack, func(a, b routing.ManifestMiddleware) int {
+		dirA := routeSourceDir(a.GoFile)
+		dirB := routeSourceDir(b.GoFile)
+		if sourceDirDepth(dirA) != sourceDirDepth(dirB) {
+			return sourceDirDepth(dirA) - sourceDirDepth(dirB)
+		}
+		return strings.Compare(a.GoFile, b.GoFile)
+	})
+	return stack
+}
+
+func routeSourceDir(goFile string) string {
+	dir := path.Dir(goFile)
+	if dir == "." {
+		return ""
+	}
+	return dir
+}
+
+func sourceDirContains(parent, child string) bool {
+	return parent == "" || child == parent || strings.HasPrefix(child, parent+"/")
+}
+
+func sourceDirDepth(dir string) int {
+	if dir == "" {
+		return 0
+	}
+	return len(strings.Split(dir, "/"))
+}
+
 func routePrefixMatches(prefix, route string) bool {
 	prefixSegments := routeSegments(prefix)
 	routeSegments := routeSegments(route)
@@ -305,6 +349,9 @@ func routeImports(routes []runtimeRoute, routeRootImportPath string) ([]routeImp
 			for _, layout := range route.action.layouts {
 				addImportDir(dirs, layout.Unit.GoFile)
 			}
+		}
+		for _, middleware := range routeMiddlewares(route) {
+			addImportDir(dirs, middleware.GoFile)
 		}
 	}
 	delete(dirs, "")
@@ -384,6 +431,15 @@ func hasActionRoutesWithoutLayouts(routes []runtimeRoute) bool {
 	return false
 }
 
+func hasMiddlewareRoutes(routes []runtimeRoute) bool {
+	for _, route := range routes {
+		if len(routeMiddlewares(route)) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func hasSegmentRoutes(routes []runtimeRoute) bool {
 	for _, route := range routes {
 		if route.route != "/" {
@@ -419,6 +475,16 @@ func routeGoFile(route runtimeRoute) string {
 		return route.action.action.GoFile
 	}
 	return route.fragment.fragment.Unit.GoFile
+}
+
+func routeMiddlewares(route runtimeRoute) []routing.ManifestMiddleware {
+	if route.page != nil {
+		return route.page.middlewares
+	}
+	if route.action != nil {
+		return route.action.middlewares
+	}
+	return route.fragment.middlewares
 }
 
 func routeMethods(route runtimeRoute) []string {
