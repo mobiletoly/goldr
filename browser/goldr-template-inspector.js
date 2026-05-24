@@ -2,11 +2,40 @@
   "use strict";
 
   var overlayAttribute = "data-goldr-template-inspector";
+  var controlAttribute = "data-goldr-template-inspector-control";
+  var modeAttribute = "data-goldr-template-inspector-mode";
+  var nextAttribute = "data-goldr-template-inspector-next";
+  var storageKey = "goldr.templateInspector.mode";
+  var overlayZIndex = "2147483646";
+  var controlZIndex = "2147483647";
+  var mode = storedMode();
+  var selectedIndex = null;
   var colors = {
     layout: "#2563eb",
     page: "#16a34a",
     fragment: "#f97316"
   };
+
+  function storedMode() {
+    try {
+      if (window.localStorage && window.localStorage.getItem(storageKey) === "off") {
+        return "off";
+      }
+    } catch (_) {
+      return "all";
+    }
+    return "all";
+  }
+
+  function persistMode(value) {
+    try {
+      if (window.localStorage) {
+        window.localStorage.setItem(storageKey, value === "off" ? "off" : "all");
+      }
+    } catch (_) {
+      return;
+    }
+  }
 
   function parseMeta(text) {
     var meta = {};
@@ -20,17 +49,25 @@
   function markers() {
     var starts = [];
     var pairs = [];
+    var sequence = 0;
     var walker = document.createTreeWalker(document, NodeFilter.SHOW_COMMENT);
     var node = walker.nextNode();
     while (node) {
       var text = node.nodeValue.trim();
       if (text.indexOf("goldr:start ") === 0) {
-        starts.push({ node: node, meta: parseMeta(text) });
+        starts.push({ node: node, meta: parseMeta(text), depth: starts.length, sequence: sequence });
+        sequence += 1;
       } else if (text.indexOf("goldr:end ") === 0) {
         var id = parseMeta(text).id;
         for (var index = starts.length - 1; index >= 0; index--) {
           if (starts[index].meta.id === id) {
-            pairs.push({ start: starts[index].node, end: node, meta: starts[index].meta });
+            pairs.push({
+              start: starts[index].node,
+              end: node,
+              meta: starts[index].meta,
+              depth: starts[index].depth,
+              sequence: starts[index].sequence
+            });
             starts.splice(index, 1);
             break;
           }
@@ -39,6 +76,10 @@
       node = walker.nextNode();
     }
     return pairs;
+  }
+
+  function boxOrder(a, b) {
+    return (a.depth - b.depth) || (a.sequence - b.sequence);
   }
 
   function removeOverlay() {
@@ -69,15 +110,43 @@
         return;
       }
 
+      boxes.push({
+        rect: rect,
+        meta: pair.meta,
+        depth: pair.depth,
+        sequence: pair.sequence,
+        track: 0
+      });
+    });
+
+    boxes.sort(boxOrder);
+    boxes.forEach(function (box, index) {
       var track = 0;
-      boxes.forEach(function (box) {
-        if (sameAnchor(rect, box.rect)) {
-          track = Math.max(track, box.track + 1);
+      boxes.slice(0, index).forEach(function (previous) {
+        if (sameAnchor(box.rect, previous.rect)) {
+          track = Math.max(track, previous.track + 1);
         }
       });
-      boxes.push({ rect: rect, meta: pair.meta, track: track });
+      box.track = track;
     });
     return boxes;
+  }
+
+  function activeBoxes(boxes) {
+    if (mode === "off") {
+      return [];
+    }
+    if (selectedIndex === null) {
+      return boxes;
+    }
+    if (boxes.length === 0) {
+      selectedIndex = null;
+      return [];
+    }
+    if (selectedIndex >= boxes.length) {
+      selectedIndex = 0;
+    }
+    return [boxes[selectedIndex]];
   }
 
   function appendBox(root, rect, meta, track) {
@@ -127,6 +196,111 @@
     root.appendChild(label);
   }
 
+  function buttonStyle(active, disabled) {
+    if (disabled) {
+      return [
+        "appearance:none",
+        "border:1px solid #9ca3af",
+        "border-radius:3px",
+        "background:#f3f4f6",
+        "color:#6b7280",
+        "font:12px/16px system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif",
+        "padding:2px 7px",
+        "cursor:not-allowed",
+        "opacity:.72"
+      ].join(";");
+    }
+    return [
+      "appearance:none",
+      "border:1px solid #111827",
+      "border-radius:3px",
+      "background:" + (active ? "#111827" : "#ffffff"),
+      "color:" + (active ? "#ffffff" : "#111827"),
+      "font:12px/16px system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif",
+      "padding:2px 7px",
+      "cursor:pointer"
+    ].join(";");
+  }
+
+  function appendModeButton(root, label, value) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.title = "Show " + label.toLowerCase() + " template inspector overlays";
+    button.setAttribute(modeAttribute, value);
+    button.setAttribute("aria-pressed", mode === value && selectedIndex === null ? "true" : "false");
+    button.style.cssText = buttonStyle(mode === value && selectedIndex === null, false);
+    button.addEventListener("click", function () {
+      mode = value;
+      selectedIndex = null;
+      persistMode(value);
+      draw();
+    });
+    root.appendChild(button);
+  }
+
+  function appendNextButton(root) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Next";
+    button.title = "Show the next template inspector overlay";
+    button.setAttribute(nextAttribute, "1");
+    var disabled = mode === "off";
+    button.disabled = disabled;
+    button.setAttribute("aria-pressed", mode !== "off" && selectedIndex !== null ? "true" : "false");
+    button.style.cssText = buttonStyle(mode !== "off" && selectedIndex !== null, disabled) + ";margin-left:10px";
+    button.addEventListener("click", function () {
+      var boxes = trackedBoxes();
+      if (boxes.length > 0) {
+        if (selectedIndex === null) {
+          selectedIndex = 0;
+        } else {
+          selectedIndex = (selectedIndex + 1) % boxes.length;
+        }
+        mode = "all";
+        persistMode("all");
+      }
+      draw();
+    });
+    root.appendChild(button);
+  }
+
+  function drawControl() {
+    if (!document.body) {
+      return;
+    }
+
+    var root = document.querySelector("[" + controlAttribute + "]");
+    if (!root) {
+      root = document.createElement("div");
+      root.setAttribute(controlAttribute, "1");
+      root.setAttribute("role", "group");
+      root.setAttribute("aria-label", "Goldr template inspector controls");
+      document.body.appendChild(root);
+    }
+
+    root.style.cssText = [
+      "position:fixed",
+      "right:12px",
+      "bottom:12px",
+      "z-index:" + controlZIndex,
+      "display:flex",
+      "align-items:center",
+      "gap:4px",
+      "padding:4px",
+      "border:1px solid rgba(17,24,39,.22)",
+      "border-radius:4px",
+      "background:rgba(255,255,255,.94)",
+      "box-shadow:0 2px 10px rgba(17,24,39,.16)",
+      "pointer-events:auto"
+    ].join(";");
+
+    root.textContent = "";
+    appendModeButton(root, "All", "all");
+    appendModeButton(root, "Off", "off");
+    appendNextButton(root);
+  }
+
   function paddedOverlap(a, b, padding) {
     return a.left < b.right + padding &&
       a.right + padding > b.left &&
@@ -173,6 +347,13 @@
 
   function draw() {
     removeOverlay();
+    drawControl();
+
+    var boxes = trackedBoxes();
+    var boxesToDraw = activeBoxes(boxes);
+    if (boxesToDraw.length === 0) {
+      return;
+    }
 
     var root = document.createElement("div");
     root.setAttribute(overlayAttribute, "1");
@@ -181,10 +362,10 @@
       "position:fixed",
       "inset:0",
       "pointer-events:none",
-      "z-index:2147483647"
+      "z-index:" + overlayZIndex
     ].join(";");
 
-    trackedBoxes().forEach(function (box) {
+    boxesToDraw.forEach(function (box) {
       appendBox(root, box.rect, box.meta, box.track);
     });
 
@@ -199,18 +380,18 @@
     scheduleDraw.timer = window.setTimeout(draw, 50);
   }
 
-  function isOverlayNode(node) {
+  function isInspectorNode(node) {
     if (!node || node.nodeType !== 1) {
       return false;
     }
-    if (node.hasAttribute(overlayAttribute)) {
+    if (node.hasAttribute(overlayAttribute) || node.hasAttribute(controlAttribute)) {
       return true;
     }
-    return Boolean(node.closest("[" + overlayAttribute + "]"));
+    return Boolean(node.closest("[" + overlayAttribute + "],[" + controlAttribute + "]"));
   }
 
-  function isOverlayMutation(mutation) {
-    if (isOverlayNode(mutation.target)) {
+  function isInspectorMutation(mutation) {
+    if (isInspectorNode(mutation.target)) {
       return true;
     }
 
@@ -218,7 +399,7 @@
       Array.prototype.slice.call(mutation.addedNodes),
       Array.prototype.slice.call(mutation.removedNodes)
     );
-    return nodes.length > 0 && nodes.every(isOverlayNode);
+    return nodes.length > 0 && nodes.every(isInspectorNode);
   }
 
   function watchDOMChanges() {
@@ -227,7 +408,7 @@
     }
 
     var observer = new MutationObserver(function (mutations) {
-      if (mutations.every(isOverlayMutation)) {
+      if (mutations.every(isInspectorMutation)) {
         return;
       }
       scheduleDraw();

@@ -102,6 +102,20 @@ The browser helper reads the inspector comments and draws colored outlines and
 labels over layout, page, and fragment regions. It appends debug overlay nodes
 outside application render regions and does not wrap app content.
 
+The helper also adds a small floating control for the current page:
+
+- `All` shows every visible render-unit boundary.
+- `Next` starts one-at-a-time inspection from the outermost visible render
+  unit, then advances through visible render units and wraps when it reaches
+  the end.
+- `Off` hides overlay boxes and labels while keeping the control visible.
+
+The helper stores only `All` and `Off` in `localStorage`. One-at-a-time
+inspection is temporary: if you use `Next`, Goldr stores that as `All`, so a
+reload returns to the all-boundaries view. Pages rendered with
+`TemplateInspectionOff` or `TemplateInspectionComments` do not load the overlay
+helper, so there is no runtime control to show.
+
 ## Env Var Example
 
 An application can choose inspection mode from an env var during local

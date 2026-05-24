@@ -17,13 +17,63 @@ func TestFSContainsTemplateInspectorHelper(t *testing.T) {
 	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-inspector`)
 }
 
-func TestFSContainsTemplateInspectorStackingBehavior(t *testing.T) {
+func TestFSContainsTemplateInspectorStackingAndSingleOrdering(t *testing.T) {
 	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-stack`)
 	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-label-row`)
 	assertFSContains(t, TemplateInspectorHelperPath, `sameAnchor`)
+	assertFSContains(t, TemplateInspectorHelperPath, `depth: starts.length`)
+	assertFSContains(t, TemplateInspectorHelperPath, `function boxOrder(a, b)`)
+	assertFSContains(t, TemplateInspectorHelperPath, `return (a.depth - b.depth) || (a.sequence - b.sequence)`)
+}
+
+func TestFSContainsTemplateInspectorControls(t *testing.T) {
+	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-inspector-control`)
+	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-inspector-mode`)
+	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-inspector-next`)
+	assertFSContains(t, TemplateInspectorHelperPath, `var controlZIndex = "2147483647"`)
+	assertFSContains(t, TemplateInspectorHelperPath, `var overlayZIndex = "2147483646"`)
+	assertFSContains(t, TemplateInspectorHelperPath, `appendModeButton(root, "All", "all")`)
+	assertFSContains(t, TemplateInspectorHelperPath, `appendModeButton(root, "Off", "off")`)
+	assertFSContains(t, TemplateInspectorHelperPath, `appendModeButton(root, "Off", "off");
+    appendNextButton(root);`)
+	assertFSContains(t, TemplateInspectorHelperPath, `";margin-left:10px"`)
+	assertFSContains(t, TemplateInspectorHelperPath, `"cursor:not-allowed"`)
+	assertFSContains(t, TemplateInspectorHelperPath, `"opacity:.72"`)
+	assertFSContains(t, TemplateInspectorHelperPath, `buttonStyle(mode !== "off" && selectedIndex !== null, disabled)`)
+	assertFSContains(t, TemplateInspectorHelperPath, `if (selectedIndex === null)`)
+	assertFSContains(t, TemplateInspectorHelperPath, `selectedIndex = (selectedIndex + 1) % boxes.length`)
+	assertFSNotContains(t, TemplateInspectorHelperPath, `appendModeButton(root, "Single"`)
+	assertFSNotContains(t, TemplateInspectorHelperPath, `mode === "single"`)
+}
+
+func TestFSContainsTemplateInspectorControlsPersistAllAndOffOnly(t *testing.T) {
+	assertFSContains(t, TemplateInspectorHelperPath, `var storageKey = "goldr.templateInspector.mode"`)
+	assertFSContains(t, TemplateInspectorHelperPath, `window.localStorage.getItem(storageKey) === "off"`)
+	assertFSContains(t, TemplateInspectorHelperPath, `window.localStorage.setItem(storageKey, value === "off" ? "off" : "all")`)
+	assertFSContains(t, TemplateInspectorHelperPath, `persistMode("all")`)
+	assertFSNotContains(t, TemplateInspectorHelperPath, `sessionStorage`)
+	assertFSNotContains(t, TemplateInspectorHelperPath, `document.cookie`)
 }
 
 func assertFSContains(t *testing.T, name string, want string) {
+	t.Helper()
+
+	body := helperBody(t, name)
+	if !strings.Contains(body, want) {
+		t.Fatalf("helper body = %q, want %q", body, want)
+	}
+}
+
+func assertFSNotContains(t *testing.T, name string, unwanted string) {
+	t.Helper()
+
+	body := helperBody(t, name)
+	if strings.Contains(body, unwanted) {
+		t.Fatalf("helper body contains %q", unwanted)
+	}
+}
+
+func helperBody(t *testing.T, name string) string {
 	t.Helper()
 
 	file, err := FS().Open(name)
@@ -40,9 +90,7 @@ func assertFSContains(t *testing.T, name string, want string) {
 	if err != nil {
 		t.Fatalf("ReadAll() error = %v, want nil", err)
 	}
-	if !strings.Contains(string(body), want) {
-		t.Fatalf("helper body = %q, want %q", body, want)
-	}
+	return string(body)
 }
 
 func TestHandlerServesSSEEventHelper(t *testing.T) {
