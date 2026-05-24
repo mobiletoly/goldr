@@ -409,6 +409,22 @@ decoded with `url.PathUnescape` before generated dispatch attaches them with
 Root-level dynamic segments have no parent route node, so they are emitted as
 package functions such as `BySlug(slug string)`.
 
+Generated URL helpers also expose `WithBasePath(basePath string)` for
+applications mounted below a URL prefix. It returns an exported `MountedRoutes`
+route set with the same top-level helper surface as the package globals:
+
+```go
+mounted := urls.WithBasePath("/webapp")
+mounted.Users.ByID(id).Path()
+mounted.BySlug(slug).Path()
+```
+
+The generated helper normalizes `""` and `"/"` to no prefix, adds a missing
+leading slash, and removes trailing slashes. It does not escape or clean the
+base path. Mounted helpers only affect generated strings; generated dispatch
+continues to match unmounted paths after the application strips its mount
+prefix.
+
 Generated URL helper source imports only standard library packages. It imports
 `net/url` only when dynamic params exist. It does not import route packages,
 goldr internals, templ, HTMX helpers, or application handlers.
@@ -418,8 +434,10 @@ bodies, wrap HTMX attributes, carry HTTP methods, or perform runtime route
 lookup. They are generated string helpers.
 
 If two unique paths produce the same generated helper path, or if a route
-segment collides with generated names such as `Path`, generation fails with a
-clear error rather than adding aliases or method suffixes.
+segment collides with generated names such as `Path`, `WithBasePath`, or
+`MountedRoutes`,
+generation fails with a clear error rather than adding aliases or method
+suffixes.
 
 URL helper collision checks are owned by URL helper tree construction and by
 route-surface inspection, because both expose helper expressions. Generated

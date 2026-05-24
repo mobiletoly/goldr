@@ -143,6 +143,19 @@ urls.Users.ByID(id).Path()
 Dynamic params are explicit string arguments and are path-escaped by helpers.
 Use helpers instead of hard-coded internal route paths when helpers exist.
 
+For apps mounted below a URL prefix, bind helpers once with the app base path:
+
+```go
+appURLs := urls.WithBasePath(appDeps.BasePath)
+appURLs.Users.ByID(id).Path()
+```
+
+`WithBasePath` returns `urls.MountedRoutes`, so app-owned helpers may accept the
+mounted route set when they need to add query strings or make semantic choices.
+Do not create route-specific string helpers such as `TenantURL` when generated
+helpers already cover the route. Keep mux mounting and prefix stripping
+application-owned.
+
 ## Generated Handler
 
 Generated route packages expose:

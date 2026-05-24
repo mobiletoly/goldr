@@ -2,62 +2,113 @@
 
 package urls
 
-var Root = newRootRoute()
-var Chat = newChatRoute()
-var Join = newJoinRoute()
+var Root = newRootRoute("")
+var Chat = newChatRoute("")
+var Join = newJoinRoute("")
 
-type rootRoute struct{}
-
-type chatRoute struct {
-	Message chatMessageRoute
-	SignOut chatSignOutRoute
+type MountedRoutes struct {
+	basePath string
+	Root     rootRoute
+	Chat     chatRoute
+	Join     joinRoute
 }
 
-type chatMessageRoute struct{}
-
-type chatSignOutRoute struct{}
-
-type joinRoute struct{}
-
-func newRootRoute() rootRoute {
-	return rootRoute{}
-}
-
-func newChatRoute() chatRoute {
-	return chatRoute{
-		Message: newChatMessageRoute(),
-		SignOut: newChatSignOutRoute(),
+func WithBasePath(basePath string) MountedRoutes {
+	normalizedBasePath := normalizeBasePath(basePath)
+	return MountedRoutes{
+		basePath: normalizedBasePath,
+		Root:     newRootRoute(normalizedBasePath),
+		Chat:     newChatRoute(normalizedBasePath),
+		Join:     newJoinRoute(normalizedBasePath),
 	}
 }
 
-func newChatMessageRoute() chatMessageRoute {
-	return chatMessageRoute{}
+type rootRoute struct {
+	basePath string
 }
 
-func newChatSignOutRoute() chatSignOutRoute {
-	return chatSignOutRoute{}
+type chatRoute struct {
+	basePath string
+	Message  chatMessageRoute
+	SignOut  chatSignOutRoute
 }
 
-func newJoinRoute() joinRoute {
-	return joinRoute{}
+type chatMessageRoute struct {
+	basePath string
+}
+
+type chatSignOutRoute struct {
+	basePath string
+}
+
+type joinRoute struct {
+	basePath string
+}
+
+func newRootRoute(basePath string) rootRoute {
+	return rootRoute{
+		basePath: basePath,
+	}
+}
+
+func newChatRoute(basePath string) chatRoute {
+	return chatRoute{
+		basePath: basePath,
+		Message:  newChatMessageRoute(basePath),
+		SignOut:  newChatSignOutRoute(basePath),
+	}
+}
+
+func newChatMessageRoute(basePath string) chatMessageRoute {
+	return chatMessageRoute{
+		basePath: basePath,
+	}
+}
+
+func newChatSignOutRoute(basePath string) chatSignOutRoute {
+	return chatSignOutRoute{
+		basePath: basePath,
+	}
+}
+
+func newJoinRoute(basePath string) joinRoute {
+	return joinRoute{
+		basePath: basePath,
+	}
 }
 
 func (r rootRoute) Path() string {
-	return "/"
+	return r.basePath + "/"
 }
 
 func (r chatRoute) Path() string {
-	return "/" + "chat"
+	return r.basePath + "/" + "chat"
 }
 
 func (r chatMessageRoute) Path() string {
-	return "/" + "chat" + "/" + "message"
+	return r.basePath + "/" + "chat" + "/" + "message"
 }
 
 func (r chatSignOutRoute) Path() string {
-	return "/" + "chat" + "/" + "sign-out"
+	return r.basePath + "/" + "chat" + "/" + "sign-out"
 }
 
 func (r joinRoute) Path() string {
-	return "/" + "join"
+	return r.basePath + "/" + "join"
+}
+
+func normalizeBasePath(basePath string) string {
+	if basePath == "" || basePath == "/" {
+		return ""
+	}
+	if basePath[0] != '/' {
+		basePath = "/" + basePath
+	}
+	for len(basePath) > 1 && basePath[len(basePath)-1] == '/' {
+		basePath = basePath[:len(basePath)-1]
+	}
+	if basePath == "/" {
+		return ""
+	}
+	return basePath
 }

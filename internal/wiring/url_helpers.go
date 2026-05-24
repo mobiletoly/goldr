@@ -64,11 +64,13 @@ func GenerateURLHelpers(manifest routing.Manifest, options GenerateURLOptions) (
 	fmt.Fprintf(&buffer, "package %s\n\n", options.PackageName)
 	writeURLImports(&buffer, root)
 	writeURLVars(&buffer, root)
+	writeURLMountedRoutes(&buffer, root)
 	writeURLTypes(&buffer, root)
 	writeURLConstructors(&buffer, root)
-	writeURLRootDynamicFunctions(&buffer, root)
+	writeURLRootDynamicHelpers(&buffer, root)
 	writeURLDynamicMethods(&buffer, root)
 	writeURLPathMethods(&buffer, root)
+	writeURLNormalizeBasePath(&buffer)
 
 	source, err := format.Source(buffer.Bytes())
 	if err != nil {
@@ -114,6 +116,12 @@ func urlStaticChild(parent *urlHelperNode, segment string) (*urlHelperNode, erro
 	apiName := exportedSegmentName(segment)
 	if parent.typeName == "rootRoute" && apiName == "Root" {
 		return nil, fmt.Errorf("%w %q: top-level route segment collides with reserved Root helper", ErrAmbiguousURLHelper, segment)
+	}
+	if parent.typeName == "rootRoute" && apiName == "WithBasePath" {
+		return nil, fmt.Errorf("%w %q: top-level route segment collides with reserved WithBasePath helper", ErrAmbiguousURLHelper, segment)
+	}
+	if parent.typeName == "rootRoute" && apiName == "MountedRoutes" {
+		return nil, fmt.Errorf("%w %q: top-level route segment collides with reserved MountedRoutes helper", ErrAmbiguousURLHelper, segment)
 	}
 	if apiName == "Path" {
 		return nil, fmt.Errorf("%w %q: route segment collides with Path method", ErrAmbiguousURLHelper, segment)
@@ -208,25 +216,46 @@ func writeURLImports(buffer *bytes.Buffer, root *urlHelperNode) {
 
 func writeURLVars(buffer *bytes.Buffer, root *urlHelperNode) {
 	if root.isPath {
-		fmt.Fprintf(buffer, "var Root = new%s()\n", exportedTypeName(root.typeName))
+		fmt.Fprintf(buffer, "var Root = new%s(\"\")\n", exportedTypeName(root.typeName))
 	}
 	for _, child := range root.staticChildren {
-		fmt.Fprintf(buffer, "var %s = new%s()\n", child.apiName, exportedTypeName(child.typeName))
+		fmt.Fprintf(buffer, "var %s = new%s(\"\")\n", child.apiName, exportedTypeName(child.typeName))
 	}
 	if root.isPath || len(root.staticChildren) > 0 {
 		buffer.WriteString("\n")
 	}
 }
 
+func writeURLMountedRoutes(buffer *bytes.Buffer, root *urlHelperNode) {
+	buffer.WriteString("type MountedRoutes struct {\n")
+	buffer.WriteString("\tbasePath string\n")
+	if root.isPath {
+		buffer.WriteString("\tRoot rootRoute\n")
+	}
+	for _, child := range root.staticChildren {
+		fmt.Fprintf(buffer, "\t%s %s\n", child.apiName, child.typeName)
+	}
+	buffer.WriteString("}\n\n")
+
+	buffer.WriteString("func WithBasePath(basePath string) MountedRoutes {\n")
+	buffer.WriteString("\tnormalizedBasePath := normalizeBasePath(basePath)\n")
+	buffer.WriteString("\treturn MountedRoutes{\n")
+	buffer.WriteString("\t\tbasePath: normalizedBasePath,\n")
+	if root.isPath {
+		buffer.WriteString("\t\tRoot: newRootRoute(normalizedBasePath),\n")
+	}
+	for _, child := range root.staticChildren {
+		fmt.Fprintf(buffer, "\t\t%s: new%s(normalizedBasePath),\n", child.apiName, exportedTypeName(child.typeName))
+	}
+	buffer.WriteString("\t}\n")
+	buffer.WriteString("}\n\n")
+}
+
 func writeURLTypes(buffer *bytes.Buffer, root *urlHelperNode) {
 	for _, node := range urlHelperNodes(root) {
 		staticChildren := urlStaticFields(node)
-		fmt.Fprintf(buffer, "type %s struct", node.typeName)
-		if len(node.params) == 0 && len(staticChildren) == 0 {
-			buffer.WriteString("{}\n\n")
-			continue
-		}
-		buffer.WriteString(" {\n")
+		fmt.Fprintf(buffer, "type %s struct {\n", node.typeName)
+		buffer.WriteString("\tbasePath string\n")
 		for _, param := range node.params {
 			fmt.Fprintf(buffer, "\t%s string\n", param.field)
 		}
@@ -240,21 +269,22 @@ func writeURLTypes(buffer *bytes.Buffer, root *urlHelperNode) {
 func writeURLConstructors(buffer *bytes.Buffer, root *urlHelperNode) {
 	for _, node := range urlHelperNodes(root) {
 		staticChildren := urlStaticFields(node)
-		fmt.Fprintf(buffer, "func new%s(", exportedTypeName(node.typeName))
+		fmt.Fprintf(buffer, "func new%s(basePath string", exportedTypeName(node.typeName))
+		if len(node.params) > 0 {
+			buffer.WriteString(", ")
+		}
 		writeURLConstructorParams(buffer, node.params)
 		fmt.Fprintf(buffer, ") %s {\n", node.typeName)
-		fmt.Fprintf(buffer, "\treturn %s", node.typeName)
-		if len(node.params) == 0 && len(staticChildren) == 0 {
-			buffer.WriteString("{}\n")
-			buffer.WriteString("}\n\n")
-			continue
-		}
-		buffer.WriteString("{\n")
+		fmt.Fprintf(buffer, "\treturn %s{\n", node.typeName)
+		buffer.WriteString("\t\tbasePath: basePath,\n")
 		for _, param := range node.params {
 			fmt.Fprintf(buffer, "\t\t%s: %s,\n", param.field, param.field)
 		}
 		for _, child := range staticChildren {
-			fmt.Fprintf(buffer, "\t\t%s: new%s(", child.apiName, exportedTypeName(child.typeName))
+			fmt.Fprintf(buffer, "\t\t%s: new%s(basePath", child.apiName, exportedTypeName(child.typeName))
+			if len(child.params) > 0 {
+				buffer.WriteString(", ")
+			}
 			writeURLConstructorArgs(buffer, child.params)
 			buffer.WriteString("),\n")
 		}
@@ -287,14 +317,19 @@ func writeURLDynamicMethods(buffer *bytes.Buffer, root *urlHelperNode) {
 	}
 }
 
-func writeURLRootDynamicFunctions(buffer *bytes.Buffer, root *urlHelperNode) {
+func writeURLRootDynamicHelpers(buffer *bytes.Buffer, root *urlHelperNode) {
 	for _, child := range root.dynamicChildren {
-		fmt.Fprintf(buffer, "func %s(%s string) %s {\n", child.apiName, child.param.arg, child.typeName)
-		escapedName := "escaped" + exportedSegmentName(child.param.name)
-		fmt.Fprintf(buffer, "\t%s := url.PathEscape(%s)\n", escapedName, child.param.arg)
-		fmt.Fprintf(buffer, "\treturn new%s(%s)\n", exportedTypeName(child.typeName), escapedName)
-		buffer.WriteString("}\n\n")
+		writeURLRootDynamicFunction(buffer, "", child, strconv.Quote(""))
+		writeURLRootDynamicFunction(buffer, "(r MountedRoutes) ", child, "r.basePath")
 	}
+}
+
+func writeURLRootDynamicFunction(buffer *bytes.Buffer, receiver string, child *urlHelperNode, basePathExpression string) {
+	fmt.Fprintf(buffer, "func %s%s(%s string) %s {\n", receiver, child.apiName, child.param.arg, child.typeName)
+	escapedName := "escaped" + exportedSegmentName(child.param.name)
+	fmt.Fprintf(buffer, "\t%s := url.PathEscape(%s)\n", escapedName, child.param.arg)
+	fmt.Fprintf(buffer, "\treturn new%s(%s, %s)\n", exportedTypeName(child.typeName), basePathExpression, escapedName)
+	buffer.WriteString("}\n\n")
 }
 
 func writeURLPathMethods(buffer *bytes.Buffer, root *urlHelperNode) {
@@ -331,6 +366,10 @@ func writeURLDynamicConstructorArgs(buffer *bytes.Buffer, parent, child *urlHelp
 	for _, param := range parent.params {
 		parentParams[param.field] = true
 	}
+	buffer.WriteString("r.basePath")
+	if len(child.params) > 0 {
+		buffer.WriteString(", ")
+	}
 	for index, param := range child.params {
 		if index > 0 {
 			buffer.WriteString(", ")
@@ -347,10 +386,10 @@ func writeURLDynamicConstructorArgs(buffer *bytes.Buffer, parent, child *urlHelp
 
 func urlPathExpression(node *urlHelperNode) string {
 	if len(node.segments) == 0 {
-		return strconv.Quote("/")
+		return "r.basePath + " + strconv.Quote("/")
 	}
 
-	var parts []string
+	parts := []string{"r.basePath"}
 	paramFields := make(map[string]string, len(node.params))
 	for _, param := range node.params {
 		paramFields[param.name] = param.field
@@ -364,6 +403,24 @@ func urlPathExpression(node *urlHelperNode) string {
 		parts = append(parts, strconv.Quote(segment))
 	}
 	return strings.Join(parts, " + ")
+}
+
+func writeURLNormalizeBasePath(buffer *bytes.Buffer) {
+	buffer.WriteString("func normalizeBasePath(basePath string) string {\n")
+	buffer.WriteString("\tif basePath == \"\" || basePath == \"/\" {\n")
+	buffer.WriteString("\t\treturn \"\"\n")
+	buffer.WriteString("\t}\n")
+	buffer.WriteString("\tif basePath[0] != '/' {\n")
+	buffer.WriteString("\t\tbasePath = \"/\" + basePath\n")
+	buffer.WriteString("\t}\n")
+	buffer.WriteString("\tfor len(basePath) > 1 && basePath[len(basePath)-1] == '/' {\n")
+	buffer.WriteString("\t\tbasePath = basePath[:len(basePath)-1]\n")
+	buffer.WriteString("\t}\n")
+	buffer.WriteString("\tif basePath == \"/\" {\n")
+	buffer.WriteString("\t\treturn \"\"\n")
+	buffer.WriteString("\t}\n")
+	buffer.WriteString("\treturn basePath\n")
+	buffer.WriteString("}\n\n")
 }
 
 func urlHelperNodes(root *urlHelperNode) []*urlHelperNode {

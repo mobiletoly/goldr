@@ -17,20 +17,24 @@ func TestGenerateURLHelpersWritesRouteNodes(t *testing.T) {
 
 	for _, want := range []string{
 		"package urls",
-		"var Root = newRootRoute()",
-		"var Orgs = newOrgsRoute()",
-		"var Settings = newSettingsRoute()",
-		"var Users = newUsersRoute()",
+		"var Root = newRootRoute(\"\")",
+		"var Orgs = newOrgsRoute(\"\")",
+		"var Settings = newSettingsRoute(\"\")",
+		"var Users = newUsersRoute(\"\")",
+		"type MountedRoutes struct",
+		"func WithBasePath(basePath string) MountedRoutes",
 		"func BySlug(slug string) bySlugRoute",
+		"func (r MountedRoutes) BySlug(slug string) bySlugRoute",
 		"func (r rootRoute) Path() string",
 		"func (r usersRoute) Path() string",
 		"func (r usersRoute) ByID(id string) usersByIDRoute",
 		"func (r usersByIDProfileRoute) Path() string",
 		"func (r orgsByOrgIDUsersByUserIDRoute) Path() string",
-		"FragTable:   newUsersFragTableRoute()",
+		"FragTable:   newUsersFragTableRoute(basePath)",
 		"BuildInfo settingsBuildInfoRoute",
 		"SavePreview usersSavePreviewRoute",
 		"url.PathEscape(id)",
+		"normalizeBasePath(basePath)",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated URL helper source missing %q:\n%s", want, source)
@@ -66,9 +70,11 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
+	"example.com/app/urls"
 )
 
 func Page(r *http.Request) goldr.RouteResponse {
+	_ = urls.WithBasePath("/webapp").BySlug("x/y").Path()
 	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
@@ -99,6 +105,7 @@ import (
 
 func Page(r *http.Request) goldr.RouteResponse {
 	_ = urls.Users.ByID("42").Profile.Path()
+	_ = urls.WithBasePath("/webapp").Users.ByID("42").Profile.Path()
 	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
@@ -189,6 +196,18 @@ func TestURLHelpers(t *testing.T) {
 		{"dynamic empty", Users.ByID("").Path(), "/users/"},
 		{"profile", Users.ByID("a b").Profile.Path(), "/users/a%20b/profile"},
 		{"nested", Orgs.ByOrgID("o/1").Users.ByUserID("u/2").Path(), "/orgs/o%2F1/users/u%2F2"},
+		{"mounted root", WithBasePath("/webapp").Root.Path(), "/webapp/"},
+		{"mounted static", WithBasePath("/webapp").Users.Path(), "/webapp/users"},
+		{"mounted action", WithBasePath("/webapp").Users.Create.Path(), "/webapp/users/create"},
+		{"mounted fragment", WithBasePath("/webapp").Users.FragTable.Path(), "/webapp/users/frag-table"},
+		{"mounted root dynamic", WithBasePath("/webapp").BySlug("x/y").Path(), "/webapp/x%2Fy"},
+		{"mounted dynamic", WithBasePath("/webapp").Users.ByID("a/b").Path(), "/webapp/users/a%2Fb"},
+		{"mounted nested", WithBasePath("/webapp").Orgs.ByOrgID("o/1").Users.ByUserID("u/2").Path(), "/webapp/orgs/o%2F1/users/u%2F2"},
+		{"mounted empty base", WithBasePath("").Users.Path(), "/users"},
+		{"mounted slash base", WithBasePath("/").Users.Path(), "/users"},
+		{"mounted missing leading slash", WithBasePath("webapp").Users.Path(), "/webapp/users"},
+		{"mounted trailing slash", WithBasePath("/webapp/").Users.Path(), "/webapp/users"},
+		{"mounted repeated trailing slash", WithBasePath("/webapp///").Users.Path(), "/webapp/users"},
 	}
 	for _, test := range tests {
 		if test.got != test.want {
@@ -211,6 +230,22 @@ func TestGenerateURLHelpersRejectsAmbiguousNames(t *testing.T) {
 			manifest: routing.Manifest{
 				Actions: []routing.ManifestAction{
 					{Method: "POST", Route: "/root", GoFile: "actions.go", Function: "PostRoot"},
+				},
+			},
+		},
+		{
+			name: "top-level static child collides with WithBasePath",
+			manifest: routing.Manifest{
+				Actions: []routing.ManifestAction{
+					{Method: "POST", Route: "/with-base-path", GoFile: "actions.go", Function: "PostWithBasePath"},
+				},
+			},
+		},
+		{
+			name: "top-level static child collides with MountedRoutes",
+			manifest: routing.Manifest{
+				Actions: []routing.ManifestAction{
+					{Method: "POST", Route: "/mounted-routes", GoFile: "actions.go", Function: "PostMountedRoutes"},
 				},
 			},
 		},

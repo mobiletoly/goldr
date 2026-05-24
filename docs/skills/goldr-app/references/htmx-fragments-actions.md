@@ -63,6 +63,24 @@ replacement boundary:
 The fragment root stays inside the slot. This is friendly to HTMX, styling,
 fragment-local IDs, and optional template-inspection comments.
 
+Fragments can render modal or dialog partials loaded on demand. Prefer a stable
+page-owned slot over `hx-target="body"` with `hx-swap="beforeend"`:
+
+```templ
+<button
+	hx-get={ urls.Tenants.ByID(id).WebhookSettings.FragEdit.Path() }
+	hx-target="#webhook-settings-dialog-slot"
+	hx-swap="innerHTML"
+>
+	Change key
+</button>
+
+<div id="webhook-settings-dialog-slot"></div>
+```
+
+The fragment renders the dialog root. Replacing the slot avoids repeated opens
+creating duplicate dialog IDs.
+
 ## Embedded Fragment Wrappers
 
 When embedding a first-class fragment inside a page, use the generated

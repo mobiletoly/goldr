@@ -45,6 +45,25 @@ The slot uses `innerHTML`; the fragment root remains inside the slot for
 semantic markup, styling, and fragment-local IDs. This shape stays correct when
 the template inspector emits comment markers around embedded fragments.
 
+Fragments can also render modal or dialog partials loaded on demand. Prefer a
+stable page-owned slot for those interactions instead of appending directly to
+`body`:
+
+```templ
+<button
+	hx-get={ urls.Tenants.ByID(id).WebhookSettings.FragEdit.Path() }
+	hx-target="#webhook-settings-dialog-slot"
+	hx-swap="innerHTML"
+>
+	Change key
+</button>
+
+<div id="webhook-settings-dialog-slot"></div>
+```
+
+The fragment should render the dialog root. Replacing the slot keeps repeated
+opens deterministic and avoids duplicate dialog IDs.
+
 ## Response Headers
 
 Use the `hx` package from action handlers or other ordinary `net/http`

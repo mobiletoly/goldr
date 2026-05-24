@@ -4,152 +4,233 @@ package urls
 
 import "net/url"
 
-var Root = newRootRoute()
-var Admin = newAdminRoute()
-var ProtectedResourceDemo = newProtectedResourceDemoRoute()
-var Settings = newSettingsRoute()
-var SignIn = newSignInRoute()
-var Users = newUsersRoute()
+var Root = newRootRoute("")
+var Admin = newAdminRoute("")
+var ProtectedResourceDemo = newProtectedResourceDemoRoute("")
+var Settings = newSettingsRoute("")
+var SignIn = newSignInRoute("")
+var Users = newUsersRoute("")
 
-type rootRoute struct{}
+type MountedRoutes struct {
+	basePath              string
+	Root                  rootRoute
+	Admin                 adminRoute
+	ProtectedResourceDemo protectedResourceDemoRoute
+	Settings              settingsRoute
+	SignIn                signInRoute
+	Users                 usersRoute
+}
 
-type adminRoute struct{}
+func WithBasePath(basePath string) MountedRoutes {
+	normalizedBasePath := normalizeBasePath(basePath)
+	return MountedRoutes{
+		basePath:              normalizedBasePath,
+		Root:                  newRootRoute(normalizedBasePath),
+		Admin:                 newAdminRoute(normalizedBasePath),
+		ProtectedResourceDemo: newProtectedResourceDemoRoute(normalizedBasePath),
+		Settings:              newSettingsRoute(normalizedBasePath),
+		SignIn:                newSignInRoute(normalizedBasePath),
+		Users:                 newUsersRoute(normalizedBasePath),
+	}
+}
+
+type rootRoute struct {
+	basePath string
+}
+
+type adminRoute struct {
+	basePath string
+}
 
 type protectedResourceDemoRoute struct {
+	basePath     string
 	RevealSecret protectedResourceDemoRevealSecretRoute
 	SignOut      protectedResourceDemoSignOutRoute
 }
 
-type protectedResourceDemoRevealSecretRoute struct{}
+type protectedResourceDemoRevealSecretRoute struct {
+	basePath string
+}
 
-type protectedResourceDemoSignOutRoute struct{}
+type protectedResourceDemoSignOutRoute struct {
+	basePath string
+}
 
-type settingsRoute struct{}
+type settingsRoute struct {
+	basePath string
+}
 
-type signInRoute struct{}
+type signInRoute struct {
+	basePath string
+}
 
 type usersRoute struct {
+	basePath    string
 	Create      usersCreateRoute
 	FragTable   usersFragTableRoute
 	SavePreview usersSavePreviewRoute
 }
 
-type usersCreateRoute struct{}
+type usersCreateRoute struct {
+	basePath string
+}
 
-type usersFragTableRoute struct{}
+type usersFragTableRoute struct {
+	basePath string
+}
 
-type usersSavePreviewRoute struct{}
+type usersSavePreviewRoute struct {
+	basePath string
+}
 
 type usersByIDRoute struct {
-	id string
+	basePath string
+	id       string
 }
 
-func newRootRoute() rootRoute {
-	return rootRoute{}
+func newRootRoute(basePath string) rootRoute {
+	return rootRoute{
+		basePath: basePath,
+	}
 }
 
-func newAdminRoute() adminRoute {
-	return adminRoute{}
+func newAdminRoute(basePath string) adminRoute {
+	return adminRoute{
+		basePath: basePath,
+	}
 }
 
-func newProtectedResourceDemoRoute() protectedResourceDemoRoute {
+func newProtectedResourceDemoRoute(basePath string) protectedResourceDemoRoute {
 	return protectedResourceDemoRoute{
-		RevealSecret: newProtectedResourceDemoRevealSecretRoute(),
-		SignOut:      newProtectedResourceDemoSignOutRoute(),
+		basePath:     basePath,
+		RevealSecret: newProtectedResourceDemoRevealSecretRoute(basePath),
+		SignOut:      newProtectedResourceDemoSignOutRoute(basePath),
 	}
 }
 
-func newProtectedResourceDemoRevealSecretRoute() protectedResourceDemoRevealSecretRoute {
-	return protectedResourceDemoRevealSecretRoute{}
+func newProtectedResourceDemoRevealSecretRoute(basePath string) protectedResourceDemoRevealSecretRoute {
+	return protectedResourceDemoRevealSecretRoute{
+		basePath: basePath,
+	}
 }
 
-func newProtectedResourceDemoSignOutRoute() protectedResourceDemoSignOutRoute {
-	return protectedResourceDemoSignOutRoute{}
+func newProtectedResourceDemoSignOutRoute(basePath string) protectedResourceDemoSignOutRoute {
+	return protectedResourceDemoSignOutRoute{
+		basePath: basePath,
+	}
 }
 
-func newSettingsRoute() settingsRoute {
-	return settingsRoute{}
+func newSettingsRoute(basePath string) settingsRoute {
+	return settingsRoute{
+		basePath: basePath,
+	}
 }
 
-func newSignInRoute() signInRoute {
-	return signInRoute{}
+func newSignInRoute(basePath string) signInRoute {
+	return signInRoute{
+		basePath: basePath,
+	}
 }
 
-func newUsersRoute() usersRoute {
+func newUsersRoute(basePath string) usersRoute {
 	return usersRoute{
-		Create:      newUsersCreateRoute(),
-		FragTable:   newUsersFragTableRoute(),
-		SavePreview: newUsersSavePreviewRoute(),
+		basePath:    basePath,
+		Create:      newUsersCreateRoute(basePath),
+		FragTable:   newUsersFragTableRoute(basePath),
+		SavePreview: newUsersSavePreviewRoute(basePath),
 	}
 }
 
-func newUsersCreateRoute() usersCreateRoute {
-	return usersCreateRoute{}
+func newUsersCreateRoute(basePath string) usersCreateRoute {
+	return usersCreateRoute{
+		basePath: basePath,
+	}
 }
 
-func newUsersFragTableRoute() usersFragTableRoute {
-	return usersFragTableRoute{}
+func newUsersFragTableRoute(basePath string) usersFragTableRoute {
+	return usersFragTableRoute{
+		basePath: basePath,
+	}
 }
 
-func newUsersSavePreviewRoute() usersSavePreviewRoute {
-	return usersSavePreviewRoute{}
+func newUsersSavePreviewRoute(basePath string) usersSavePreviewRoute {
+	return usersSavePreviewRoute{
+		basePath: basePath,
+	}
 }
 
-func newUsersByIDRoute(id string) usersByIDRoute {
+func newUsersByIDRoute(basePath string, id string) usersByIDRoute {
 	return usersByIDRoute{
-		id: id,
+		basePath: basePath,
+		id:       id,
 	}
 }
 
 func (r usersRoute) ByID(id string) usersByIDRoute {
 	escapedID := url.PathEscape(id)
-	return newUsersByIDRoute(escapedID)
+	return newUsersByIDRoute(r.basePath, escapedID)
 }
 
 func (r rootRoute) Path() string {
-	return "/"
+	return r.basePath + "/"
 }
 
 func (r adminRoute) Path() string {
-	return "/" + "admin"
+	return r.basePath + "/" + "admin"
 }
 
 func (r protectedResourceDemoRoute) Path() string {
-	return "/" + "protected-resource-demo"
+	return r.basePath + "/" + "protected-resource-demo"
 }
 
 func (r protectedResourceDemoRevealSecretRoute) Path() string {
-	return "/" + "protected-resource-demo" + "/" + "reveal-secret"
+	return r.basePath + "/" + "protected-resource-demo" + "/" + "reveal-secret"
 }
 
 func (r protectedResourceDemoSignOutRoute) Path() string {
-	return "/" + "protected-resource-demo" + "/" + "sign-out"
+	return r.basePath + "/" + "protected-resource-demo" + "/" + "sign-out"
 }
 
 func (r settingsRoute) Path() string {
-	return "/" + "settings"
+	return r.basePath + "/" + "settings"
 }
 
 func (r signInRoute) Path() string {
-	return "/" + "sign-in"
+	return r.basePath + "/" + "sign-in"
 }
 
 func (r usersRoute) Path() string {
-	return "/" + "users"
+	return r.basePath + "/" + "users"
 }
 
 func (r usersCreateRoute) Path() string {
-	return "/" + "users" + "/" + "create"
+	return r.basePath + "/" + "users" + "/" + "create"
 }
 
 func (r usersFragTableRoute) Path() string {
-	return "/" + "users" + "/" + "frag-table"
+	return r.basePath + "/" + "users" + "/" + "frag-table"
 }
 
 func (r usersSavePreviewRoute) Path() string {
-	return "/" + "users" + "/" + "save-preview"
+	return r.basePath + "/" + "users" + "/" + "save-preview"
 }
 
 func (r usersByIDRoute) Path() string {
-	return "/" + "users" + "/" + r.id
+	return r.basePath + "/" + "users" + "/" + r.id
+}
+
+func normalizeBasePath(basePath string) string {
+	if basePath == "" || basePath == "/" {
+		return ""
+	}
+	if basePath[0] != '/' {
+		basePath = "/" + basePath
+	}
+	for len(basePath) > 1 && basePath[len(basePath)-1] == '/' {
+		basePath = basePath[:len(basePath)-1]
+	}
+	if basePath == "/" {
+		return ""
+	}
+	return basePath
 }

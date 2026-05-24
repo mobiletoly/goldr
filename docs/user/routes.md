@@ -349,6 +349,21 @@ segment with `url.PathEscape`:
 urls.Users.ByID("a/b").Path() // /users/a%2Fb
 ```
 
+When the generated handler is mounted below a URL prefix, bind the generated
+helpers once instead of writing route-specific string helpers:
+
+```go
+appURLs := urls.WithBasePath("/webapp")
+appURLs.Users.ByID(id).Path() // /webapp/users/{id}
+```
+
+`WithBasePath` returns `urls.MountedRoutes`, so applications can pass the
+mounted helper set into local functions or templates when that keeps URL
+construction explicit. It normalizes a missing leading slash and trims trailing
+slashes. `""` and `"/"` mean no mount prefix. The generated handler still
+receives the unmounted path after the application's mux or middleware strips
+the prefix.
+
 Generated dispatch matches escaped request paths and exposes decoded values
 through `r.PathValue`.
 
