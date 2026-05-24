@@ -79,7 +79,7 @@ if err != nil {
 	return err
 }
 
-mux.Handle("/", guard.Middleware(routes.Handler()))
+mux.Handle("/", guard.TokenMiddleware(routes.Handler()))
 ```
 
 Read [CSRF](csrf.md) for form and HTMX validation patterns.

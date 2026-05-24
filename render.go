@@ -23,21 +23,21 @@ var (
 	// ErrInvalidHTMLStatus reports an HTTP status that cannot carry rendered
 	// HTML.
 	ErrInvalidHTMLStatus = errors.New("invalid html response status")
-	// ErrRouteResponseWriterUnavailable reports a layout-wrapped page response
-	// written outside generated Goldr route dispatch.
-	ErrRouteResponseWriterUnavailable = errors.New("route response writer unavailable")
+	// ErrRoutePageRendererUnavailable reports a page route response written
+	// outside generated Goldr route dispatch.
+	ErrRoutePageRendererUnavailable = errors.New("route page renderer unavailable")
 )
 
-type routeResponseWriterContextKey struct{}
+type routePageRendererContextKey struct{}
 
-// RouteResponseWriter writes a resolved route response for generated Goldr
-// route dispatch.
-type RouteResponseWriter func(http.ResponseWriter, *http.Request, ResolvedRouteResponse) error
+// RoutePageRenderer renders a validated page response through generated route
+// dispatch.
+type RoutePageRenderer func(*http.Request, Page) (templ.Component, error)
 
-// WithRouteResponseWriter returns a request that can write layout-aware route
-// responses.
-func WithRouteResponseWriter(r *http.Request, writer RouteResponseWriter) *http.Request {
-	return r.WithContext(context.WithValue(r.Context(), routeResponseWriterContextKey{}, writer))
+// WithRoutePageRenderer returns a request that can write layout-aware page
+// responses from ordinary action handlers.
+func WithRoutePageRenderer(r *http.Request, render RoutePageRenderer) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), routePageRendererContextKey{}, render))
 }
 
 // WriteComponent renders component and writes it as an HTML response with
@@ -77,6 +77,22 @@ func writeComponentResponse(w http.ResponseWriter, r *http.Request, status int, 
 
 // WriteRouteResponse writes response from an ordinary HTTP handler.
 func WriteRouteResponse(w http.ResponseWriter, r *http.Request, response RouteResponse) error {
+	return writeRouteResponse(w, r, response, routePageRendererFromContext(r), true, true)
+}
+
+// WritePageRouteResponse writes a page route response from generated route
+// dispatch.
+func WritePageRouteResponse(w http.ResponseWriter, r *http.Request, response RouteResponse, render RoutePageRenderer) error {
+	return writeRouteResponse(w, r, response, render, true, false)
+}
+
+// WriteFragmentRouteResponse writes a fragment route response from generated
+// route dispatch.
+func WriteFragmentRouteResponse(w http.ResponseWriter, r *http.Request, response RouteResponse) error {
+	return writeRouteResponse(w, r, response, nil, false, true)
+}
+
+func writeRouteResponse(w http.ResponseWriter, r *http.Request, response RouteResponse, render RoutePageRenderer, allowPage bool, allowFragment bool) error {
 	if w == nil {
 		return ErrNilResponseWriter
 	}
@@ -84,29 +100,38 @@ func WriteRouteResponse(w http.ResponseWriter, r *http.Request, response RouteRe
 		return ErrNilRequest
 	}
 
-	resolved, err := ResolveRouteResponse(response)
+	resolved, err := resolveRouteResponse(response)
 	if err != nil {
 		return err
 	}
 
-	switch resolved.Kind {
-	case RouteResponsePage:
-		writer := routeResponseWriterFromContext(r)
-		if writer == nil {
-			return ErrRouteResponseWriterUnavailable
+	switch resolved.kind {
+	case routeResponsePage:
+		if !allowPage {
+			return ErrInvalidRouteResponse
 		}
-		return writer(w, r, resolved)
-	case RouteResponseFragment:
-		return writeComponentResponse(w, r, resolved.Status, resolved.Component, resolved.Headers)
-	case RouteResponseRedirect:
-		applyResponseHeaders(w, resolved.Headers)
-		writeRedirect(w, resolved.Location, resolved.Status)
+		if render == nil {
+			return ErrRoutePageRendererUnavailable
+		}
+		component, err := render(r, resolved.page)
+		if err != nil {
+			return err
+		}
+		return writeComponentResponse(w, r, resolved.page.Status, component, resolved.page.headers)
+	case routeResponseFragment:
+		if !allowFragment {
+			return ErrInvalidRouteResponse
+		}
+		return writeComponentResponse(w, r, resolved.fragment.Status, resolved.fragment.Component, resolved.fragment.headers)
+	case routeResponseRedirect:
+		applyResponseHeaders(w, resolved.redirect.headers)
+		writeRedirect(w, resolved.redirect.Location, resolved.redirect.Status)
 		return nil
-	case RouteResponseText:
-		applyResponseHeaders(w, resolved.Headers)
-		return writeTextResponse(w, r, resolved.Status, resolved.Body)
-	case RouteResponseServerError:
-		return resolved.Error
+	case routeResponseText:
+		applyResponseHeaders(w, resolved.text.headers)
+		return writeTextResponse(w, r, resolved.text.Status, resolved.text.Body)
+	case routeResponseServerError:
+		return resolved.err
 	default:
 		return ErrInvalidRouteResponse
 	}
@@ -122,12 +147,12 @@ func applyResponseHeaders(w http.ResponseWriter, headers http.Header) {
 	}
 }
 
-func routeResponseWriterFromContext(r *http.Request) RouteResponseWriter {
+func routePageRendererFromContext(r *http.Request) RoutePageRenderer {
 	if r == nil {
 		return nil
 	}
-	writer, _ := r.Context().Value(routeResponseWriterContextKey{}).(RouteResponseWriter)
-	return writer
+	render, _ := r.Context().Value(routePageRendererContextKey{}).(RoutePageRenderer)
+	return render
 }
 
 func writeRedirect(w http.ResponseWriter, location string, status int) {

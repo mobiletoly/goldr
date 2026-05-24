@@ -37,28 +37,28 @@ go run ./examples/full_feature -addr 127.0.0.1:0
 Inspect the route surface from the repository root:
 
 ```bash
-go run ./cmd/goldr routes list --root examples/full_feature
-go run ./cmd/goldr routes layouts --root examples/full_feature
-go run ./cmd/goldr routes list --root examples/full_feature --json
-go run ./cmd/goldr assets list --root examples/full_feature
+go run ./cmd/goldr routes list --app-root examples/full_feature
+go run ./cmd/goldr routes layouts --app-root examples/full_feature
+go run ./cmd/goldr routes list --app-root examples/full_feature --json
+go run ./cmd/goldr assets list --app-root examples/full_feature
 ```
 
 Regenerate goldr-owned route and URL files from the repository root:
 
 ```bash
-go run ./cmd/goldr generate --root examples/full_feature
+go run ./cmd/goldr generate --app-root examples/full_feature
 ```
 
 Check that generated files are current without writing:
 
 ```bash
-go run ./cmd/goldr generate --root examples/full_feature --check
+go run ./cmd/goldr generate --app-root examples/full_feature --check
 ```
 
 Check the route tree, render-unit pairs, and generated-file freshness:
 
 ```bash
-go run ./cmd/goldr check --root examples/full_feature
+go run ./cmd/goldr check --app-root examples/full_feature
 ```
 
 The example demonstrates root, settings, nested static, and dynamic page

@@ -32,10 +32,9 @@
 //	    return LayoutView(ctx.Metadata, ctx.Child)
 //	}
 //
-// After route or template edits, run templ generation first, then goldr
-// generation and checks:
+// After route or template edits, run goldr generation and checks. The generate
+// command runs templ generation first when .templ files are present:
 //
-//	go tool templ generate
 //	go tool goldr generate
 //	go tool goldr check
 //
@@ -65,7 +64,8 @@
 // provides only event-stream wire helpers for headers, comments, event fields,
 // templ-rendered HTML data, and flushing. The browser package provides an
 // explicitly mounted helper for swapping selected named SSE events in htmx
-// templates; Goldr does not inject that script automatically.
+// templates. Its file name is browser.SSEEventHelperPath. Goldr does not
+// inject that script automatically.
 //
 // For CSRF protection, applications keep ownership of middleware mounting,
 // secrets, auth, sessions, templates, and error responses. The csrf package

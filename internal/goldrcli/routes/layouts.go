@@ -22,14 +22,14 @@ func layoutsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "layouts",
 		Usage:       "show route layout map",
-		UsageText:   "goldr routes layouts [--root <dir>]",
+		UsageText:   "goldr routes layouts [--app-root <dir>]",
 		Description: layoutsDescription,
 		Flags: []cli.Flag{
 			rootStringFlag(),
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			return runLayouts(ctx, layoutsOptions{
-				root: cmd.String(rootFlag),
+				root: cmd.String(appRootFlag),
 			}, cmd.Root().Writer)
 		},
 	}

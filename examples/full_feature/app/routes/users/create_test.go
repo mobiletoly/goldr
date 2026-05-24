@@ -10,8 +10,7 @@ import (
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
-	"github.com/mobiletoly/goldr/examples/full_feature/internal/testcsrf"
-	"github.com/mobiletoly/goldr/examples/full_feature/internal/testmultipart"
+	"github.com/mobiletoly/goldr/examples/full_feature/internal/testutil"
 	"github.com/mobiletoly/goldr/hx"
 )
 
@@ -23,8 +22,8 @@ func TestPostCreateRedisplaysFieldErrors(t *testing.T) {
 	resetContactsForTest()
 	t.Cleanup(resetContactsForTest)
 
-	cookie, token := testcsrf.Pair(t, security.CSRF)
-	body, contentType := testmultipart.Body(t, map[string]string{
+	cookie, token := testutil.CSRFPair(t, security.CSRF)
+	body, contentType := testutil.MultipartBody(t, map[string]string{
 		csrf.FieldName: token,
 		"name":         "",
 		"status":       "Missing",
@@ -61,12 +60,12 @@ func TestPostCreateAddsContact(t *testing.T) {
 	resetContactsForTest()
 	t.Cleanup(resetContactsForTest)
 
-	cookie, token := testcsrf.Pair(t, security.CSRF)
-	body, contentType := testmultipart.Body(t, map[string]string{
+	cookie, token := testutil.CSRFPair(t, security.CSRF)
+	body, contentType := testutil.MultipartBody(t, map[string]string{
 		csrf.FieldName: token,
 		"name":         "Hedy Lamarr",
 		"status":       "Inactive",
-	}, map[string]testmultipart.Upload{
+	}, map[string]testutil.MultipartUpload{
 		"avatar": {Filename: "hedy.txt", Content: "example avatar"},
 	})
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
@@ -102,7 +101,7 @@ func TestPostCreateRejectsMissingCSRF(t *testing.T) {
 	resetContactsForTest()
 	t.Cleanup(resetContactsForTest)
 
-	body, contentType := testmultipart.Body(t, map[string]string{
+	body, contentType := testutil.MultipartBody(t, map[string]string{
 		"name":   "Hedy Lamarr",
 		"status": "Inactive",
 	}, nil)

@@ -95,14 +95,70 @@ func TestWriteComponentReturnsComponentErrorsWithoutWriting(t *testing.T) {
 	}
 }
 
-func TestWriteRouteResponseRequiresGeneratedWriterForPage(t *testing.T) {
+func TestWriteRouteResponseRequiresRoutePageRendererForPage(t *testing.T) {
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
 
 	err := WriteRouteResponse(recorder, request, NewPage(templ.NopComponent, PageMetadata{}))
 
-	if !errors.Is(err, ErrRouteResponseWriterUnavailable) {
-		t.Fatalf("WriteRouteResponse() error = %v, want ErrRouteResponseWriterUnavailable", err)
+	if !errors.Is(err, ErrRoutePageRendererUnavailable) {
+		t.Fatalf("WriteRouteResponse() error = %v, want ErrRoutePageRendererUnavailable", err)
+	}
+}
+
+func TestWriteRouteResponseUsesRoutePageRendererForPage(t *testing.T) {
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil)
+	request = WithRoutePageRenderer(request, func(_ *http.Request, page Page) (templ.Component, error) {
+		if page.Metadata.Title != "Created" {
+			t.Fatalf("metadata title = %q, want Created", page.Metadata.Title)
+		}
+		return stringComponent("<main>Created</main>"), nil
+	})
+	recorder := httptest.NewRecorder()
+
+	err := WriteRouteResponse(
+		recorder,
+		request,
+		NewPage(templ.NopComponent, PageMetadata{Title: "Created"}).
+			WithStatus(http.StatusCreated).
+			WithHeader("Cache-Control", "no-store"),
+	)
+
+	if err != nil {
+		t.Fatalf("WriteRouteResponse(page) error = %v, want nil", err)
+	}
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusCreated)
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+	if got := recorder.Body.String(); got != "<main>Created</main>" {
+		t.Fatalf("body = %q, want rendered page", got)
+	}
+}
+
+func TestWritePageRouteResponseRejectsFragments(t *testing.T) {
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	recorder := httptest.NewRecorder()
+
+	err := WritePageRouteResponse(recorder, request, NewFragment(templ.NopComponent), func(_ *http.Request, page Page) (templ.Component, error) {
+		return page.Component, nil
+	})
+
+	if !errors.Is(err, ErrInvalidRouteResponse) {
+		t.Fatalf("WritePageRouteResponse(fragment) error = %v, want ErrInvalidRouteResponse", err)
+	}
+}
+
+func TestWriteFragmentRouteResponseRejectsPages(t *testing.T) {
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	recorder := httptest.NewRecorder()
+
+	err := WriteFragmentRouteResponse(recorder, request, NewPage(templ.NopComponent, PageMetadata{}))
+
+	if !errors.Is(err, ErrInvalidRouteResponse) {
+		t.Fatalf("WriteFragmentRouteResponse(page) error = %v, want ErrInvalidRouteResponse", err)
 	}
 }
 

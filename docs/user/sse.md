@@ -124,7 +124,8 @@ swapping them into the wrong target.
 
 ## Helper Caching
 
-`browser.Handler()` serves `goldr-sse-event.js` from a stable URL with:
+`browser.Handler()` serves `browser.SSEEventHelperPath`
+(`goldr-sse-event.js`) from a stable URL with:
 
 - `Cache-Control: no-cache`
 - `Content-Type: text/javascript; charset=utf-8`

@@ -12,13 +12,13 @@ go tool goldr <command>
 The usage text still shows the underlying command name, such as
 `goldr generate`.
 
-Use `--root` when running a command from outside the application root:
+Use `--app-root` when running a command from outside the application root:
 
 ```bash
-go tool goldr check --root examples/full_feature
+go tool goldr check --app-root examples/full_feature
 ```
 
-`--root` points to the application root. goldr reads `<root>/app/routes` and
+`--app-root` points to the application root. goldr reads `<root>/app/routes` and
 writes generated files under `<root>/app/routes` and `<root>/app/urls`.
 
 ## Help And Version
@@ -69,10 +69,10 @@ app/urls/goldr_gen.go
 It fails if `app` already exists. It does not create `go.mod`, edit `go.mod`,
 write `main.go`, run templ, or start a server.
 
-Use `--root` from outside the application root:
+Use `--app-root` from outside the application root:
 
 ```bash
-go tool goldr init --root ./hello-goldr
+go tool goldr init --app-root ./hello-goldr
 ```
 
 For a manual first-app walkthrough, read [Getting Started](getting-started.md).
@@ -101,7 +101,7 @@ Use `--check` in CI or before committing generated files:
 
 ```bash
 go tool goldr generate --check
-go tool goldr generate --root examples/full_feature --check
+go tool goldr generate --app-root examples/full_feature --check
 ```
 
 Check mode runs templ check mode when `.templ` files exist, compares
@@ -128,6 +128,15 @@ defaults:
 go tool goldr dev --cmd "go run ./cmd/web" --app-url http://127.0.0.1:3000 --proxy-addr 127.0.0.1:7331
 ```
 
+`--cmd` runs from the Goldr app root by default. Use `--cmd-dir` when the app
+root is nested but the server command should run from another directory.
+Relative `--cmd-dir` paths are resolved from the directory where you invoked
+`goldr dev`:
+
+```bash
+go tool goldr dev --app-root internal/adapters/webapp --cmd-dir . --cmd './scripts/run-goldr-dev-app.sh'
+```
+
 ## Check
 
 `goldr check` validates the route tree and generated-file freshness without
@@ -136,7 +145,7 @@ freshness:
 
 ```bash
 go tool goldr check
-go tool goldr check --root examples/full_feature
+go tool goldr check --app-root examples/full_feature
 ```
 
 It checks:
@@ -183,6 +192,12 @@ GOLDR008 Goldr-managed assets are not current; run go tool goldr generate
 mode when asset output is present. It does not write templ output, write asset
 output, run tests, or start the application server.
 
+For nested Goldr app roots, prefer `goldr generate --app-root <dir>` and
+`goldr check --app-root <dir>` over raw `go tool templ generate` from a
+different directory. Templ records source paths in generated `*_templ.go` files
+relative to the generation root, so raw repo-root templ generation can churn
+`FileName` metadata for nested Goldr routes.
+
 ## Assets
 
 `goldr assets` fingerprints final static files that your app already built.
@@ -194,7 +209,7 @@ handlers. For the full workflow, read [Assets](assets.md).
 
 ```bash
 go tool goldr assets dist
-go tool goldr assets dist --root examples/full_feature
+go tool goldr assets dist --app-root examples/full_feature
 ```
 
 Verify asset output without writing:
@@ -226,7 +241,7 @@ Run `go tool goldr assets check` when you want the asset-only check.
 
 ```bash
 go tool goldr routes list
-go tool goldr routes list --root examples/full_feature
+go tool goldr routes list --app-root examples/full_feature
 ```
 
 Columns:
@@ -243,7 +258,7 @@ Use `--json` for machine-readable output:
 
 ```bash
 go tool goldr routes list --json
-go tool goldr routes list --root examples/full_feature --json
+go tool goldr routes list --app-root examples/full_feature --json
 ```
 
 JSON rows include `kind`, `methods`, `path`, `params`, `source`, and `helper`.
@@ -254,7 +269,7 @@ JSON rows include `kind`, `methods`, `path`, `params`, `source`, and `helper`.
 
 ```bash
 go tool goldr routes layouts
-go tool goldr routes layouts --root examples/full_feature
+go tool goldr routes layouts --app-root examples/full_feature
 ```
 
 The output shows where layouts start, which pages inherit them, which actions
@@ -271,8 +286,8 @@ or `TERM=dumb`.
 
 ```bash
 go tool goldr routes explain /users/7
-go tool goldr routes explain --root examples/full_feature http://127.0.0.1:8080/users/7
-go tool goldr routes explain --root examples/full_feature --method POST /users/create
+go tool goldr routes explain --app-root examples/full_feature http://127.0.0.1:8080/users/7
+go tool goldr routes explain --app-root examples/full_feature --method POST /users/create
 ```
 
 It accepts full URLs and absolute paths. Query strings and fragments are

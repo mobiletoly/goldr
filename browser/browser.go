@@ -19,16 +19,19 @@ import (
 )
 
 const (
-	sseEventHelperPath          = "goldr-sse-event.js"
-	templateInspectorHelperPath = "goldr-template-inspector.js"
+	// SSEEventHelperPath is the embedded named SSE event helper file name.
+	SSEEventHelperPath = "goldr-sse-event.js"
+	// TemplateInspectorHelperPath is the embedded template inspector helper
+	// file name.
+	TemplateInspectorHelperPath = "goldr-template-inspector.js"
 )
 
 //go:embed goldr-sse-event.js goldr-template-inspector.js
 var embedded embed.FS
 
 var helpers = map[string]helperFile{
-	sseEventHelperPath:          mustReadHelper(sseEventHelperPath),
-	templateInspectorHelperPath: mustReadHelper(templateInspectorHelperPath),
+	SSEEventHelperPath:          mustReadHelper(SSEEventHelperPath),
+	TemplateInspectorHelperPath: mustReadHelper(TemplateInspectorHelperPath),
 }
 
 type helperFile struct {

@@ -67,46 +67,24 @@ type ServerError struct {
 
 func (ServerError) goldrRouteResponse() {}
 
-// RouteResponseKind identifies the response behavior for a resolved route
-// response.
-type RouteResponseKind uint8
+type routeResponseKind uint8
 
 const (
-	// RouteResponseInvalid is never returned by valid route responses.
-	RouteResponseInvalid RouteResponseKind = iota
-	// RouteResponsePage renders a templ component through matching layouts.
-	RouteResponsePage
-	// RouteResponseFragment renders a standalone templ component without
-	// layouts.
-	RouteResponseFragment
-	// RouteResponseRedirect writes a redirect without rendering.
-	RouteResponseRedirect
-	// RouteResponseText writes a plain text status response without rendering.
-	RouteResponseText
-	// RouteResponseServerError delegates an application error to Goldr error
-	// handling.
-	RouteResponseServerError
+	routeResponseInvalid routeResponseKind = iota
+	routeResponsePage
+	routeResponseFragment
+	routeResponseRedirect
+	routeResponseText
+	routeResponseServerError
 )
 
-// ResolvedRouteResponse is the generated-dispatch-facing view of a route
-// response.
-type ResolvedRouteResponse struct {
-	// Kind identifies which response behavior generated dispatch should use.
-	Kind RouteResponseKind
-	// Component is rendered for RouteResponsePage.
-	Component templ.Component
-	// Metadata is passed to layouts for RouteResponsePage.
-	Metadata PageMetadata
-	// Status is the HTTP status written by page, redirect, and text responses.
-	Status int
-	// Location is the redirect target for RouteResponseRedirect.
-	Location string
-	// Body is the plain text response body for RouteResponseText.
-	Body string
-	// Error is the application error for RouteResponseServerError.
-	Error error
-	// Headers are response headers applied before status and body are written.
-	Headers http.Header
+type resolvedRouteResponse struct {
+	kind     routeResponseKind
+	page     Page
+	fragment Fragment
+	redirect Redirect
+	text     Text
+	err      error
 }
 
 // PageMetadata is page-owned metadata passed explicitly to layouts.
@@ -202,117 +180,109 @@ func (text Text) AddHeader(name, value string) Text {
 	return text
 }
 
-// ResolveRouteResponse returns the generated-dispatch-facing view of response.
-//
-// A non-nil error reports an invalid Goldr route response contract, such as a
-// nil render component, invalid status, empty redirect location, or nil
-// response.
-func ResolveRouteResponse(response RouteResponse) (ResolvedRouteResponse, error) {
+func resolveRouteResponse(response RouteResponse) (resolvedRouteResponse, error) {
 	switch response := response.(type) {
 	case Page:
 		return resolvePageResponse(response)
 	case *Page:
 		if response == nil {
-			return ResolvedRouteResponse{}, ErrInvalidRouteResponse
+			return resolvedRouteResponse{}, ErrInvalidRouteResponse
 		}
 		return resolvePageResponse(*response)
 	case Fragment:
 		return resolveFragmentResponse(response)
 	case *Fragment:
 		if response == nil {
-			return ResolvedRouteResponse{}, ErrInvalidRouteResponse
+			return resolvedRouteResponse{}, ErrInvalidRouteResponse
 		}
 		return resolveFragmentResponse(*response)
 	case Redirect:
 		return resolveRedirectResponse(response)
 	case *Redirect:
 		if response == nil {
-			return ResolvedRouteResponse{}, ErrInvalidRouteResponse
+			return resolvedRouteResponse{}, ErrInvalidRouteResponse
 		}
 		return resolveRedirectResponse(*response)
 	case Text:
 		return resolveTextResponse(response)
 	case *Text:
 		if response == nil {
-			return ResolvedRouteResponse{}, ErrInvalidRouteResponse
+			return resolvedRouteResponse{}, ErrInvalidRouteResponse
 		}
 		return resolveTextResponse(*response)
 	case ServerError:
 		return resolveServerErrorResponse(response)
 	case *ServerError:
 		if response == nil {
-			return ResolvedRouteResponse{}, ErrInvalidRouteResponse
+			return resolvedRouteResponse{}, ErrInvalidRouteResponse
 		}
 		return resolveServerErrorResponse(*response)
 	default:
-		return ResolvedRouteResponse{}, ErrInvalidRouteResponse
+		return resolvedRouteResponse{}, ErrInvalidRouteResponse
 	}
 }
 
-func resolvePageResponse(response Page) (ResolvedRouteResponse, error) {
+func resolvePageResponse(response Page) (resolvedRouteResponse, error) {
 	status := response.Status
 	if status == 0 {
 		status = http.StatusOK
 	}
 	if err := validateRenderResponse(response.Component, status); err != nil {
-		return ResolvedRouteResponse{}, err
+		return resolvedRouteResponse{}, err
 	}
-	return ResolvedRouteResponse{
-		Kind:      RouteResponsePage,
-		Component: response.Component,
-		Metadata:  response.Metadata,
-		Status:    status,
-		Headers:   cloneResponseHeaders(response.headers),
+	response.Status = status
+	response.headers = cloneResponseHeaders(response.headers)
+	return resolvedRouteResponse{
+		kind: routeResponsePage,
+		page: response,
 	}, nil
 }
 
-func resolveFragmentResponse(response Fragment) (ResolvedRouteResponse, error) {
+func resolveFragmentResponse(response Fragment) (resolvedRouteResponse, error) {
 	status := response.Status
 	if status == 0 {
 		status = http.StatusOK
 	}
 	if err := validateRenderResponse(response.Component, status); err != nil {
-		return ResolvedRouteResponse{}, err
+		return resolvedRouteResponse{}, err
 	}
-	return ResolvedRouteResponse{
-		Kind:      RouteResponseFragment,
-		Component: response.Component,
-		Status:    status,
-		Headers:   cloneResponseHeaders(response.headers),
+	response.Status = status
+	response.headers = cloneResponseHeaders(response.headers)
+	return resolvedRouteResponse{
+		kind:     routeResponseFragment,
+		fragment: response,
 	}, nil
 }
 
-func resolveRedirectResponse(response Redirect) (ResolvedRouteResponse, error) {
+func resolveRedirectResponse(response Redirect) (resolvedRouteResponse, error) {
 	if err := validateRedirectResponse(response.Location, response.Status); err != nil {
-		return ResolvedRouteResponse{}, err
+		return resolvedRouteResponse{}, err
 	}
-	return ResolvedRouteResponse{
-		Kind:     RouteResponseRedirect,
-		Status:   response.Status,
-		Location: response.Location,
-		Headers:  cloneResponseHeaders(response.headers),
+	response.headers = cloneResponseHeaders(response.headers)
+	return resolvedRouteResponse{
+		kind:     routeResponseRedirect,
+		redirect: response,
 	}, nil
 }
 
-func resolveTextResponse(response Text) (ResolvedRouteResponse, error) {
+func resolveTextResponse(response Text) (resolvedRouteResponse, error) {
 	if err := validateTextResponse(response.Status); err != nil {
-		return ResolvedRouteResponse{}, err
+		return resolvedRouteResponse{}, err
 	}
-	return ResolvedRouteResponse{
-		Kind:    RouteResponseText,
-		Status:  response.Status,
-		Body:    response.Body,
-		Headers: cloneResponseHeaders(response.headers),
+	response.headers = cloneResponseHeaders(response.headers)
+	return resolvedRouteResponse{
+		kind: routeResponseText,
+		text: response,
 	}, nil
 }
 
-func resolveServerErrorResponse(response ServerError) (ResolvedRouteResponse, error) {
+func resolveServerErrorResponse(response ServerError) (resolvedRouteResponse, error) {
 	if response.Err == nil {
-		return ResolvedRouteResponse{}, ErrNilServerError
+		return resolvedRouteResponse{}, ErrNilServerError
 	}
-	return ResolvedRouteResponse{
-		Kind:  RouteResponseServerError,
-		Error: response.Err,
+	return resolvedRouteResponse{
+		kind: routeResponseServerError,
+		err:  response.Err,
 	}, nil
 }
 

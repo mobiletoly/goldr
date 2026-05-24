@@ -1,7 +1,7 @@
 // Copyright 2026 Toly Pochkin
 // SPDX-License-Identifier: Apache-2.0
 
-package goldrcli
+package initcmd
 
 import (
 	"context"
@@ -11,33 +11,35 @@ import (
 	"path/filepath"
 
 	"github.com/mobiletoly/goldr/internal/goldrcli/appfs"
+	"github.com/mobiletoly/goldr/internal/goldrcli/project"
 	"github.com/mobiletoly/goldr/internal/routing"
 	"github.com/urfave/cli/v3"
 )
 
-const initRootFlag = "root"
+const initAppRootFlag = "app-root"
 
 type initOptions struct {
 	root string
 }
 
-func initCommand() *cli.Command {
+func Command() *cli.Command {
 	return &cli.Command{
 		Name:        "init",
 		Usage:       "initialize goldr app structure",
-		UsageText:   "goldr init [--root <dir>]",
+		UsageText:   "goldr init [--app-root <dir>]",
 		Description: initDescription,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        initRootFlag,
+				Name:        initAppRootFlag,
 				Value:       ".",
-				Usage:       "app root directory",
+				Usage:       "Goldr app root directory",
+				Config:      cli.StringConfig{TrimSpace: true},
 				HideDefault: false,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			return runInit(ctx, initOptions{
-				root: cmd.String(initRootFlag),
+				root: cmd.String(initAppRootFlag),
 			})
 		},
 	}
@@ -67,24 +69,24 @@ func runInit(ctx context.Context, options initOptions) error {
 		return fmt.Errorf("goldr init: %w", err)
 	}
 	for _, file := range files {
-		if err := writeGeneratedFile(file); err != nil {
+		if err := project.WriteGeneratedFile(file); err != nil {
 			return fmt.Errorf("goldr init: %w", err)
 		}
 	}
 	return nil
 }
 
-func initAppPathsForRoot(ctx context.Context, root string) (appPaths, error) {
+func initAppPathsForRoot(ctx context.Context, root string) (project.Paths, error) {
 	appRoot, err := appfs.ResolveExistingDir(root)
 	if err != nil {
-		return appPaths{}, fmt.Errorf("resolve --root %q: %w", root, err)
+		return project.Paths{}, fmt.Errorf("resolve --app-root %q: %w", root, err)
 	}
 
 	if err := requireMissingPath(filepath.Join(appRoot, "app")); err != nil {
-		return appPaths{}, err
+		return project.Paths{}, err
 	}
 
-	return appPathsForResolvedRoot(ctx, appRoot)
+	return project.PathsForResolvedRoot(ctx, appRoot)
 }
 
 func requireMissingPath(name string) error {
@@ -96,27 +98,27 @@ func requireMissingPath(name string) error {
 	return nil
 }
 
-func initFiles(paths appPaths) ([]generatedFile, error) {
-	files := []generatedFile{
+func initFiles(paths project.Paths) ([]project.GeneratedFile, error) {
+	files := []project.GeneratedFile{
 		{
-			path:    filepath.Join(paths.routesDir, "page.go"),
-			content: []byte(initPageGoSource),
+			Path:    filepath.Join(paths.RoutesDir, "page.go"),
+			Content: []byte(initPageGoSource),
 		},
 		{
-			path:    filepath.Join(paths.routesDir, "page.templ"),
-			content: []byte(initPageTemplSource),
+			Path:    filepath.Join(paths.RoutesDir, "page.templ"),
+			Content: []byte(initPageTemplSource),
 		},
 		{
-			path:    filepath.Join(paths.routesDir, "layout.go"),
-			content: []byte(initLayoutGoSource),
+			Path:    filepath.Join(paths.RoutesDir, "layout.go"),
+			Content: []byte(initLayoutGoSource),
 		},
 		{
-			path:    filepath.Join(paths.routesDir, "layout.templ"),
-			content: []byte(initLayoutTemplSource),
+			Path:    filepath.Join(paths.RoutesDir, "layout.templ"),
+			Content: []byte(initLayoutTemplSource),
 		},
 	}
 
-	generated, err := generateManifestFiles(paths, initManifest())
+	generated, err := project.GenerateManifestFiles(paths, initManifest())
 	if err != nil {
 		return nil, err
 	}

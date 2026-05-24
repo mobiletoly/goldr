@@ -10,6 +10,10 @@ import (
 	"io"
 
 	cliassets "github.com/mobiletoly/goldr/internal/goldrcli/assets"
+	clicheck "github.com/mobiletoly/goldr/internal/goldrcli/check"
+	clidev "github.com/mobiletoly/goldr/internal/goldrcli/dev"
+	cligenerate "github.com/mobiletoly/goldr/internal/goldrcli/generate"
+	cliinit "github.com/mobiletoly/goldr/internal/goldrcli/initcmd"
 	"github.com/mobiletoly/goldr/internal/goldrcli/routes"
 	"github.com/urfave/cli/v3"
 )
@@ -50,10 +54,10 @@ func New(version string) *cli.Command {
 			return cli.ShowRootCommandHelp(cmd)
 		},
 		Commands: []*cli.Command{
-			initCommand(),
-			devCommand(),
-			checkCommand(),
-			generateCommand(),
+			cliinit.Command(),
+			clidev.Command(),
+			clicheck.Command(),
+			cligenerate.Command(),
 			cliassets.Command(),
 			routes.Command(),
 			{

@@ -11,6 +11,20 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/mobiletoly/goldr/internal/goldrcli/project"
+	"github.com/mobiletoly/goldr/internal/goldrcli/templtool"
+)
+
+const (
+	checkCodeAppRoot        = "GOLDR001"
+	checkCodeRouteScan      = "GOLDR002"
+	checkCodeRenderUnit     = "GOLDR003"
+	checkCodeRouteGenerate  = "GOLDR004"
+	checkCodeURLGenerate    = "GOLDR005"
+	checkCodeGeneratedFiles = "GOLDR006"
+	checkCodeTemplGenerated = "GOLDR007"
+	checkCodeAssets         = "GOLDR008"
 )
 
 func TestRunHelp(t *testing.T) {
@@ -66,7 +80,8 @@ func TestRunDevHelpExplainsProductionFaithfulLoop(t *testing.T) {
 	requireGoldrOutputContains(
 		t,
 		[]string{"dev", "--help"},
-		"goldr dev [--root <dir>] [--app-url <url>] [--proxy-addr <host:port>] [--cmd <command>]",
+		"goldr dev [--app-root <dir>] [--cmd-dir <dir>] [--app-url <url>] [--proxy-addr <host:port>] [--cmd <command>]",
+		"--cmd-dir",
 		"templ watch mode",
 		"assets.Path",
 		"assets.FS",
@@ -81,7 +96,7 @@ func TestRunInitHelp(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("Run(init --help) exit code = %d, want 0; stderr = %q", code, stderr)
 	}
-	if !strings.Contains(stdout, "goldr init [--root <dir>]") {
+	if !strings.Contains(stdout, "goldr init [--app-root <dir>]") {
 		t.Fatalf("stdout = %q, want init usage", stdout)
 	}
 	if stderr != "" {
@@ -174,7 +189,7 @@ func TestRunInitCreatesStarterApp(t *testing.T) {
 	root := t.TempDir()
 	goMod := writeTemplToolModule(t, root, "example.com/initapp")
 
-	code, stdout, stderr := runGoldr(t, "init", "--root", root)
+	code, stdout, stderr := runGoldr(t, "init", "--app-root", root)
 
 	if code != 0 {
 		t.Fatalf("Run(init) exit code = %d, want 0; stderr = %q", code, stderr)
@@ -211,21 +226,21 @@ func TestRunInitCreatesStarterApp(t *testing.T) {
 		t.Fatalf("layout.templ = %q, want HTMX script", layoutTempl)
 	}
 
-	files, err := generateFiles(context.Background(), root)
+	files, err := project.GenerateFiles(context.Background(), root)
 	if err != nil {
 		t.Fatalf("generateFiles(init app) error = %v", err)
 	}
 	for _, file := range files {
-		got := readFile(t, file.path)
-		if !bytes.Equal([]byte(got), file.content) {
-			t.Fatalf("%s is stale\n--- got ---\n%s\n--- want ---\n%s", file.path, got, file.content)
+		got := readFile(t, file.Path)
+		if !bytes.Equal([]byte(got), file.Content) {
+			t.Fatalf("%s is stale\n--- got ---\n%s\n--- want ---\n%s", file.Path, got, file.Content)
 		}
 	}
 
 	runTemplGenerate(t, root)
-	requireRunSuccess(t, "check", "--root", root)
+	requireRunSuccess(t, "check", "--app-root", root)
 
-	code, routesOut, routesErr := runGoldr(t, "routes", "list", "--root", root)
+	code, routesOut, routesErr := runGoldr(t, "routes", "list", "--app-root", root)
 	if code != 0 {
 		t.Fatalf("Run(routes list) exit code = %d, want 0; stderr = %q", code, routesErr)
 	}
@@ -242,7 +257,7 @@ func TestRunInitCreatesStarterApp(t *testing.T) {
 func TestRunInitRequiresModule(t *testing.T) {
 	root := t.TempDir()
 
-	code, stdout, stderr := runGoldr(t, "init", "--root", root)
+	code, stdout, stderr := runGoldr(t, "init", "--app-root", root)
 
 	if code != 1 {
 		t.Fatalf("Run(init) exit code = %d, want 1", code)
@@ -293,7 +308,7 @@ func TestRunInitRefusesExistingAppPath(t *testing.T) {
 			writeFile(t, root, "go.mod", "module example.com/existingapp\n\ngo 1.26.3\n")
 			tt.setup(t, root)
 
-			code, stdout, stderr := runGoldr(t, "init", "--root", root)
+			code, stdout, stderr := runGoldr(t, "init", "--app-root", root)
 
 			if code != 1 {
 				t.Fatalf("Run(init) exit code = %d, want 1", code)
@@ -316,7 +331,7 @@ func TestRunGenerateWritesGeneratedFiles(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev")
+	code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root}, &stdout, &stderr, "dev")
 
 	if code != 0 {
 		t.Fatalf("Run() exit code = %d, want 0; stderr = %q", code, stderr.String())
@@ -355,7 +370,7 @@ func TestRunGenerateWritesAssetsWhenBuildExists(t *testing.T) {
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev")
+	code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root}, &stdout, &stderr, "dev")
 
 	if code != 0 {
 		t.Fatalf("Run(generate) exit code = %d, want 0; stderr = %q", code, stderr.String())
@@ -392,12 +407,12 @@ func TestRunGenerateWritesAssetsWhenBuildExists(t *testing.T) {
 func TestRunGenerateCheckReportsStaleAssets(t *testing.T) {
 	root := tempGenerateApp(t)
 	writeFile(t, root, "assets/build/app.css", "body {}\n")
-	requireRunSuccess(t, "generate", "--root", root)
+	requireRunSuccess(t, "generate", "--app-root", root)
 	writeFile(t, root, "assets/build/app.css", "body { color: black; }\n")
 
 	requireCommandArgsFailureContains(
 		t,
-		[]string{"generate", "--root", root, "--check"},
+		[]string{"generate", "--app-root", root, "--check"},
 		"goldr generate:",
 		"goldr-managed assets are not current",
 		"go tool goldr generate",
@@ -414,7 +429,7 @@ func TestRunGenerateReportsMissingTemplTool(t *testing.T) {
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev")
+	code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root}, &stdout, &stderr, "dev")
 
 	if code != 1 {
 		t.Fatalf("Run(generate) exit code = %d, want 1", code)
@@ -423,7 +438,7 @@ func TestRunGenerateReportsMissingTemplTool(t *testing.T) {
 		t.Fatalf("stdout = %q, want empty", stdout.String())
 	}
 	errText := stderr.String()
-	for _, want := range []string{"goldr generate:", "go tool templ is not available", templToolInstallCommand} {
+	for _, want := range []string{"goldr generate:", "go tool templ is not available", templtool.InstallCommand} {
 		if !strings.Contains(errText, want) {
 			t.Fatalf("stderr = %q, want %q", errText, want)
 		}
@@ -435,13 +450,13 @@ func TestRunGenerateCheck(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	if code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev"); code != 0 {
+	if code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root}, &stdout, &stderr, "dev"); code != 0 {
 		t.Fatalf("generate exit code = %d; stderr = %q", code, stderr.String())
 	}
 
 	stdout.Reset()
 	stderr.Reset()
-	code := Run(context.Background(), []string{"goldr", "generate", "--root", root, "--check"}, &stdout, &stderr, "dev")
+	code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root, "--check"}, &stdout, &stderr, "dev")
 
 	if code != 0 {
 		t.Fatalf("Run(--check) exit code = %d, want 0; stderr = %q", code, stderr.String())
@@ -459,14 +474,14 @@ func TestRunGenerateCheckReportsStaleTemplGeneratedFiles(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	if code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev"); code != 0 {
+	if code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root}, &stdout, &stderr, "dev"); code != 0 {
 		t.Fatalf("generate exit code = %d; stderr = %q", code, stderr.String())
 	}
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {<h1>Changed</h1>}\n")
 
 	stdout.Reset()
 	stderr.Reset()
-	code := Run(context.Background(), []string{"goldr", "generate", "--root", root, "--check"}, &stdout, &stderr, "dev")
+	code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root, "--check"}, &stdout, &stderr, "dev")
 
 	if code != 1 {
 		t.Fatalf("Run(--check) exit code = %d, want 1", code)
@@ -487,7 +502,7 @@ func TestRunGenerateCheckReportsStaleAndMissingFiles(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	if code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev"); code != 0 {
+	if code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root}, &stdout, &stderr, "dev"); code != 0 {
 		t.Fatalf("generate exit code = %d; stderr = %q", code, stderr.String())
 	}
 
@@ -500,7 +515,7 @@ func TestRunGenerateCheckReportsStaleAndMissingFiles(t *testing.T) {
 
 	stdout.Reset()
 	stderr.Reset()
-	code := Run(context.Background(), []string{"goldr", "generate", "--root", root, "--check"}, &stdout, &stderr, "dev")
+	code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root, "--check"}, &stdout, &stderr, "dev")
 
 	if code != 1 {
 		t.Fatalf("Run(--check) exit code = %d, want 1", code)
@@ -525,15 +540,15 @@ func TestGenerateFilesDerivesFullFeatureImportPath(t *testing.T) {
 		t.Fatalf("Abs(repo root) error = %v", err)
 	}
 
-	files, err := generateFiles(context.Background(), filepath.Join(repoRoot, "examples", "full_feature"))
+	files, err := project.GenerateFiles(context.Background(), filepath.Join(repoRoot, "examples", "full_feature"))
 	if err != nil {
 		t.Fatalf("generateFiles(full_feature) error = %v", err)
 	}
 
 	var routesSource string
 	for _, file := range files {
-		if filepath.Base(filepath.Dir(file.path)) == "routes" {
-			routesSource = string(file.content)
+		if filepath.Base(filepath.Dir(file.Path)) == "routes" {
+			routesSource = string(file.Content)
 		}
 	}
 	if !strings.Contains(routesSource, `"github.com/mobiletoly/goldr/examples/full_feature/app/routes/settings"`) {
@@ -547,18 +562,18 @@ func TestGenerateFilesFullFeatureGeneratedFilesAreCurrent(t *testing.T) {
 		t.Fatalf("Abs(repo root) error = %v", err)
 	}
 
-	files, err := generateFiles(context.Background(), filepath.Join(repoRoot, "examples", "full_feature"))
+	files, err := project.GenerateFiles(context.Background(), filepath.Join(repoRoot, "examples", "full_feature"))
 	if err != nil {
 		t.Fatalf("generateFiles(full_feature) error = %v", err)
 	}
 
 	for _, file := range files {
-		got, err := os.ReadFile(file.path)
+		got, err := os.ReadFile(file.Path)
 		if err != nil {
-			t.Fatalf("ReadFile(%q) error = %v", file.path, err)
+			t.Fatalf("ReadFile(%q) error = %v", file.Path, err)
 		}
-		if !bytes.Equal(got, file.content) {
-			t.Fatalf("%s is stale\n--- got ---\n%s\n--- want ---\n%s", file.path, got, file.content)
+		if !bytes.Equal(got, file.Content) {
+			t.Fatalf("%s is stale\n--- got ---\n%s\n--- want ---\n%s", file.Path, got, file.Content)
 		}
 	}
 }
@@ -570,7 +585,7 @@ func TestRunGenerateRequiresModule(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev")
+	code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root}, &stdout, &stderr, "dev")
 
 	if code != 1 {
 		t.Fatalf("Run() exit code = %d, want 1", code)
@@ -589,7 +604,7 @@ func TestRunGenerateRequiresRoutesDirectory(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	code := Run(context.Background(), []string{"goldr", "generate", "--root", root}, &stdout, &stderr, "dev")
+	code := Run(context.Background(), []string{"goldr", "generate", "--app-root", root}, &stdout, &stderr, "dev")
 
 	if code != 1 {
 		t.Fatalf("Run() exit code = %d, want 1", code)
@@ -605,9 +620,9 @@ func TestRunGenerateRequiresRoutesDirectory(t *testing.T) {
 func TestRunCheckCleanApp(t *testing.T) {
 	root := tempGenerateApp(t)
 
-	requireRunSuccess(t, "generate", "--root", root)
+	requireRunSuccess(t, "generate", "--app-root", root)
 	runTemplGenerate(t, root)
-	requireRunSuccess(t, "check", "--root", root)
+	requireRunSuccess(t, "check", "--app-root", root)
 }
 
 func TestRunGenerateAndCheckAcceptPageWithoutTempl(t *testing.T) {
@@ -626,35 +641,35 @@ func Page(_ *http.Request) goldr.RouteResponse {
 }
 `)
 
-	requireRunSuccess(t, "generate", "--root", root)
-	requireRunSuccess(t, "check", "--root", root)
+	requireRunSuccess(t, "generate", "--app-root", root)
+	requireRunSuccess(t, "check", "--app-root", root)
 }
 
 func TestRunCheckSkipsAssetsWhenOnlyBuildExists(t *testing.T) {
 	root := tempGenerateApp(t)
-	requireRunSuccess(t, "generate", "--root", root)
+	requireRunSuccess(t, "generate", "--app-root", root)
 	runTemplGenerate(t, root)
 	writeFile(t, root, "assets/build/app.css", "body {}\n")
 
-	requireRunSuccess(t, "check", "--root", root)
+	requireRunSuccess(t, "check", "--app-root", root)
 }
 
 func TestRunCheckValidatesManagedAssets(t *testing.T) {
 	root := tempGenerateApp(t)
-	requireRunSuccess(t, "generate", "--root", root)
+	requireRunSuccess(t, "generate", "--app-root", root)
 	runTemplGenerate(t, root)
 	writeFile(t, root, "assets/build/app.css", "body {}\n")
-	requireRunSuccess(t, "assets", "dist", "--root", root)
+	requireRunSuccess(t, "assets", "dist", "--app-root", root)
 
-	requireRunSuccess(t, "check", "--root", root)
+	requireRunSuccess(t, "check", "--app-root", root)
 }
 
 func TestRunCheckReportsStaleManagedAssets(t *testing.T) {
 	root := tempGenerateApp(t)
-	requireRunSuccess(t, "generate", "--root", root)
+	requireRunSuccess(t, "generate", "--app-root", root)
 	runTemplGenerate(t, root)
 	writeFile(t, root, "assets/build/app.css", "body {}\n")
-	requireRunSuccess(t, "assets", "dist", "--root", root)
+	requireRunSuccess(t, "assets", "dist", "--app-root", root)
 	writeFile(t, root, "assets/build/app.css", "body { color: black; }\n")
 
 	requireCheckFailureContains(t, root, "goldr check:", checkCodeAssets, "goldr-managed assets are not current", "go tool goldr generate", "assets/dist/app.", "is missing")
@@ -662,10 +677,10 @@ func TestRunCheckReportsStaleManagedAssets(t *testing.T) {
 
 func TestRunCheckReportsMissingManagedAssetState(t *testing.T) {
 	root := tempGenerateApp(t)
-	requireRunSuccess(t, "generate", "--root", root)
+	requireRunSuccess(t, "generate", "--app-root", root)
 	runTemplGenerate(t, root)
 	writeFile(t, root, "assets/build/app.css", "body {}\n")
-	requireRunSuccess(t, "assets", "dist", "--root", root)
+	requireRunSuccess(t, "assets", "dist", "--app-root", root)
 	if err := os.Remove(filepath.Join(root, "assets", ".goldr", "assets.json")); err != nil {
 		t.Fatalf("Remove(asset state) error = %v", err)
 	}
@@ -691,7 +706,7 @@ func TestRunCheckReportsMissingRoutesDirectory(t *testing.T) {
 func TestRunCheckReportsStaleAndMissingGeneratedFiles(t *testing.T) {
 	root := tempGenerateApp(t)
 
-	requireRunSuccess(t, "generate", "--root", root)
+	requireRunSuccess(t, "generate", "--app-root", root)
 	runTemplGenerate(t, root)
 	if err := os.WriteFile(filepath.Join(root, "app", "routes", "goldr_gen.go"), []byte("stale"), 0644); err != nil {
 		t.Fatalf("WriteFile(stale routes) error = %v", err)
@@ -720,13 +735,13 @@ func Page(_ *http.Request) goldr.RouteResponse {
 `)
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 
-	requireCheckFailureContains(t, root, "goldr check:", checkCodeTemplGenerated, "go tool templ is not available", templToolInstallCommand)
+	requireCheckFailureContains(t, root, "goldr check:", checkCodeTemplGenerated, "go tool templ is not available", templtool.InstallCommand)
 }
 
 func TestRunCheckReportsStaleTemplGeneratedFiles(t *testing.T) {
 	root := tempGenerateApp(t)
 
-	requireRunSuccess(t, "generate", "--root", root)
+	requireRunSuccess(t, "generate", "--app-root", root)
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {<h1>Changed</h1>}\n")
 
 	requireCheckFailureContains(t, root, "goldr check:", checkCodeTemplGenerated, "templ generated files are not up to date", "go tool goldr generate", "generated files are not up to date")
@@ -869,7 +884,7 @@ import "net/http"
 func PostCreate(w http.ResponseWriter, r *http.Request) {}
 `)
 
-	code, stdout, stderr := runGoldr(t, "routes", "list", "--root", root)
+	code, stdout, stderr := runGoldr(t, "routes", "list", "--app-root", root)
 
 	if code != 0 {
 		t.Fatalf("Run(routes list) exit code = %d, want 0; stderr = %q", code, stderr)
@@ -906,7 +921,7 @@ import "net/http"
 func PostCreate(w http.ResponseWriter, r *http.Request) {}
 `)
 
-	code, stdout, stderr := runGoldr(t, "routes", "list", "--root", root, "--json")
+	code, stdout, stderr := runGoldr(t, "routes", "list", "--app-root", root, "--json")
 
 	if code != 0 {
 		t.Fatalf("Run(routes list --json) exit code = %d, want 0; stderr = %q", code, stderr)
@@ -955,7 +970,7 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {}
 
 func TestRunRoutesFullFeatureOutputIsDeterministic(t *testing.T) {
 	root := fullFeatureRoot(t)
-	stdout := runGoldrDeterministic(t, "routes list", "routes", "list", "--root", root)
+	stdout := runGoldrDeterministic(t, "routes list", "routes", "list", "--app-root", root)
 
 	rows := routeTableRows(t, stdout)
 	for _, want := range [][]string{
@@ -973,7 +988,7 @@ func TestRunRoutesFullFeatureOutputIsDeterministic(t *testing.T) {
 
 func TestRunRoutesFullFeatureJSONOutputIsDeterministic(t *testing.T) {
 	root := fullFeatureRoot(t)
-	stdout := runGoldrDeterministic(t, "routes list --json", "routes", "list", "--root", root, "--json")
+	stdout := runGoldrDeterministic(t, "routes list --json", "routes", "list", "--app-root", root, "--json")
 
 	var rows []routeSurfaceJSONRow
 	if err := json.Unmarshal([]byte(stdout), &rows); err != nil {
@@ -1006,7 +1021,7 @@ func TestRunRoutesFullFeatureJSONOutputIsDeterministic(t *testing.T) {
 
 func TestRunRoutesFullFeatureLayoutMapOutputIsDeterministic(t *testing.T) {
 	root := fullFeatureRoot(t)
-	stdout := runGoldrDeterministic(t, "routes layouts", "routes", "layouts", "--root", root)
+	stdout := runGoldrDeterministic(t, "routes layouts", "routes", "layouts", "--app-root", root)
 
 	want := fullFeatureLayoutMapOutput(t)
 	if stdout != want {
@@ -1020,7 +1035,7 @@ func TestRunRoutesExplainFullURLDynamicPage(t *testing.T) {
 		return fullFeatureRouteSourcePath(name)
 	}
 
-	code, stdout, stderr := runGoldr(t, "routes", "explain", "--root", root, "http://127.0.0.1:8080/users/a%2Fb?tab=profile#details")
+	code, stdout, stderr := runGoldr(t, "routes", "explain", "--app-root", root, "http://127.0.0.1:8080/users/a%2Fb?tab=profile#details")
 
 	if code != 0 {
 		t.Fatalf("Run(routes explain) exit code = %d, want 0; stderr = %q", code, stderr)
@@ -1048,10 +1063,10 @@ func TestRunRoutesExplainFullURLDynamicPage(t *testing.T) {
 func TestRunRoutesExplainHonorsRootFlag(t *testing.T) {
 	root := fullFeatureRoot(t)
 
-	code, stdout, stderr := runGoldr(t, "routes", "explain", "--root", root, "/users/7")
+	code, stdout, stderr := runGoldr(t, "routes", "explain", "--app-root", root, "/users/7")
 
 	if code != 0 {
-		t.Fatalf("Run(routes explain --root) exit code = %d, want 0; stderr = %q", code, stderr)
+		t.Fatalf("Run(routes explain --app-root) exit code = %d, want 0; stderr = %q", code, stderr)
 	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
@@ -1067,7 +1082,7 @@ func TestRunRoutesExplainActionShowsLayoutStack(t *testing.T) {
 		return fullFeatureRouteSourcePath(name)
 	}
 
-	code, stdout, stderr := runGoldr(t, "routes", "explain", "--root", root, "--method", "POST", "/users/create")
+	code, stdout, stderr := runGoldr(t, "routes", "explain", "--app-root", root, "--method", "POST", "/users/create")
 
 	if code != 0 {
 		t.Fatalf("Run(routes explain action) exit code = %d, want 0; stderr = %q", code, stderr)
@@ -1099,12 +1114,12 @@ func TestRunRoutesExplainReportsFailures(t *testing.T) {
 	}{
 		{
 			name:  "method mismatch",
-			args:  []string{"routes", "explain", "--root", root, "--method", "DELETE", "/users/7"},
+			args:  []string{"routes", "explain", "--app-root", root, "--method", "DELETE", "/users/7"},
 			wants: []string{"goldr routes explain:", "DELETE /users/7", "method not allowed", "allowed: GET,HEAD"},
 		},
 		{
 			name:  "no match",
-			args:  []string{"routes", "explain", "--root", root, "/missing"},
+			args:  []string{"routes", "explain", "--app-root", root, "/missing"},
 			wants: []string{"goldr routes explain:", "GET /missing", "no route matches path"},
 		},
 	}
@@ -1168,10 +1183,10 @@ func TestRunRoutesListHelpShowsRootFlag(t *testing.T) {
 	requireGoldrOutputContains(
 		t,
 		[]string{"routes", "list", "--help"},
-		"goldr routes list [--root <dir>] [--json]",
+		"goldr routes list [--app-root <dir>] [--json]",
 		"generated URL helper expressions",
 		"stable route inventory",
-		"--root string",
+		"--app-root string",
 		"--json",
 	)
 }
@@ -1243,7 +1258,7 @@ func TestRunRoutesReportsInvalidRouteNames(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "app/routes/Users/page.go", "package Users\n")
 
-	requireCommandArgsFailureContains(t, []string{"routes", "list", "--root", root}, "goldr routes list:", "app/routes/Users", "static route directories must use lowercase Go-safe names")
+	requireCommandArgsFailureContains(t, []string{"routes", "list", "--app-root", root}, "goldr routes list:", "app/routes/Users", "static route directories must use lowercase Go-safe names")
 }
 
 func TestRunRoutesReportsURLHelperGenerationErrors(t *testing.T) {
@@ -1255,14 +1270,14 @@ import "net/http"
 func PostPath(w http.ResponseWriter, r *http.Request) {}
 `)
 
-	requireCommandArgsFailureContains(t, []string{"routes", "list", "--root", root}, "goldr routes list:", "ambiguous URL helper", "Path method")
+	requireCommandArgsFailureContains(t, []string{"routes", "list", "--app-root", root}, "goldr routes list:", "ambiguous URL helper", "Path method")
 }
 
 func TestRunRoutesJSONReportsErrorsToStderr(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "app/routes/Users/page.go", "package Users\n")
 
-	code, stdout, stderr := runGoldr(t, "routes", "list", "--root", root, "--json")
+	code, stdout, stderr := runGoldr(t, "routes", "list", "--app-root", root, "--json")
 	if code != 1 {
 		t.Fatalf("Run(routes list --json) exit code = %d, want 1", code)
 	}
@@ -1367,7 +1382,7 @@ func requireRouteJSONContainsRow(t *testing.T, rows []routeSurfaceJSONRow, want 
 func requireCheckFailureContains(t *testing.T, root string, wants ...string) {
 	t.Helper()
 
-	requireCommandArgsFailureContains(t, []string{"check", "--root", root}, wants...)
+	requireCommandArgsFailureContains(t, []string{"check", "--app-root", root}, wants...)
 }
 
 func requireCommandArgsFailureContains(t *testing.T, args []string, wants ...string) {

@@ -11,7 +11,9 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -94,8 +96,10 @@ type signatureRule struct {
 	function       string
 	message        string
 	missingMessage string
-	valid          func(*ast.FuncType) bool
+	valid          func(*ast.FuncType, importNames) bool
 }
+
+type importNames map[string]string
 
 func validateUnit(problems *[]Problem, root, kind, identifier string, unit routing.RenderUnit, rule signatureRule) {
 	if unit.HasTempl && unit.TemplFile != "" {
@@ -127,12 +131,13 @@ func validateSignature(problems *[]Problem, root, kind, identifier, goFile strin
 		return
 	}
 
+	imports := fileImportNames(file)
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
 		if !ok || fn.Recv != nil || fn.Name.Name != rule.function {
 			continue
 		}
-		if !rule.valid(fn.Type) {
+		if !rule.valid(fn.Type, imports) {
 			*problems = append(*problems, Problem{
 				Kind:       kind,
 				Identifier: identifier,
@@ -156,32 +161,32 @@ func validateSignature(problems *[]Problem, root, kind, identifier, goFile strin
 	})
 }
 
-func validPageSignature(fnType *ast.FuncType) bool {
+func validPageSignature(fnType *ast.FuncType, imports importNames) bool {
 	params := expandedParamTypes(fnType.Params)
 	results := expandedParamTypes(fnType.Results)
 	return len(params) == 1 &&
 		len(results) == 1 &&
-		isStarSelector(params[0], "http", "Request") &&
-		isSelector(results[0], "goldr", "RouteResponse")
+		isStarSelector(params[0], imports, "net/http", "Request") &&
+		isSelector(results[0], imports, "github.com/mobiletoly/goldr", "RouteResponse")
 }
 
-func validLayoutSignature(fnType *ast.FuncType) bool {
+func validLayoutSignature(fnType *ast.FuncType, imports importNames) bool {
 	params := expandedParamTypes(fnType.Params)
 	results := expandedParamTypes(fnType.Results)
 	return len(params) == 2 &&
 		len(results) == 1 &&
-		isStarSelector(params[0], "http", "Request") &&
-		isSelector(params[1], "goldr", "LayoutContext") &&
-		isSelector(results[0], "templ", "Component")
+		isStarSelector(params[0], imports, "net/http", "Request") &&
+		isSelector(params[1], imports, "github.com/mobiletoly/goldr", "LayoutContext") &&
+		isSelector(results[0], imports, "github.com/a-h/templ", "Component")
 }
 
-func validFragmentSignature(fnType *ast.FuncType) bool {
+func validFragmentSignature(fnType *ast.FuncType, imports importNames) bool {
 	params := expandedParamTypes(fnType.Params)
 	results := expandedParamTypes(fnType.Results)
 	return len(params) == 1 &&
 		len(results) == 1 &&
-		isStarSelector(params[0], "http", "Request") &&
-		isSelector(results[0], "goldr", "RouteResponse")
+		isStarSelector(params[0], imports, "net/http", "Request") &&
+		isSelector(results[0], imports, "github.com/mobiletoly/goldr", "RouteResponse")
 }
 
 func expandedParamTypes(fields *ast.FieldList) []ast.Expr {
@@ -202,21 +207,41 @@ func expandedParamTypes(fields *ast.FieldList) []ast.Expr {
 	return result
 }
 
-func isStarSelector(expr ast.Expr, pkg, name string) bool {
+func fileImportNames(file *ast.File) importNames {
+	imports := make(importNames, len(file.Imports))
+	for _, item := range file.Imports {
+		importPath, err := strconv.Unquote(item.Path.Value)
+		if err != nil {
+			continue
+		}
+		if item.Name != nil {
+			name := item.Name.Name
+			if name == "." || name == "_" {
+				continue
+			}
+			imports[name] = importPath
+			continue
+		}
+		imports[path.Base(importPath)] = importPath
+	}
+	return imports
+}
+
+func isStarSelector(expr ast.Expr, imports importNames, importPath, name string) bool {
 	star, ok := expr.(*ast.StarExpr)
 	if !ok {
 		return false
 	}
-	return isSelector(star.X, pkg, name)
+	return isSelector(star.X, imports, importPath, name)
 }
 
-func isSelector(expr ast.Expr, pkg, name string) bool {
+func isSelector(expr ast.Expr, imports importNames, importPath, name string) bool {
 	selector, ok := expr.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
 	ident, ok := selector.X.(*ast.Ident)
-	return ok && ident.Name == pkg && selector.Sel.Name == name
+	return ok && imports[ident.Name] == importPath && selector.Sel.Name == name
 }
 
 func fragmentFuncName(name string) string {

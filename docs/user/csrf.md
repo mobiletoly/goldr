@@ -24,7 +24,7 @@ Wrap generated routes with the guard middleware:
 
 ```go
 mux := http.NewServeMux()
-mux.Handle("/", guard.Middleware(routes.Handler()))
+mux.Handle("/", guard.TokenMiddleware(routes.Handler()))
 ```
 
 The middleware sets a signed HttpOnly CSRF cookie when the request does not

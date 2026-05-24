@@ -42,11 +42,11 @@ responses. The stream sends named `chat-message` events, and the template uses
 Regenerate goldr-owned files from the repository root:
 
 ```bash
-go run ./cmd/goldr generate --root examples/chat
+go run ./cmd/goldr generate --app-root examples/chat
 ```
 
 Check generated files without writing:
 
 ```bash
-go run ./cmd/goldr check --root examples/chat
+go run ./cmd/goldr check --app-root examples/chat
 ```

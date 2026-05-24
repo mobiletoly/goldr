@@ -12,54 +12,54 @@ func TestNewPageRouteResponse(t *testing.T) {
 	component := templ.NopComponent
 	metadata := PageMetadata{Title: "Users"}
 
-	response, err := ResolveRouteResponse(NewPage(component, metadata))
+	response, err := resolveRouteResponse(NewPage(component, metadata))
 
 	if err != nil {
-		t.Fatalf("ResolveRouteResponse() error = %v, want nil", err)
+		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if response.Kind != RouteResponsePage {
-		t.Fatalf("kind = %d, want %d", response.Kind, RouteResponsePage)
+	if response.kind != routeResponsePage {
+		t.Fatalf("kind = %d, want %d", response.kind, routeResponsePage)
 	}
-	if response.Component == nil {
+	if response.page.Component == nil {
 		t.Fatalf("component = nil, want component")
 	}
-	if response.Metadata != metadata {
-		t.Fatalf("metadata = %#v, want %#v", response.Metadata, metadata)
+	if response.page.Metadata != metadata {
+		t.Fatalf("metadata = %#v, want %#v", response.page.Metadata, metadata)
 	}
-	if response.Status != http.StatusOK {
-		t.Fatalf("status = %d, want %d", response.Status, http.StatusOK)
+	if response.page.Status != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.page.Status, http.StatusOK)
 	}
 }
 
 func TestPageWithStatus(t *testing.T) {
-	response, err := ResolveRouteResponse(NewPage(templ.NopComponent, PageMetadata{}).WithStatus(http.StatusForbidden))
+	response, err := resolveRouteResponse(NewPage(templ.NopComponent, PageMetadata{}).WithStatus(http.StatusForbidden))
 	if err != nil {
-		t.Fatalf("ResolveRouteResponse() error = %v, want nil", err)
+		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if response.Status != http.StatusForbidden {
-		t.Fatalf("status = %d, want %d", response.Status, http.StatusForbidden)
+	if response.page.Status != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", response.page.Status, http.StatusForbidden)
 	}
 }
 
 func TestNewFragmentRouteResponse(t *testing.T) {
-	response, err := ResolveRouteResponse(
+	response, err := resolveRouteResponse(
 		NewFragment(templ.NopComponent).
 			WithStatus(http.StatusAccepted).
 			WithHeader("Hx-Trigger", "fragment-loaded"),
 	)
 	if err != nil {
-		t.Fatalf("ResolveRouteResponse() error = %v, want nil", err)
+		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if response.Kind != RouteResponseFragment {
-		t.Fatalf("kind = %d, want %d", response.Kind, RouteResponseFragment)
+	if response.kind != routeResponseFragment {
+		t.Fatalf("kind = %d, want %d", response.kind, routeResponseFragment)
 	}
-	if response.Component == nil {
+	if response.fragment.Component == nil {
 		t.Fatalf("component = nil, want component")
 	}
-	if response.Status != http.StatusAccepted {
-		t.Fatalf("status = %d, want %d", response.Status, http.StatusAccepted)
+	if response.fragment.Status != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d", response.fragment.Status, http.StatusAccepted)
 	}
-	if got := response.Headers.Get("Hx-Trigger"); got != "fragment-loaded" {
+	if got := response.fragment.headers.Get("Hx-Trigger"); got != "fragment-loaded" {
 		t.Fatalf("Hx-Trigger = %q, want fragment-loaded", got)
 	}
 }
@@ -76,74 +76,74 @@ func TestResolveRouteResponseAcceptsPointers(t *testing.T) {
 	tests := []struct {
 		name     string
 		response RouteResponse
-		kind     RouteResponseKind
+		kind     routeResponseKind
 	}{
-		{name: "page", response: &page, kind: RouteResponsePage},
-		{name: "fragment", response: &fragment, kind: RouteResponseFragment},
-		{name: "redirect", response: &redirect, kind: RouteResponseRedirect},
-		{name: "text", response: &text, kind: RouteResponseText},
-		{name: "server error", response: &serverErr, kind: RouteResponseServerError},
+		{name: "page", response: &page, kind: routeResponsePage},
+		{name: "fragment", response: &fragment, kind: routeResponseFragment},
+		{name: "redirect", response: &redirect, kind: routeResponseRedirect},
+		{name: "text", response: &text, kind: routeResponseText},
+		{name: "server error", response: &serverErr, kind: routeResponseServerError},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			response, err := ResolveRouteResponse(test.response)
+			response, err := resolveRouteResponse(test.response)
 			if err != nil {
-				t.Fatalf("ResolveRouteResponse() error = %v, want nil", err)
+				t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 			}
-			if response.Kind != test.kind {
-				t.Fatalf("kind = %d, want %d", response.Kind, test.kind)
+			if response.kind != test.kind {
+				t.Fatalf("kind = %d, want %d", response.kind, test.kind)
 			}
 		})
 	}
 }
 
 func TestRouteResponseWithHeader(t *testing.T) {
-	response, err := ResolveRouteResponse(
+	response, err := resolveRouteResponse(
 		NewPage(templ.NopComponent, PageMetadata{}).WithHeader("Cache-Control", "no-store"),
 	)
 	if err != nil {
-		t.Fatalf("ResolveRouteResponse() error = %v, want nil", err)
+		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if got := response.Headers.Get("Cache-Control"); got != "no-store" {
+	if got := response.page.headers.Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
 
-	response.Headers.Set("Cache-Control", "mutated")
-	again, err := ResolveRouteResponse(
+	response.page.headers.Set("Cache-Control", "mutated")
+	again, err := resolveRouteResponse(
 		NewPage(templ.NopComponent, PageMetadata{}).WithHeader("Cache-Control", "no-store"),
 	)
 	if err != nil {
-		t.Fatalf("ResolveRouteResponse() error = %v, want nil", err)
+		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if got := again.Headers.Get("Cache-Control"); got != "no-store" {
+	if got := again.page.headers.Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control after mutation = %q, want no-store", got)
 	}
 }
 
 func TestRouteResponseAddHeader(t *testing.T) {
-	response, err := ResolveRouteResponse(
+	response, err := resolveRouteResponse(
 		NewPage(templ.NopComponent, PageMetadata{}).
 			AddHeader("Set-Cookie", "one=1").
 			AddHeader("Set-Cookie", "two=2"),
 	)
 	if err != nil {
-		t.Fatalf("ResolveRouteResponse() error = %v, want nil", err)
+		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if got := response.Headers.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
+	if got := response.page.headers.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
 		t.Fatalf("Set-Cookie values = %#v, want [one=1 two=2]", got)
 	}
 
-	response.Headers.Add("Set-Cookie", "mutated=1")
-	again, err := ResolveRouteResponse(
+	response.page.headers.Add("Set-Cookie", "mutated=1")
+	again, err := resolveRouteResponse(
 		NewPage(templ.NopComponent, PageMetadata{}).
 			AddHeader("Set-Cookie", "one=1").
 			AddHeader("Set-Cookie", "two=2"),
 	)
 	if err != nil {
-		t.Fatalf("ResolveRouteResponse() error = %v, want nil", err)
+		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if got := again.Headers.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
+	if got := again.page.headers.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
 		t.Fatalf("Set-Cookie values after mutation = %#v, want [one=1 two=2]", got)
 	}
 }
@@ -195,19 +195,19 @@ func TestRouteResponseValidation(t *testing.T) {
 func TestServerErrorRouteResponseCarriesApplicationError(t *testing.T) {
 	appErr := errors.New("load failed")
 
-	response, err := ResolveRouteResponse(ServerError{Err: appErr})
+	response, err := resolveRouteResponse(ServerError{Err: appErr})
 	if err != nil {
-		t.Fatalf("ResolveRouteResponse() error = %v, want nil", err)
+		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if response.Kind != RouteResponseServerError {
-		t.Fatalf("kind = %d, want %d", response.Kind, RouteResponseServerError)
+	if response.kind != routeResponseServerError {
+		t.Fatalf("kind = %d, want %d", response.kind, routeResponseServerError)
 	}
-	if !errors.Is(response.Error, appErr) {
-		t.Fatalf("response error = %v, want %v", response.Error, appErr)
+	if !errors.Is(response.err, appErr) {
+		t.Fatalf("response error = %v, want %v", response.err, appErr)
 	}
 }
 
 func routeResponseError(response RouteResponse) error {
-	_, err := ResolveRouteResponse(response)
+	_, err := resolveRouteResponse(response)
 	return err
 }

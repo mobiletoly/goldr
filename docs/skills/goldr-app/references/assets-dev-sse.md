@@ -62,7 +62,8 @@ server.
 Default shape:
 
 ```text
---root .
+--app-root .
+--cmd-dir <app root>
 --app-url http://127.0.0.1:8080
 --proxy-addr 127.0.0.1:7331
 --cmd "go run ."
@@ -75,6 +76,7 @@ Common usage:
 ```bash
 go tool goldr dev
 go tool goldr dev --cmd "go run ./cmd/web"
+go tool goldr dev --app-root internal/adapters/webapp --cmd-dir . --cmd './scripts/run-goldr-dev-app.sh'
 go tool goldr dev --app-url http://127.0.0.1:3000
 go tool goldr dev --proxy-addr 127.0.0.1:7332
 ```

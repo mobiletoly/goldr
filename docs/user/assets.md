@@ -46,7 +46,7 @@ go tool goldr assets dist
 Or from another directory, pass the app root:
 
 ```bash
-go tool goldr assets dist --root examples/full_feature
+go tool goldr assets dist --app-root examples/full_feature
 ```
 
 Goldr copies each file into `assets/dist` with a content hash in the filename,

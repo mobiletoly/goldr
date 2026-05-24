@@ -10,17 +10,17 @@ import (
 )
 
 func TestFSContainsSSEEventHelper(t *testing.T) {
-	assertFSContains(t, sseEventHelperPath, `registerExtension("goldr-sse-event"`)
+	assertFSContains(t, SSEEventHelperPath, `registerExtension("goldr-sse-event"`)
 }
 
 func TestFSContainsTemplateInspectorHelper(t *testing.T) {
-	assertFSContains(t, templateInspectorHelperPath, `data-goldr-template-inspector`)
+	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-inspector`)
 }
 
 func TestFSContainsTemplateInspectorStackingBehavior(t *testing.T) {
-	assertFSContains(t, templateInspectorHelperPath, `data-goldr-template-stack`)
-	assertFSContains(t, templateInspectorHelperPath, `data-goldr-template-label-row`)
-	assertFSContains(t, templateInspectorHelperPath, `sameAnchor`)
+	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-stack`)
+	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-label-row`)
+	assertFSContains(t, TemplateInspectorHelperPath, `sameAnchor`)
 }
 
 func assertFSContains(t *testing.T, name string, want string) {

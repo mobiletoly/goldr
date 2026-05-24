@@ -40,10 +40,10 @@ func TestNewAppliesDefaults(t *testing.T) {
 	}
 }
 
-func TestMiddlewareIssuesTokenCookieAndStoresToken(t *testing.T) {
+func TestTokenMiddlewareIssuesTokenCookieAndStoresToken(t *testing.T) {
 	guard := newTestGuard(t)
 	var requestToken string
-	handler := guard.Middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	handler := guard.TokenMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		requestToken = guard.Token(r)
 	}))
 
@@ -68,11 +68,11 @@ func TestMiddlewareIssuesTokenCookieAndStoresToken(t *testing.T) {
 	}
 }
 
-func TestMiddlewareReusesValidCookie(t *testing.T) {
+func TestTokenMiddlewareReusesValidCookie(t *testing.T) {
 	guard := newTestGuard(t)
 	token := newToken(t, guard, fixedNow)
 	var requestToken string
-	handler := guard.Middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	handler := guard.TokenMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		requestToken = guard.Token(r)
 	}))
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
@@ -209,7 +209,7 @@ func TestConfiguredCookieAttributes(t *testing.T) {
 		t.Fatalf("New() error = %v, want nil", err)
 	}
 	guard.now = func() time.Time { return fixedNow }
-	handler := guard.Middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	handler := guard.TokenMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	recorder := httptest.NewRecorder()
 
 	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/app", nil))

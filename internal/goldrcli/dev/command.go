@@ -1,7 +1,7 @@
 // Copyright 2026 Toly Pochkin
 // SPDX-License-Identifier: Apache-2.0
 
-package goldrcli
+package dev
 
 import (
 	"context"
@@ -18,14 +18,17 @@ import (
 	"strings"
 
 	"github.com/mobiletoly/goldr/internal/goldrcli/appfs"
+	"github.com/mobiletoly/goldr/internal/goldrcli/project"
+	"github.com/mobiletoly/goldr/internal/goldrcli/templtool"
 	"github.com/urfave/cli/v3"
 )
 
 const (
-	devRootFlag      = "root"
-	devAppURLFlag    = "app-url"
-	devProxyAddrFlag = "proxy-addr"
-	devCommandFlag   = "cmd"
+	devAppRootFlag    = "app-root"
+	devCommandDirFlag = "cmd-dir"
+	devAppURLFlag     = "app-url"
+	devProxyAddrFlag  = "proxy-addr"
+	devCommandFlag    = "cmd"
 
 	defaultDevAppURL    = "http://127.0.0.1:8080"
 	defaultDevProxyAddr = "127.0.0.1:7331"
@@ -34,6 +37,7 @@ const (
 
 type devOptions struct {
 	root      string
+	cmdDir    string
 	appURL    string
 	proxyAddr string
 	command   string
@@ -41,6 +45,7 @@ type devOptions struct {
 
 type devConfig struct {
 	root            string
+	cmdDir          string
 	appURL          string
 	proxyBind       string
 	proxyPort       int
@@ -49,18 +54,25 @@ type devConfig struct {
 	wrapperPath     string
 }
 
-func devCommand() *cli.Command {
+func Command() *cli.Command {
 	return &cli.Command{
 		Name:        "dev",
 		Usage:       "run live reload for a goldr app",
-		UsageText:   "goldr dev [--root <dir>] [--app-url <url>] [--proxy-addr <host:port>] [--cmd <command>]",
+		UsageText:   "goldr dev [--app-root <dir>] [--cmd-dir <dir>] [--app-url <url>] [--proxy-addr <host:port>] [--cmd <command>]",
 		Description: devDescription,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        devRootFlag,
+				Name:        devAppRootFlag,
 				Value:       ".",
-				Usage:       "app root directory",
+				Usage:       "Goldr app root directory",
+				Config:      cli.StringConfig{TrimSpace: true},
 				HideDefault: false,
+			},
+			&cli.StringFlag{
+				Name:        devCommandDirFlag,
+				Usage:       "directory where --cmd runs; defaults to --app-root",
+				Config:      cli.StringConfig{TrimSpace: true},
+				HideDefault: true,
 			},
 			&cli.StringFlag{
 				Name:        devAppURLFlag,
@@ -77,13 +89,14 @@ func devCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:        devCommandFlag,
 				Value:       defaultDevCommand,
-				Usage:       "app command executed from the app root",
+				Usage:       "app command executed from --cmd-dir",
 				HideDefault: false,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			return runDev(ctx, devOptions{
-				root:      cmd.String(devRootFlag),
+				root:      cmd.String(devAppRootFlag),
+				cmdDir:    cmd.String(devCommandDirFlag),
 				appURL:    cmd.String(devAppURLFlag),
 				proxyAddr: cmd.String(devProxyAddrFlag),
 				command:   cmd.String(devCommandFlag),
@@ -107,7 +120,7 @@ func runDev(ctx context.Context, options devOptions, stdout, stderr io.Writer) e
 		_ = os.Remove(config.wrapperPath)
 	}()
 
-	if err := checkTemplTool(ctx, config.root); err != nil {
+	if err := templtool.Require(ctx, config.root); err != nil {
 		return fmt.Errorf("goldr dev: %w", err)
 	}
 
@@ -126,13 +139,20 @@ func runDev(ctx context.Context, options devOptions, stdout, stderr io.Writer) e
 func resolveDevConfig(ctx context.Context, options devOptions) (devConfig, error) {
 	appRoot, err := appfs.ResolveExistingDir(options.root)
 	if err != nil {
-		return devConfig{}, fmt.Errorf("resolve --root %q: %w", options.root, err)
+		return devConfig{}, fmt.Errorf("resolve --app-root %q: %w", options.root, err)
 	}
-	if _, err := appPathsForResolvedRoot(ctx, appRoot); err != nil {
+	if _, err := project.PathsForResolvedRoot(ctx, appRoot); err != nil {
 		return devConfig{}, err
 	}
 	if err := appfs.RequireDir(appfs.RoutesDir(appRoot)); err != nil {
 		return devConfig{}, err
+	}
+	cmdDir := appRoot
+	if strings.TrimSpace(options.cmdDir) != "" {
+		cmdDir, err = appfs.ResolveExistingDir(options.cmdDir)
+		if err != nil {
+			return devConfig{}, fmt.Errorf("resolve --cmd-dir %q: %w", options.cmdDir, err)
+		}
 	}
 
 	appURL, err := validateDevAppURL(options.appURL)
@@ -153,6 +173,7 @@ func resolveDevConfig(ctx context.Context, options devOptions) (devConfig, error
 
 	config := devConfig{
 		root:            appRoot,
+		cmdDir:          cmdDir,
 		appURL:          appURL,
 		proxyBind:       proxyBind,
 		proxyPort:       proxyPort,
@@ -195,19 +216,6 @@ func parseDevProxyAddr(raw string) (string, int, error) {
 	}
 	return host, port, nil
 }
-
-func checkTemplTool(ctx context.Context, root string) error {
-	command := exec.CommandContext(ctx, "go", "tool", "templ", "generate", "--help")
-	command.Dir = root
-	command.Stdout = io.Discard
-	command.Stderr = io.Discard
-	if err := command.Run(); err != nil {
-		return fmt.Errorf("go tool templ is not available; add it with: %s", templToolInstallCommand)
-	}
-	return nil
-}
-
-const templToolInstallCommand = "go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020"
 
 func templArgs(config devConfig) []string {
 	return []string{
@@ -307,7 +315,7 @@ func writeUnixDevWrapper(config devConfig, tempDir string) (string, error) {
 		"#!/bin/sh",
 		"set -eu",
 		unixDevGenerateCommand(config, path),
-		"cd " + shellQuote(config.root),
+		"cd " + shellQuote(devCommandDir(config)),
 	}
 	for _, line := range devProxyBannerLines(config) {
 		lines = append(lines, "printf '%s\\n' "+shellQuote(line))
@@ -340,10 +348,10 @@ func writeWindowsDevWrapper(config devConfig, tempDir string) (string, error) {
 		"setlocal",
 		"set \"goldr_templ_dev_mode_root=%TEMPL_DEV_MODE_ROOT%\"",
 		"set \"TEMPL_DEV_MODE_ROOT=" + devGenerateTemplRoot(path) + "\"",
-		windowsQuote(config.goldrExecutable) + " generate --root " + windowsQuote(config.root) + " || exit /b %ERRORLEVEL%",
+		windowsQuote(config.goldrExecutable) + " generate --app-root " + windowsQuote(config.root) + " || exit /b %ERRORLEVEL%",
 		"if defined goldr_templ_dev_mode_root (set \"TEMPL_DEV_MODE_ROOT=%goldr_templ_dev_mode_root%\") else set \"TEMPL_DEV_MODE_ROOT=\"",
 		"set \"goldr_templ_dev_mode_root=\"",
-		"cd /d " + windowsQuote(config.root) + " || exit /b %ERRORLEVEL%",
+		"cd /d " + windowsQuote(devCommandDir(config)) + " || exit /b %ERRORLEVEL%",
 	}
 	for _, line := range devProxyBannerLines(config) {
 		if line == "" {
@@ -375,11 +383,18 @@ func shellQuote(value string) string {
 
 func unixDevGenerateCommand(config devConfig, wrapperPath string) string {
 	// Keep templ's non-watch cleanup away from templ watch-mode text files.
-	return "TEMPL_DEV_MODE_ROOT=" + shellQuote(devGenerateTemplRoot(wrapperPath)) + " " + shellQuote(config.goldrExecutable) + " generate --root " + shellQuote(config.root)
+	return "TEMPL_DEV_MODE_ROOT=" + shellQuote(devGenerateTemplRoot(wrapperPath)) + " " + shellQuote(config.goldrExecutable) + " generate --app-root " + shellQuote(config.root)
 }
 
 func devGenerateTemplRoot(wrapperPath string) string {
 	return wrapperPath + "-templ-root"
+}
+
+func devCommandDir(config devConfig) string {
+	if config.cmdDir != "" {
+		return config.cmdDir
+	}
+	return config.root
 }
 
 func windowsQuote(value string) string {
@@ -397,7 +412,7 @@ func devProxyBannerLines(config devConfig) []string {
 		"goldr dev live reload proxy",
 		"",
 		"Open this URL in your browser:",
-		"  🌐 " + devProxyURL(config),
+		"  " + devProxyURL(config),
 		"",
 		"Do not open the app server URL directly.",
 		"----------------------------------------",

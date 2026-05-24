@@ -1,7 +1,7 @@
 // Copyright 2026 Toly Pochkin
 // SPDX-License-Identifier: Apache-2.0
 
-package goldrcli
+package dev
 
 import (
 	"context"
@@ -98,7 +98,7 @@ func TestDevWrapperRunsGoldrGenerateThenAppCommand(t *testing.T) {
 	}()
 
 	source := readFile(t, wrapper)
-	generateCommand := "TEMPL_DEV_MODE_ROOT=" + shellQuote(devGenerateTemplRoot(wrapper)) + " " + shellQuote(config.goldrExecutable) + " generate --root " + shellQuote(root)
+	generateCommand := "TEMPL_DEV_MODE_ROOT=" + shellQuote(devGenerateTemplRoot(wrapper)) + " " + shellQuote(config.goldrExecutable) + " generate --app-root " + shellQuote(root)
 	for _, want := range []string{
 		"#!/bin/sh",
 		"set -eu",
@@ -106,7 +106,7 @@ func TestDevWrapperRunsGoldrGenerateThenAppCommand(t *testing.T) {
 		"cd " + shellQuote(root),
 		"printf '%s\\n' 'goldr dev live reload proxy'",
 		"printf '%s\\n' 'Open this URL in your browser:'",
-		"printf '%s\\n' '  🌐 http://127.0.0.1:7331'",
+		"printf '%s\\n' '  http://127.0.0.1:7331'",
 		"printf '%s\\n' 'Do not open the app server URL directly.'",
 		"exec /bin/sh -c " + shellQuote(config.command),
 	} {
@@ -117,14 +117,57 @@ func TestDevWrapperRunsGoldrGenerateThenAppCommand(t *testing.T) {
 	if strings.Contains(generateCommand, shellQuote(wrapperTempDir)+" ") {
 		t.Fatalf("generate command = %q, must not use templ's default temp root", generateCommand)
 	}
-	assertBefore(t, source, generateCommand, "printf '%s\\n' '  🌐 http://127.0.0.1:7331'")
-	assertBefore(t, source, "printf '%s\\n' '  🌐 http://127.0.0.1:7331'", "exec /bin/sh -c "+shellQuote(config.command))
+	assertBefore(t, source, generateCommand, "printf '%s\\n' '  http://127.0.0.1:7331'")
+	assertBefore(t, source, "printf '%s\\n' '  http://127.0.0.1:7331'", "exec /bin/sh -c "+shellQuote(config.command))
 	if strings.Contains(source, "assets dist") {
 		t.Fatalf("wrapper = %q, must not run assets dist separately", source)
 	}
 	if strings.Contains(source, "unset TEMPL_DEV_MODE") {
 		t.Fatalf("wrapper = %q, must keep templ dev mode available to the app", source)
 	}
+}
+
+func TestDevWrapperRunsAppCommandFromCommandDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell wrapper content is Unix-specific")
+	}
+	root := t.TempDir()
+	cmdDir := t.TempDir()
+	config := devConfig{
+		root:            root,
+		cmdDir:          cmdDir,
+		goldrExecutable: filepath.Join(root, "goldr"),
+		proxyBind:       "127.0.0.1",
+		proxyPort:       7331,
+		command:         "./scripts/run-dev-app.sh",
+	}
+
+	wrapperTempDir := t.TempDir()
+	wrapper, err := writeUnixDevWrapper(config, wrapperTempDir)
+	if err != nil {
+		t.Fatalf("writeUnixDevWrapper() error = %v", err)
+	}
+	defer func() {
+		_ = os.Remove(wrapper)
+	}()
+
+	source := readFile(t, wrapper)
+	generateCommand := "TEMPL_DEV_MODE_ROOT=" + shellQuote(devGenerateTemplRoot(wrapper)) + " " + shellQuote(config.goldrExecutable) + " generate --app-root " + shellQuote(root)
+	commandDirChange := "cd " + shellQuote(cmdDir)
+	for _, want := range []string{
+		generateCommand,
+		commandDirChange,
+		"exec /bin/sh -c " + shellQuote(config.command),
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("wrapper = %q, want %q", source, want)
+		}
+	}
+	if strings.Contains(source, "cd "+shellQuote(root)) {
+		t.Fatalf("wrapper = %q, must not run --cmd from app root when cmdDir is set", source)
+	}
+	assertBefore(t, source, generateCommand, commandDirChange)
+	assertBefore(t, source, commandDirChange, "exec /bin/sh -c "+shellQuote(config.command))
 }
 
 func TestDevProxyURLUsesHostPortFormatting(t *testing.T) {
@@ -285,6 +328,17 @@ func TestResolveDevConfigRejectsInvalidOptionsBeforeTemplLookup(t *testing.T) {
 			},
 			want: "--cmd must not be empty",
 		},
+		{
+			name: "bad command dir",
+			opts: devOptions{
+				root:      root,
+				cmdDir:    filepath.Join(root, "missing"),
+				appURL:    defaultDevAppURL,
+				proxyAddr: defaultDevProxyAddr,
+				command:   defaultDevCommand,
+			},
+			want: "resolve --cmd-dir",
+		},
 	}
 
 	for _, tt := range tests {
@@ -300,9 +354,121 @@ func TestResolveDevConfigRejectsInvalidOptionsBeforeTemplLookup(t *testing.T) {
 	}
 }
 
+func TestResolveDevConfigDefaultsCommandDirToAppRoot(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "app/routes/page.go", "package routes\n")
+	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
+
+	config, err := resolveDevConfig(context.Background(), devOptions{
+		root:      root,
+		appURL:    defaultDevAppURL,
+		proxyAddr: defaultDevProxyAddr,
+		command:   defaultDevCommand,
+	})
+	if err != nil {
+		t.Fatalf("resolveDevConfig() error = %v", err)
+	}
+	defer func() {
+		_ = os.Remove(config.wrapperPath)
+	}()
+
+	if config.cmdDir != config.root {
+		t.Fatalf("cmdDir = %q, want app root %q", config.cmdDir, config.root)
+	}
+}
+
+func TestResolveDevConfigUsesCommandDir(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "app/routes/page.go", "package routes\n")
+	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
+	cmdDir := filepath.Join(root, "cmdroot")
+	if err := os.Mkdir(cmdDir, 0755); err != nil {
+		t.Fatalf("mkdir cmd dir: %v", err)
+	}
+	resolvedCmdDir, err := filepath.EvalSymlinks(cmdDir)
+	if err != nil {
+		t.Fatalf("resolve cmd dir: %v", err)
+	}
+
+	config, err := resolveDevConfig(context.Background(), devOptions{
+		root:      root,
+		cmdDir:    cmdDir,
+		appURL:    defaultDevAppURL,
+		proxyAddr: defaultDevProxyAddr,
+		command:   defaultDevCommand,
+	})
+	if err != nil {
+		t.Fatalf("resolveDevConfig() error = %v", err)
+	}
+	defer func() {
+		_ = os.Remove(config.wrapperPath)
+	}()
+
+	if config.cmdDir != resolvedCmdDir {
+		t.Fatalf("cmdDir = %q, want %q", config.cmdDir, resolvedCmdDir)
+	}
+}
+
+func TestResolveDevConfigResolvesRelativeCommandDirFromCurrentDirectory(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "webapp")
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "app/routes/page.go", "package routes\n")
+	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
+	cmdDir := filepath.Join(parent, "server")
+	if err := os.Mkdir(cmdDir, 0755); err != nil {
+		t.Fatalf("mkdir cmd dir: %v", err)
+	}
+	resolvedCmdDir, err := filepath.EvalSymlinks(cmdDir)
+	if err != nil {
+		t.Fatalf("resolve cmd dir: %v", err)
+	}
+	t.Chdir(parent)
+
+	config, err := resolveDevConfig(context.Background(), devOptions{
+		root:      "webapp",
+		cmdDir:    "server",
+		appURL:    defaultDevAppURL,
+		proxyAddr: defaultDevProxyAddr,
+		command:   defaultDevCommand,
+	})
+	if err != nil {
+		t.Fatalf("resolveDevConfig() error = %v", err)
+	}
+	defer func() {
+		_ = os.Remove(config.wrapperPath)
+	}()
+
+	if config.cmdDir != resolvedCmdDir {
+		t.Fatalf("cmdDir = %q, want %q", config.cmdDir, resolvedCmdDir)
+	}
+}
+
 func TestDevShellQuote(t *testing.T) {
 	got := shellQuote(`it's fine`)
 	if got != `'it'"'"'s fine'` {
 		t.Fatalf("shellQuote() = %q", got)
 	}
+}
+
+func writeFile(t *testing.T, root string, name string, content string) {
+	t.Helper()
+	path := filepath.Join(root, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(content)
 }

@@ -11,7 +11,7 @@ import (
 
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/assets"
-	"github.com/mobiletoly/goldr/examples/full_feature/internal/testmultipart"
+	"github.com/mobiletoly/goldr/examples/full_feature/internal/testutil"
 	"github.com/mobiletoly/goldr/hx"
 )
 
@@ -186,11 +186,11 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 		t.Fatalf("helper body = %q", helperBody)
 	}
 
-	createBodyReader, createContentType := testmultipart.Body(t, map[string]string{
+	createBodyReader, createContentType := testutil.MultipartBody(t, map[string]string{
 		csrf.FieldName: csrfToken,
 		"name":         "Hedy Lamarr",
 		"status":       "Inactive",
-	}, map[string]testmultipart.Upload{
+	}, map[string]testutil.MultipartUpload{
 		"avatar": {Filename: "hedy.txt", Content: "example avatar"},
 	})
 	createRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, baseURL+"/users/create", createBodyReader)

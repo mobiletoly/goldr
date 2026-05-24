@@ -507,7 +507,7 @@ output, or change generated runtime dispatch.
 `goldr generate` is the supported CLI entrypoint for writing goldr-owned
 generated files from a real application route tree.
 
-The command treats `--root` as the application root and uses the fixed
+The command treats `--app-root` as the application root and uses the fixed
 conventions:
 
 ```text
@@ -536,7 +536,7 @@ module-relative `app/routes` path.
 For example, running:
 
 ```bash
-goldr generate --root examples/full_feature
+goldr generate --app-root examples/full_feature
 ```
 
 inside the goldr repository derives:
@@ -545,16 +545,15 @@ inside the goldr repository derives:
 github.com/mobiletoly/goldr/examples/full_feature/app/routes
 ```
 
-`goldr generate --check` generates Goldr-owned files in memory and compares
-them to disk without writing. Missing or stale generated files fail the check.
-
-The command does not run `templ generate`; templ-generated Go remains owned by
-templ.
+`goldr generate --check` runs templ check mode when `.templ` files are present,
+then generates Goldr-owned files in memory and compares them to disk without
+writing. Missing or stale generated files fail the check.
 
 Generated route dispatch starts with a deterministic route-surface comment.
 The comment lists layout, page, fragment, and action rows with kind, methods,
-path, source, and URL helper expression. Layout rows use `-` for methods and
-helper because layouts are generated wiring surface, not standalone routes.
+path, and source. Layout rows use `-` for methods because layouts are generated
+wiring surface, not standalone routes. URL helper expressions are reserved for
+`goldr routes list` and `app/urls/goldr_gen.go`, not the route dispatch header.
 The comment is for reviewability only; runtime code does not read it.
 
 Generated route dispatch also emits a short contract comment immediately above
@@ -623,26 +622,30 @@ The generated handler calls each matched route package's page function:
 func Page(r *http.Request) goldr.RouteResponse
 ```
 
-The returned `goldr.RouteResponse` is resolved by generated dispatch. Generated
-dispatch handles normal rendered pages, fragments, redirects, plain text status
-responses, and internal error responses. Page, fragment, redirect, and text
-responses may carry explicit headers with `WithHeader` and `AddHeader`;
-generated dispatch applies those headers before writing status and body. Nil
-rendered components and invalid route
-responses are internal server errors. The framework metadata surface is
-intentionally small: `Title` and `Description` are passed through to layouts,
-while canonical links, navigation state, and other shell policy remain
-application-owned.
+The returned `goldr.RouteResponse` is written through root-package route
+writers. Generated page dispatch calls `goldr.WritePageRouteResponse` with a
+route-local renderer that wraps the page component with inspector markers and
+applies the selected layout stack. Generated fragment dispatch calls
+`goldr.WriteFragmentRouteResponse` after wrapping actual fragment components
+with inspector markers.
 
-Generated dispatch calls `goldr.ResolveRouteResponse(response)`. A non-nil
-error from that function is an invalid Goldr route response contract, such as a
-zero-value page, a nil render component, an empty redirect location, a redirect
-status outside `301`, `302`, `303`, `307`, and `308`, a bodyless page status
-such as `204` or `205`, or `goldr.ServerError{Err: nil}`. Rendered page statuses
-must be final body-carrying statuses: `2xx` except `204` and `205`, plus `4xx`
-and `5xx`. `goldr.ServerError{Err: err}` is separate from that validation path:
-it is a valid route response, and `err` is the application error passed to the
-generated internal server error handler.
+The root package validates and writes normal rendered pages, fragments,
+redirects, plain text status responses, and internal error responses. Page,
+fragment, redirect, and text responses may carry explicit headers with
+`WithHeader` and `AddHeader`; the writer applies those headers before writing
+status and body. Nil rendered components and invalid route responses are
+internal server errors. The framework metadata surface is intentionally small:
+`Title` and `Description` are passed through to layouts, while canonical links,
+navigation state, and other shell policy remain application-owned.
+
+An invalid Goldr route response contract includes a zero-value page, a nil
+render component, an empty redirect location, a redirect status outside `301`,
+`302`, `303`, `307`, and `308`, a bodyless page status such as `204` or `205`,
+or `goldr.ServerError{Err: nil}`. Rendered page statuses must be final
+body-carrying statuses: `2xx` except `204` and `205`, plus `4xx` and `5xx`.
+`goldr.ServerError{Err: err}` is separate from that validation path: it is a
+valid route response, and `err` is the application error passed to the generated
+internal server error handler.
 
 When the manifest contains matching layouts, the generated handler wraps the page
 component by calling:
@@ -759,11 +762,16 @@ Actions are plain `net/http` handlers:
 func PostCreate(w http.ResponseWriter, r *http.Request)
 ```
 
-The generated handler calls action functions directly. Actions are not rendered
-through templ and are not wrapped in layouts.
+The generated handler calls action functions directly. Actions own response
+status, headers, body, redirects, HTMX response headers, and form redisplay.
 
-Action handlers own response status, headers, body, redirects, HTMX response
-headers, and form redisplay.
+When an action needs to render a full page through the matched layout stack, it
+calls `goldr.WriteRouteResponse` with a `goldr.Page` response. Generated
+dispatch attaches a route page renderer to the request before calling matched
+actions. `WriteRouteResponse` uses that renderer for page responses, while
+redirect, text, fragment, and server-error responses are handled by the root
+writer directly. Actions without a matched layout stack still use the same API;
+the renderer returns the page component without adding layouts.
 
 Dynamic route params are attached to the request before action handlers run.
 Application code reads them with `r.PathValue`.
@@ -818,9 +826,9 @@ The generated method-not-allowed helper runs after dispatch sets the `Allow`
 header for the matched path.
 
 The generated internal-server-error helper handles nil page, layout, or
-fragment components and templ render failures. Custom hooks receive
-`goldr.ErrNilComponent` for nil render units or the underlying templ render
-error.
+fragment components, invalid route responses, and templ render failures. Custom
+hooks receive `goldr.ErrNilComponent` for nil render units or the underlying
+templ render error.
 
 `TemplateInspection` is a development inspection option. The zero value is
 `goldr.TemplateInspectionOff`, so `Handler()` output has no inspector comments

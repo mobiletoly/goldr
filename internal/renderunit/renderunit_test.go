@@ -330,6 +330,87 @@ templ FragRowView() {}
 	}
 }
 
+func TestValidateManifestAcceptsAliasedSignatureImports(t *testing.T) {
+	root := t.TempDir()
+	writeRenderUnitFile(t, root, "page.go", `package routes
+
+import (
+	stdhttp "net/http"
+
+	g "github.com/mobiletoly/goldr"
+)
+
+func Page(r *stdhttp.Request) g.RouteResponse {
+	return g.NewPage(nil, g.PageMetadata{})
+}
+`)
+	writeRenderUnitFile(t, root, "page.templ", `package routes
+
+templ PageView() {}
+`)
+	writeRenderUnitFile(t, root, "layout.go", `package routes
+
+import (
+	stdhttp "net/http"
+
+	t "github.com/a-h/templ"
+	g "github.com/mobiletoly/goldr"
+)
+
+func Layout(r *stdhttp.Request, layout g.LayoutContext) t.Component {
+	return t.NopComponent
+}
+`)
+	writeRenderUnitFile(t, root, "layout.templ", `package routes
+
+templ LayoutView() {}
+`)
+	writeRenderUnitFile(t, root, "frag_row.go", `package routes
+
+import (
+	stdhttp "net/http"
+
+	t "github.com/a-h/templ"
+	g "github.com/mobiletoly/goldr"
+)
+
+func FragRow(r *stdhttp.Request) g.RouteResponse {
+	return g.NewFragment(t.NopComponent)
+}
+`)
+	writeRenderUnitFile(t, root, "frag_row.templ", `package routes
+
+templ FragRowView() {}
+`)
+
+	manifest := routing.Manifest{
+		Root: root,
+		Pages: []routing.ManifestPage{
+			{
+				Route: "/",
+				Unit:  routing.RenderUnit{GoFile: "page.go", TemplFile: "page.templ", HasTempl: true},
+			},
+		},
+		Layouts: []routing.ManifestLayout{
+			{
+				RoutePrefix: "/",
+				Unit:        routing.RenderUnit{GoFile: "layout.go", TemplFile: "layout.templ", HasTempl: true},
+			},
+		},
+		Fragments: []routing.ManifestFragment{
+			{
+				Name:        "row",
+				RoutePrefix: "/",
+				Unit:        routing.RenderUnit{GoFile: "frag_row.go", TemplFile: "frag_row.templ", HasTempl: true},
+			},
+		},
+	}
+
+	if err := ValidateManifest(manifest); err != nil {
+		t.Fatalf("ValidateManifest() error = %v, want nil", err)
+	}
+}
+
 func TestRenderWritesComponentOutput(t *testing.T) {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "hello")

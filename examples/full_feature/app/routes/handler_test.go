@@ -13,8 +13,7 @@ import (
 	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 	"github.com/mobiletoly/goldr/examples/full_feature/assets"
-	"github.com/mobiletoly/goldr/examples/full_feature/internal/testcsrf"
-	"github.com/mobiletoly/goldr/examples/full_feature/internal/testmultipart"
+	"github.com/mobiletoly/goldr/examples/full_feature/internal/testutil"
 	"github.com/mobiletoly/goldr/hx"
 )
 
@@ -342,7 +341,7 @@ func TestHandlerSignInActionSetsDemoRoleAndRedirects(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cookie, token := testcsrf.Pair(t, security.CSRF)
+			cookie, token := testutil.CSRFPair(t, security.CSRF)
 			recorder := recordForm(t, "/sign-in", url.Values{
 				csrf.FieldName: {token},
 				"credential":   {test.credential},
@@ -365,7 +364,7 @@ func TestHandlerSignInActionSetsDemoRoleAndRedirects(t *testing.T) {
 }
 
 func TestHandlerSignInActionRejectsUnknownCredentials(t *testing.T) {
-	cookie, token := testcsrf.Pair(t, security.CSRF)
+	cookie, token := testutil.CSRFPair(t, security.CSRF)
 	recorder := recordForm(t, "/sign-in", url.Values{
 		csrf.FieldName: {token},
 		"credential":   {"unknown"},
@@ -400,7 +399,7 @@ func TestHandlerSignInActionRejectsUnknownCredentials(t *testing.T) {
 }
 
 func TestHandlerProtectedResourceDemoSignOutClearsDemoRole(t *testing.T) {
-	cookie, token := testcsrf.Pair(t, security.CSRF)
+	cookie, token := testutil.CSRFPair(t, security.CSRF)
 	recorder := recordForm(t, "/protected-resource-demo/sign-out", url.Values{
 		csrf.FieldName: {token},
 	}, cookie, &http.Cookie{Name: security.DemoAuthCookie, Value: security.RoleAdmin})
@@ -420,7 +419,7 @@ func TestHandlerProtectedResourceDemoSignOutClearsDemoRole(t *testing.T) {
 }
 
 func TestHandlerProtectedResourceDemoActionWritesFullPage(t *testing.T) {
-	cookie, token := testcsrf.Pair(t, security.CSRF)
+	cookie, token := testutil.CSRFPair(t, security.CSRF)
 	recorder := recordForm(t, "/protected-resource-demo/reveal-secret", url.Values{
 		csrf.FieldName: {token},
 	}, cookie, &http.Cookie{Name: security.DemoAuthCookie, Value: security.RoleAdmin})
@@ -446,7 +445,7 @@ func TestHandlerProtectedResourceDemoActionWritesFullPage(t *testing.T) {
 }
 
 func TestHandlerProtectedResourceDemoActionRequiresAuth(t *testing.T) {
-	cookie, token := testcsrf.Pair(t, security.CSRF)
+	cookie, token := testutil.CSRFPair(t, security.CSRF)
 	recorder := recordForm(t, "/protected-resource-demo/reveal-secret", url.Values{
 		csrf.FieldName: {token},
 	}, cookie)
@@ -566,12 +565,12 @@ func TestHandlerWithOptionsCustomNotFound(t *testing.T) {
 }
 
 func TestHandlerPostCreateAction(t *testing.T) {
-	cookie, token := testcsrf.Pair(t, security.CSRF)
-	body, contentType := testmultipart.Body(t, map[string]string{
+	cookie, token := testutil.CSRFPair(t, security.CSRF)
+	body, contentType := testutil.MultipartBody(t, map[string]string{
 		csrf.FieldName: token,
 		"name":         "Grace Hopper",
 		"status":       "Active",
-	}, map[string]testmultipart.Upload{
+	}, map[string]testutil.MultipartUpload{
 		"avatar": {Filename: "grace.txt", Content: "example avatar"},
 	})
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/create", body)
@@ -599,7 +598,7 @@ func TestHandlerPostCreateAction(t *testing.T) {
 }
 
 func TestHandlerPostCreateRejectsMissingCSRF(t *testing.T) {
-	body, contentType := testmultipart.Body(t, map[string]string{
+	body, contentType := testutil.MultipartBody(t, map[string]string{
 		"name":   "Grace Hopper",
 		"status": "Active",
 	}, nil)
@@ -615,8 +614,8 @@ func TestHandlerPostCreateRejectsMissingCSRF(t *testing.T) {
 }
 
 func TestHandlerPostCreateRedisplaysErrors(t *testing.T) {
-	cookie, token := testcsrf.Pair(t, security.CSRF)
-	body, contentType := testmultipart.Body(t, map[string]string{
+	cookie, token := testutil.CSRFPair(t, security.CSRF)
+	body, contentType := testutil.MultipartBody(t, map[string]string{
 		csrf.FieldName: token,
 		"name":         "",
 		"status":       "Missing",
@@ -642,7 +641,7 @@ func TestHandlerPostCreateRedisplaysErrors(t *testing.T) {
 }
 
 func TestHandlerPostSavePreviewAction(t *testing.T) {
-	cookie, token := testcsrf.Pair(t, security.CSRF)
+	cookie, token := testutil.CSRFPair(t, security.CSRF)
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/save-preview", nil)
 	request.AddCookie(cookie)
 	request.Header.Set(csrf.HeaderName, token)

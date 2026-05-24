@@ -367,6 +367,8 @@ mux.Handle("/goldr/", http.StripPrefix("/goldr/", browser.Handler()))
 <script src="/goldr/goldr-sse-event.js" defer></script>
 ```
 
+The helper file name is also available as `browser.SSEEventHelperPath`.
+
 ```html
 <div
   hx-sse:connect="/chat/events"
@@ -386,10 +388,10 @@ go run ./examples/full_feature
 Inspect the route surface:
 
 ```bash
-go run ./cmd/goldr routes list --root examples/full_feature
-go run ./cmd/goldr routes layouts --root examples/full_feature
-go run ./cmd/goldr assets list --root examples/full_feature
-go run ./cmd/goldr check --root examples/full_feature
+go run ./cmd/goldr routes list --app-root examples/full_feature
+go run ./cmd/goldr routes layouts --app-root examples/full_feature
+go run ./cmd/goldr assets list --app-root examples/full_feature
+go run ./cmd/goldr check --app-root examples/full_feature
 ```
 
 The example shows pages, nested layouts, fragments, actions, forms, generated

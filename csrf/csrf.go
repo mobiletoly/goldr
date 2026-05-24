@@ -118,9 +118,9 @@ func New(config Config) (*Guard, error) {
 	}, nil
 }
 
-// Middleware makes a CSRF token available for templates and sets the token
+// TokenMiddleware makes a CSRF token available for templates and sets the token
 // cookie when the request does not already carry a valid token cookie.
-func (g *Guard) Middleware(next http.Handler) http.Handler {
+func (g *Guard) TokenMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, issueCookie, err := g.requestToken(r)
 		if err != nil {
@@ -134,7 +134,7 @@ func (g *Guard) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-// Token returns the request token stored by Middleware.
+// Token returns the request token stored by TokenMiddleware.
 func (g *Guard) Token(r *http.Request) string {
 	if r == nil {
 		return ""

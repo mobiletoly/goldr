@@ -34,6 +34,17 @@ Use `--cmd` if your app starts somewhere else:
 go tool goldr dev --cmd "go run ./cmd/web"
 ```
 
+By default, `--cmd` runs from `--app-root`. Use `--cmd-dir` when your Goldr app
+root is nested but the executable, config files, or local scripts live in
+another directory:
+
+```bash
+go tool goldr dev \
+  --app-root internal/adapters/webapp \
+  --cmd-dir . \
+  --cmd './scripts/run-goldr-dev-app.sh'
+```
+
 ## How It Works
 
 `goldr dev` keeps development close to production behavior:
@@ -62,17 +73,28 @@ wrapper command for templ to run after generation. The wrapper runs
 Defaults:
 
 ```text
---root .
+--app-root .
+--cmd-dir <app root>
 --app-url http://127.0.0.1:8080
 --proxy-addr 127.0.0.1:7331
 --cmd "go run ."
 ```
 
-Use `--root` when running from outside the app root:
+Use `--app-root` when running from outside the app root:
 
 ```bash
-go tool goldr dev --root examples/full_feature
+go tool goldr dev --app-root examples/full_feature
 ```
+
+Use `--cmd-dir` when the command should run from a different directory than the
+Goldr app root:
+
+```bash
+go tool goldr dev --app-root internal/adapters/webapp --cmd-dir .
+```
+
+Relative `--cmd-dir` paths are resolved from the directory where you invoked
+`goldr dev`.
 
 Use `--app-url` when the app listens on another address:
 
@@ -167,3 +189,20 @@ the app, and reloads the browser.
 The app owns asset tools and the HTTP server. Goldr keeps route generation,
 templ generation, fingerprinted assets, app restart, and browser reload moving
 together during development.
+
+## Nested App Roots
+
+When a Goldr app root is nested inside a larger Go module, run Goldr commands
+with `--app-root` instead of running raw templ generation from a different
+directory:
+
+```bash
+go tool goldr generate --app-root internal/adapters/webapp
+go tool goldr check --app-root internal/adapters/webapp
+```
+
+Templ records source paths in generated `*_templ.go` files relative to the
+generation root. Running raw `go tool templ generate` from the repository root
+can change those paths for nested Goldr routes and make generated files look
+stale. `goldr generate --app-root` keeps templ generation, Goldr route
+generation, and Goldr checks on the same app-root contract.

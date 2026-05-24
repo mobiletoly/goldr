@@ -73,10 +73,8 @@ func GenerateManifest(manifest routing.Manifest, options GenerateOptions) ([]byt
 	var buffer bytes.Buffer
 	writeGeneratedFileHeader(&buffer, routeSurfaceRows(manifest, routes))
 	fmt.Fprintf(&buffer, "package %s\n\n", options.PackageName)
-	needsRender := hasRenderRoutes(routes)
-	needsActionRouteWriter := hasActionRoutes(routes)
-	needsRenderedResponse := needsRender || needsActionRouteWriter
-	writeImports(&buffer, imports, inspectorImportPath, hasDynamicRoutes(routes), len(routes) > 0, needsRenderedResponse, hasSegmentRoutes(routes), len(routes) > 0)
+	needsRouteRenderer := hasRenderRoutes(routes) || hasActionRoutes(routes)
+	writeImports(&buffer, imports, inspectorImportPath, hasDynamicRoutes(routes), len(routes) > 0, needsRouteRenderer, hasSegmentRoutes(routes), len(routes) > 0)
 	writeTypes(&buffer, len(routes) > 0)
 	writeManifestValue(&buffer, manifest)
 	if len(routes) > 0 {
@@ -227,7 +225,6 @@ type routeSurfaceCommentRow struct {
 	methods string
 	path    string
 	source  string
-	helper  string
 }
 
 func writeGeneratedFileHeader(buffer *bytes.Buffer, rows []RouteSurfaceRow) {
@@ -241,7 +238,6 @@ func writeGeneratedFileHeader(buffer *bytes.Buffer, rows []RouteSurfaceRow) {
 		methods: "METHODS",
 		path:    "PATH",
 		source:  "SOURCE",
-		helper:  "HELPER",
 	})
 	for _, row := range rows {
 		commentRows = append(commentRows, routeSurfaceCommentRow{
@@ -249,38 +245,27 @@ func writeGeneratedFileHeader(buffer *bytes.Buffer, rows []RouteSurfaceRow) {
 			methods: FormatRouteSurfaceList(row.Methods),
 			path:    row.Path,
 			source:  row.Source,
-			helper:  routeSurfaceCommentString(row.Helper),
 		})
 	}
 
 	kindWidth := routeSurfaceCommentWidth(commentRows, func(row routeSurfaceCommentRow) string { return row.kind })
 	methodsWidth := routeSurfaceCommentWidth(commentRows, func(row routeSurfaceCommentRow) string { return row.methods })
 	pathWidth := routeSurfaceCommentWidth(commentRows, func(row routeSurfaceCommentRow) string { return row.path })
-	sourceWidth := routeSurfaceCommentWidth(commentRows, func(row routeSurfaceCommentRow) string { return row.source })
 
 	for _, row := range commentRows {
 		fmt.Fprintf(
 			buffer,
-			"//   %-*s  %-*s  %-*s  %-*s  %s\n",
+			"//   %-*s  %-*s  %-*s  %s\n",
 			kindWidth,
 			row.kind,
 			methodsWidth,
 			row.methods,
 			pathWidth,
 			row.path,
-			sourceWidth,
 			row.source,
-			row.helper,
 		)
 	}
 	buffer.WriteString("\n")
-}
-
-func routeSurfaceCommentString(value string) string {
-	if value == "" {
-		return "-"
-	}
-	return value
 }
 
 func routeSurfaceCommentWidth(rows []routeSurfaceCommentRow, value func(routeSurfaceCommentRow) string) int {
@@ -340,15 +325,12 @@ type routeImport struct {
 	ImportPath string
 }
 
-func writeImports(buffer *bytes.Buffer, imports []routeImport, inspectorImportPath string, needsDynamicRoutes, needsRuntime, needsRenderedResponse, needsSegments, needsGoldr bool) {
+func writeImports(buffer *bytes.Buffer, imports []routeImport, inspectorImportPath string, needsDynamicRoutes, needsRuntime, needsRouteRenderer, needsSegments, needsGoldr bool) {
 	if !needsRuntime {
 		return
 	}
 
 	buffer.WriteString("import (\n")
-	if needsRenderedResponse {
-		buffer.WriteString("\t\"bytes\"\n")
-	}
 	buffer.WriteString("\t\"net/http\"\n")
 	if needsDynamicRoutes {
 		buffer.WriteString("\t\"net/url\"\n")
@@ -357,7 +339,7 @@ func writeImports(buffer *bytes.Buffer, imports []routeImport, inspectorImportPa
 		buffer.WriteString("\t\"strings\"\n")
 	}
 	buffer.WriteString("\n")
-	if needsRenderedResponse {
+	if needsRouteRenderer {
 		buffer.WriteString("\t\"github.com/a-h/templ\"\n")
 	}
 	if needsGoldr {
@@ -496,7 +478,7 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 		routePath := r.URL.EscapedPath()
 `)
 	if hasActionRoutesWithoutLayouts(routes) {
-		buffer.WriteString(`		r = goldrWithActionRouteResponseWriter(r, options)
+		buffer.WriteString(`		r = goldrWithActionRoutePageRenderer(r, options)
 `)
 	}
 	if hasSegmentRoutes(routes) {
@@ -577,28 +559,23 @@ func goldrPathParam(segment string) (string, bool) {
 `)
 	}
 
-	if hasRenderRoutes(routes) || hasActionRoutes(routes) {
+	if hasFragmentRoutes(routes) {
 		buffer.WriteString(`
-func goldrWriteResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, component templ.Component, status int, headers http.Header) {
-	if err := goldrWriteComponentResponse(w, r, component, status, headers); err != nil {
-		goldrInternalServerError(options, w, r, err)
-		return
+func goldrWrapFragmentRouteResponse(response goldr.RouteResponse, wrap func(templ.Component) templ.Component) goldr.RouteResponse {
+	switch response := response.(type) {
+	case goldr.Fragment:
+		response.Component = wrap(response.Component)
+		return response
+	case *goldr.Fragment:
+		if response == nil {
+			return response
+		}
+		next := *response
+		next.Component = wrap(next.Component)
+		return next
+	default:
+		return response
 	}
-}
-
-func goldrWriteComponentResponse(w http.ResponseWriter, r *http.Request, component templ.Component, status int, headers http.Header) error {
-	var body bytes.Buffer
-	if err := component.Render(r.Context(), &body); err != nil {
-		return err
-	}
-	goldrWriteHeaders(w, headers)
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(status)
-	if r.Method == http.MethodHead {
-		return nil
-	}
-	_, err := w.Write(body.Bytes())
-	return err
 }
 
 `)
@@ -606,51 +583,12 @@ func goldrWriteComponentResponse(w http.ResponseWriter, r *http.Request, compone
 
 	if hasActionRoutesWithoutLayouts(routes) {
 		buffer.WriteString(`
-func goldrWithActionRouteResponseWriter(r *http.Request, options HandlerOptions) *http.Request {
-	return goldr.WithRouteResponseWriter(r, func(w http.ResponseWriter, r *http.Request, response goldr.ResolvedRouteResponse) error {
-		component := response.Component
-		if component == nil {
-			return goldr.ErrNilComponent
-		}
-		return goldrWriteComponentResponse(w, r, component, response.Status, response.Headers)
+func goldrWithActionRoutePageRenderer(r *http.Request, options HandlerOptions) *http.Request {
+	return goldr.WithRoutePageRenderer(r, func(r *http.Request, page goldr.Page) (templ.Component, error) {
+		return page.Component, nil
 	})
 }
 
-`)
-	}
-
-	if hasRenderRoutes(routes) || hasActionRoutes(routes) {
-		buffer.WriteString(`
-func goldrWriteHeaders(w http.ResponseWriter, headers http.Header) {
-	target := w.Header()
-	for name, values := range headers {
-		target.Del(name)
-		for _, value := range values {
-			target.Add(name, value)
-		}
-	}
-}
-
-`)
-	}
-
-	if hasRenderRoutes(routes) {
-		buffer.WriteString(`
-func goldrWriteRedirect(w http.ResponseWriter, location string, status int, headers http.Header) {
-	goldrWriteHeaders(w, headers)
-	w.Header().Set("Location", location)
-	w.WriteHeader(status)
-}
-
-func goldrWriteTextResponse(w http.ResponseWriter, r *http.Request, status int, body string, headers http.Header) {
-	goldrWriteHeaders(w, headers)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(status)
-	if r.Method == http.MethodHead {
-		return
-	}
-	_, _ = w.Write([]byte(body))
-}
 `)
 	}
 }
@@ -870,7 +808,7 @@ func writeMethodDispatch(buffer *bytes.Buffer, route runtimeRoute, indent string
 	fmt.Fprintf(buffer, "%sif r.Method == %s {\n", indent, methodConst)
 	actionCall := routeFunc(route.action.action.GoFile, route.action.action.Function)
 	writeActionCallComment(buffer, indent+"\t", route.action.action)
-	writeActionRouteResponseWriter(buffer, route.action.layouts, indent+"\t")
+	writeActionRoutePageRenderer(buffer, route.action.layouts, indent+"\t")
 	fmt.Fprintf(buffer, "%s\t%s(w, r)\n", indent, actionCall)
 	fmt.Fprintf(buffer, "%s\treturn\n", indent)
 	fmt.Fprintf(buffer, "%s}\n", indent)
@@ -881,104 +819,57 @@ func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, indent string) {
 		pageCall := routeFunc(route.page.page.Unit.GoFile, "Page")
 		writePageCallComment(buffer, indent, route.page.page)
 		fmt.Fprintf(buffer, "%srouteResponse := %s(r)\n", indent, pageCall)
-		fmt.Fprintf(buffer, "%sresponse, err := goldr.ResolveRouteResponse(routeResponse)\n", indent)
-		fmt.Fprintf(buffer, "%sif err != nil {\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, err)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%s}\n", indent)
-		fmt.Fprintf(buffer, "%scomponent := response.Component\n", indent)
-		fmt.Fprintf(buffer, "%sstatus := response.Status\n", indent)
-		fmt.Fprintf(buffer, "%sheaders := response.Headers\n", indent)
+		fmt.Fprintf(buffer, "%serr := goldr.WritePageRouteResponse(w, r, routeResponse, func(r *http.Request, page goldr.Page) (templ.Component, error) {\n", indent)
+		fmt.Fprintf(buffer, "%s\tcomponent := page.Component\n", indent)
+		fmt.Fprintf(buffer, "%s\tif component == nil {\n", indent)
+		fmt.Fprintf(buffer, "%s\t\treturn nil, goldr.ErrNilComponent\n", indent)
+		fmt.Fprintf(buffer, "%s\t}\n", indent)
 		if len(route.page.layouts) > 0 {
-			fmt.Fprintf(buffer, "%smetadata := response.Metadata\n", indent)
+			fmt.Fprintf(buffer, "%s\tmetadata := page.Metadata\n", indent)
 		}
-		fmt.Fprintf(buffer, "%sswitch response.Kind {\n", indent)
-		fmt.Fprintf(buffer, "%scase goldr.RouteResponseRedirect:\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrWriteRedirect(w, response.Location, response.Status, response.Headers)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%scase goldr.RouteResponseText:\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrWriteTextResponse(w, r, response.Status, response.Body, response.Headers)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%scase goldr.RouteResponseServerError:\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, response.Error)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%scase goldr.RouteResponseFragment:\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, goldr.ErrInvalidRouteResponse)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%scase goldr.RouteResponsePage:\n", indent)
-		fmt.Fprintf(buffer, "%sdefault:\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, goldr.ErrInvalidRouteResponse)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%s}\n", indent)
+		fmt.Fprintf(buffer, "%s\tcomponent = goldrinspect.Wrap(component, %s)\n", indent, templateMarker("page", route.page.page.Route, route.page.page.Unit))
+		if len(route.page.layouts) > 0 {
+			fmt.Fprintf(buffer, "%s\tlayoutContext := goldr.LayoutContext{Metadata: metadata}\n", indent)
+		}
+		for index := len(route.page.layouts) - 1; index >= 0; index-- {
+			layoutCall := routeFunc(route.page.layouts[index].Unit.GoFile, "Layout")
+			fmt.Fprintf(buffer, "%s\tlayoutContext.Child = component\n", indent)
+			writeLayoutCallComment(buffer, indent+"\t", route.page.layouts[index])
+			fmt.Fprintf(buffer, "%s\tcomponent = %s(r, layoutContext)\n", indent, layoutCall)
+			fmt.Fprintf(buffer, "%s\tif component == nil {\n", indent)
+			fmt.Fprintf(buffer, "%s\t\treturn nil, goldr.ErrNilComponent\n", indent)
+			fmt.Fprintf(buffer, "%s\t}\n", indent)
+			fmt.Fprintf(buffer, "%s\tcomponent = goldrinspect.Wrap(component, %s)\n", indent, templateMarker("layout", route.page.layouts[index].RoutePrefix, route.page.layouts[index].Unit))
+		}
+		fmt.Fprintf(buffer, "%s\treturn component, nil\n", indent)
+		fmt.Fprintf(buffer, "%s})\n", indent)
 	} else {
 		fragmentCall := routeFunc(route.fragment.fragment.Unit.GoFile, fragmentFuncName(route.fragment.fragment.Name))
 		writeFragmentCallComment(buffer, indent, *route.fragment)
 		fmt.Fprintf(buffer, "%srouteResponse := %s(r)\n", indent, fragmentCall)
-		fmt.Fprintf(buffer, "%sresponse, err := goldr.ResolveRouteResponse(routeResponse)\n", indent)
-		fmt.Fprintf(buffer, "%sif err != nil {\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, err)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%s}\n", indent)
-		fmt.Fprintf(buffer, "%scomponent := response.Component\n", indent)
-		fmt.Fprintf(buffer, "%sstatus := response.Status\n", indent)
-		fmt.Fprintf(buffer, "%sheaders := response.Headers\n", indent)
-		fmt.Fprintf(buffer, "%sswitch response.Kind {\n", indent)
-		fmt.Fprintf(buffer, "%scase goldr.RouteResponseRedirect:\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrWriteRedirect(w, response.Location, response.Status, response.Headers)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%scase goldr.RouteResponseText:\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrWriteTextResponse(w, r, response.Status, response.Body, response.Headers)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%scase goldr.RouteResponseServerError:\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, response.Error)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%scase goldr.RouteResponsePage:\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, goldr.ErrInvalidRouteResponse)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%scase goldr.RouteResponseFragment:\n", indent)
-		fmt.Fprintf(buffer, "%sdefault:\n", indent)
-		fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, goldr.ErrInvalidRouteResponse)\n", indent)
-		fmt.Fprintf(buffer, "%s\treturn\n", indent)
-		fmt.Fprintf(buffer, "%s}\n", indent)
+		fmt.Fprintf(buffer, "%srouteResponse = goldrWrapFragmentRouteResponse(routeResponse, func(component templ.Component) templ.Component {\n", indent)
+		fmt.Fprintf(buffer, "%s\treturn goldrinspect.Wrap(component, %s)\n", indent, templateMarker("fragment", route.fragment.route, route.fragment.fragment.Unit))
+		fmt.Fprintf(buffer, "%s})\n", indent)
+		fmt.Fprintf(buffer, "%serr := goldr.WriteFragmentRouteResponse(w, r, routeResponse)\n", indent)
 	}
-	fmt.Fprintf(buffer, "%sif component == nil {\n", indent)
-	fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, goldr.ErrNilComponent)\n", indent)
+	fmt.Fprintf(buffer, "%sif err != nil {\n", indent)
+	fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, err)\n", indent)
 	fmt.Fprintf(buffer, "%s\treturn\n", indent)
 	fmt.Fprintf(buffer, "%s}\n", indent)
-	if route.page != nil {
-		fmt.Fprintf(buffer, "%scomponent = goldrinspect.Wrap(component, %s)\n", indent, templateMarker("page", route.page.page.Route, route.page.page.Unit))
-		if len(route.page.layouts) > 0 {
-			fmt.Fprintf(buffer, "%slayoutContext := goldr.LayoutContext{Metadata: metadata}\n", indent)
-		}
-		for index := len(route.page.layouts) - 1; index >= 0; index-- {
-			layoutCall := routeFunc(route.page.layouts[index].Unit.GoFile, "Layout")
-			fmt.Fprintf(buffer, "%slayoutContext.Child = component\n", indent)
-			writeLayoutCallComment(buffer, indent, route.page.layouts[index])
-			fmt.Fprintf(buffer, "%scomponent = %s(r, layoutContext)\n", indent, layoutCall)
-			fmt.Fprintf(buffer, "%sif component == nil {\n", indent)
-			fmt.Fprintf(buffer, "%s\tgoldrInternalServerError(options, w, r, goldr.ErrNilComponent)\n", indent)
-			fmt.Fprintf(buffer, "%s\treturn\n", indent)
-			fmt.Fprintf(buffer, "%s}\n", indent)
-			fmt.Fprintf(buffer, "%scomponent = goldrinspect.Wrap(component, %s)\n", indent, templateMarker("layout", route.page.layouts[index].RoutePrefix, route.page.layouts[index].Unit))
-		}
-	} else {
-		fmt.Fprintf(buffer, "%scomponent = goldrinspect.Wrap(component, %s)\n", indent, templateMarker("fragment", route.fragment.route, route.fragment.fragment.Unit))
-	}
-	fmt.Fprintf(buffer, "%sgoldrWriteResponse(options, w, r, component, status, headers)\n", indent)
 	fmt.Fprintf(buffer, "%sreturn\n", indent)
 }
 
-func writeActionRouteResponseWriter(buffer *bytes.Buffer, layouts []routing.ManifestLayout, indent string) {
+func writeActionRoutePageRenderer(buffer *bytes.Buffer, layouts []routing.ManifestLayout, indent string) {
 	if len(layouts) == 0 {
 		return
 	}
 
-	fmt.Fprintf(buffer, "%sr = goldr.WithRouteResponseWriter(r, func(w http.ResponseWriter, r *http.Request, response goldr.ResolvedRouteResponse) error {\n", indent)
-	fmt.Fprintf(buffer, "%s\tcomponent := response.Component\n", indent)
+	fmt.Fprintf(buffer, "%sr = goldr.WithRoutePageRenderer(r, func(r *http.Request, page goldr.Page) (templ.Component, error) {\n", indent)
+	fmt.Fprintf(buffer, "%s\tcomponent := page.Component\n", indent)
 	fmt.Fprintf(buffer, "%s\tif component == nil {\n", indent)
-	fmt.Fprintf(buffer, "%s\t\treturn goldr.ErrNilComponent\n", indent)
+	fmt.Fprintf(buffer, "%s\t\treturn nil, goldr.ErrNilComponent\n", indent)
 	fmt.Fprintf(buffer, "%s\t}\n", indent)
-	fmt.Fprintf(buffer, "%s\tmetadata := response.Metadata\n", indent)
+	fmt.Fprintf(buffer, "%s\tmetadata := page.Metadata\n", indent)
 	fmt.Fprintf(buffer, "%s\tlayoutContext := goldr.LayoutContext{Metadata: metadata}\n", indent)
 	for index := len(layouts) - 1; index >= 0; index-- {
 		layoutCall := routeFunc(layouts[index].Unit.GoFile, "Layout")
@@ -986,11 +877,11 @@ func writeActionRouteResponseWriter(buffer *bytes.Buffer, layouts []routing.Mani
 		writeLayoutCallComment(buffer, indent+"\t", layouts[index])
 		fmt.Fprintf(buffer, "%s\tcomponent = %s(r, layoutContext)\n", indent, layoutCall)
 		fmt.Fprintf(buffer, "%s\tif component == nil {\n", indent)
-		fmt.Fprintf(buffer, "%s\t\treturn goldr.ErrNilComponent\n", indent)
+		fmt.Fprintf(buffer, "%s\t\treturn nil, goldr.ErrNilComponent\n", indent)
 		fmt.Fprintf(buffer, "%s\t}\n", indent)
 		fmt.Fprintf(buffer, "%s\tcomponent = goldrinspect.Wrap(component, %s)\n", indent, templateMarker("layout", layouts[index].RoutePrefix, layouts[index].Unit))
 	}
-	fmt.Fprintf(buffer, "%s\treturn goldrWriteComponentResponse(w, r, component, response.Status, response.Headers)\n", indent)
+	fmt.Fprintf(buffer, "%s\treturn component, nil\n", indent)
 	fmt.Fprintf(buffer, "%s})\n", indent)
 }
 
@@ -1394,6 +1285,15 @@ func hasDynamicRoutes(routes []runtimeRoute) bool {
 func hasRenderRoutes(routes []runtimeRoute) bool {
 	for _, route := range routes {
 		if route.page != nil || route.fragment != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func hasFragmentRoutes(routes []runtimeRoute) bool {
+	for _, route := range routes {
+		if route.fragment != nil {
 			return true
 		}
 	}

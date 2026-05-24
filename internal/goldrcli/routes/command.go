@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	rootFlag     = "root"
+	appRootFlag  = "app-root"
 	listJSONFlag = "json"
 )
 
@@ -50,9 +50,10 @@ These commands do not write generated files. Run "go tool goldr generate" after 
 
 func rootStringFlag() *cli.StringFlag {
 	return &cli.StringFlag{
-		Name:        rootFlag,
+		Name:        appRootFlag,
 		Value:       ".",
-		Usage:       "app root directory",
+		Usage:       "Goldr app root directory",
+		Config:      cli.StringConfig{TrimSpace: true},
 		HideDefault: false,
 	}
 }
@@ -73,7 +74,7 @@ func scanRouteManifest(root string) (routeTreePaths, routing.Manifest, error) {
 func routeTreePathsForRoot(root string) (routeTreePaths, error) {
 	appRoot, err := appfs.ResolveExistingDir(root)
 	if err != nil {
-		return routeTreePaths{}, fmt.Errorf("resolve --root %q: %w", root, err)
+		return routeTreePaths{}, fmt.Errorf("resolve --app-root %q: %w", root, err)
 	}
 
 	routesDir := appfs.RoutesDir(appRoot)

@@ -23,7 +23,7 @@ func listCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "list",
 		Usage:       "list route surface",
-		UsageText:   "goldr routes list [--root <dir>] [--json]",
+		UsageText:   "goldr routes list [--app-root <dir>] [--json]",
 		Description: listDescription,
 		Flags: []cli.Flag{
 			rootStringFlag(),
@@ -35,7 +35,7 @@ func listCommand() *cli.Command {
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			return runList(ctx, listOptions{
-				root: cmd.String(rootFlag),
+				root: cmd.String(appRootFlag),
 				json: cmd.Bool(listJSONFlag),
 			}, cmd.Root().Writer)
 		},

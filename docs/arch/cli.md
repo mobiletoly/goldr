@@ -14,7 +14,23 @@ This keeps the framework public API small.
 
 Do not expose CLI construction as a public package.
 
-Future commands should be added to `internal/goldrcli` unless a later spec creates a more specific internal package boundary.
+Top-level commands live in focused internal command packages and are assembled
+by `internal/goldrcli`:
+
+```text
+internal/goldrcli/initcmd
+internal/goldrcli/dev
+internal/goldrcli/check
+internal/goldrcli/generate
+internal/goldrcli/assets
+internal/goldrcli/routes
+```
+
+Command packages expose `Command() *cli.Command`; the root package should not
+mix package-owned commands with root-local command factories. Shared app-root
+and generated-file plumbing lives in `internal/goldrcli/project`. Shared templ
+tool lookup and generation lives in `internal/goldrcli/templtool`. Do not add a
+Go workspace or nested module for CLI organization.
 
 The CLI must keep using standard process behavior:
 - successful commands exit `0`
@@ -44,7 +60,7 @@ It must not create a project directory, create `go.mod`, edit `go.mod`, write
 `main.go`, run templ generation, run tests, or start an application server.
 Those bootstrap steps belong in user documentation and ordinary Go tooling.
 
-`goldr init` treats `--root` as the application root. It resolves the root
+`goldr init` treats `--app-root` as the application root. It resolves the root
 directory, derives the module-aware route import path with the same Go module
 logic used by `goldr generate`, and fails before writing if `<root>/app`
 already exists as a file, directory, or symlink.

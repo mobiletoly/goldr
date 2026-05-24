@@ -1,7 +1,7 @@
 // Copyright 2026 Toly Pochkin
 // SPDX-License-Identifier: Apache-2.0
 
-package goldrcli
+package check
 
 import (
 	"context"
@@ -11,14 +11,16 @@ import (
 
 	"github.com/mobiletoly/goldr/internal/goldrcli/appfs"
 	cliassets "github.com/mobiletoly/goldr/internal/goldrcli/assets"
+	"github.com/mobiletoly/goldr/internal/goldrcli/project"
 	"github.com/mobiletoly/goldr/internal/goldrcli/scandiag"
+	"github.com/mobiletoly/goldr/internal/goldrcli/templtool"
 	"github.com/mobiletoly/goldr/internal/renderunit"
 	"github.com/mobiletoly/goldr/internal/routing"
 	"github.com/urfave/cli/v3"
 )
 
 const (
-	checkRootFlag = "root"
+	checkAppRootFlag = "app-root"
 
 	checkCodeAppRoot        = "GOLDR001"
 	checkCodeRouteScan      = "GOLDR002"
@@ -34,23 +36,24 @@ type checkOptions struct {
 	root string
 }
 
-func checkCommand() *cli.Command {
+func Command() *cli.Command {
 	return &cli.Command{
 		Name:        "check",
 		Usage:       "check goldr route tree and generated files",
-		UsageText:   "goldr check [--root <dir>]",
+		UsageText:   "goldr check [--app-root <dir>]",
 		Description: checkDescription,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        checkRootFlag,
+				Name:        checkAppRootFlag,
 				Value:       ".",
-				Usage:       "app root directory",
+				Usage:       "Goldr app root directory",
+				Config:      cli.StringConfig{TrimSpace: true},
 				HideDefault: false,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			return runCheck(ctx, checkOptions{
-				root: cmd.String(checkRootFlag),
+				root: cmd.String(checkAppRootFlag),
 			})
 		},
 	}
@@ -63,19 +66,19 @@ Checks route naming, page handler signatures, layout/fragment file pairs, action
 Run after go tool goldr generate. This command runs templ check mode when .templ files exist but does not run tests, start the app, or write files.`
 
 func runCheck(ctx context.Context, options checkOptions) error {
-	paths, err := appPathsForRoot(ctx, options.root)
+	paths, err := project.PathsForRoot(ctx, options.root)
 	if err != nil {
 		return fmt.Errorf("goldr check: %w", checkCodeError(checkCodeAppRoot, err))
 	}
 
-	tree, err := routing.Scan(paths.routesDir)
+	tree, err := routing.Scan(paths.RoutesDir)
 	if err != nil {
-		return fmt.Errorf("goldr check: %w", scandiag.CodeError(paths.routesDir, err, checkCodeRouteScan))
+		return fmt.Errorf("goldr check: %w", scandiag.CodeError(paths.RoutesDir, err, checkCodeRouteScan))
 	}
 	manifest := routing.BuildManifest(*tree)
 
 	if err := renderunit.ValidateManifest(manifest); err != nil {
-		return fmt.Errorf("goldr check: %w", checkRenderUnitError(paths.routesDir, err))
+		return fmt.Errorf("goldr check: %w", checkRenderUnitError(paths.RoutesDir, err))
 	}
 
 	generatedFiles, err := checkGeneratedManifestReadiness(paths, manifest)
@@ -83,56 +86,56 @@ func runCheck(ctx context.Context, options checkOptions) error {
 		return fmt.Errorf("goldr check: %w", err)
 	}
 
-	hasTempl, err := hasTemplFiles(paths.root)
+	hasTempl, err := project.HasTemplFiles(paths.Root)
 	if err != nil {
 		return fmt.Errorf("goldr check: %w", checkCodeError(checkCodeTemplGenerated, err))
 	}
 	if hasTempl {
-		if err := checkTemplGeneratedFiles(ctx, paths.root); err != nil {
+		if err := checkTemplGeneratedFiles(ctx, paths.Root); err != nil {
 			return fmt.Errorf("goldr check: %w", err)
 		}
 	}
 
-	if err := checkGeneratedFiles(generatedFiles); err != nil {
+	if err := project.CheckGeneratedFiles(generatedFiles); err != nil {
 		return fmt.Errorf("goldr check: %w", checkMultilineCodeError(checkCodeGeneratedFiles, err))
 	}
-	if err := checkManagedAssets(paths.root); err != nil {
+	if err := checkManagedAssets(paths.Root); err != nil {
 		return fmt.Errorf("goldr check: %w", err)
 	}
 	return nil
 }
 
-func checkGeneratedManifestReadiness(paths appPaths, manifest routing.Manifest) ([]generatedFile, error) {
-	routesFile, err := generateRouteManifestFile(paths, manifest)
+func checkGeneratedManifestReadiness(paths project.Paths, manifest routing.Manifest) ([]project.GeneratedFile, error) {
+	routesFile, err := project.GenerateRouteManifestFile(paths, manifest)
 	if err != nil {
 		return nil, checkCodeError(checkCodeRouteGenerate, err)
 	}
-	urlsFile, err := generateURLHelperFile(paths, manifest)
+	urlsFile, err := project.GenerateURLHelperFile(paths, manifest)
 	if err != nil {
 		return nil, checkCodeError(checkCodeURLGenerate, err)
 	}
-	inspectorFile, err := generateInspectorSupportFile(paths)
+	inspectorFile, err := project.GenerateInspectorSupportFile(paths)
 	if err != nil {
 		return nil, checkCodeError(checkCodeRouteGenerate, err)
 	}
-	fragmentWrapperFiles, err := generateFragmentWrapperFiles(paths, manifest)
+	fragmentWrapperFiles, err := project.GenerateFragmentWrapperFiles(paths, manifest)
 	if err != nil {
 		return nil, checkCodeError(checkCodeRouteGenerate, err)
 	}
-	files := []generatedFile{routesFile, urlsFile, inspectorFile}
+	files := []project.GeneratedFile{routesFile, urlsFile, inspectorFile}
 	files = append(files, fragmentWrapperFiles...)
-	if err := checkStaleManagedGeneratedFiles(paths, files); err != nil {
+	if err := project.CheckStaleManagedGeneratedFiles(paths, files); err != nil {
 		return nil, checkCodeError(checkCodeGeneratedFiles, err)
 	}
 	return files, nil
 }
 
 func checkTemplGeneratedFiles(ctx context.Context, root string) error {
-	if err := checkTemplTool(ctx, root); err != nil {
+	if err := templtool.Require(ctx, root); err != nil {
 		return checkCodeError(checkCodeTemplGenerated, err)
 	}
 
-	if err := runTemplGenerateCheck(ctx, root); err != nil {
+	if err := templtool.GenerateCheck(ctx, root); err != nil {
 		return checkMultilineCodeError(checkCodeTemplGenerated, err)
 	}
 	return nil

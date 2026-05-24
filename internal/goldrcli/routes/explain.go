@@ -28,7 +28,7 @@ func explainCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "explain",
 		Usage:       "explain which route matches a URL or path",
-		UsageText:   "goldr routes explain [--root <dir>] [--method <method>] <url-or-path>",
+		UsageText:   "goldr routes explain [--app-root <dir>] [--method <method>] <url-or-path>",
 		Description: explainDescription,
 		Flags: []cli.Flag{
 			rootStringFlag(),
@@ -44,7 +44,7 @@ func explainCommand() *cli.Command {
 				return fmt.Errorf("goldr routes explain: expected one URL or path")
 			}
 			return runExplain(ctx, explainOptions{
-				root:   cmd.String(rootFlag),
+				root:   cmd.String(appRootFlag),
 				method: cmd.String(explainMethodFlag),
 				target: cmd.Args().First(),
 			}, cmd.Root().Writer)

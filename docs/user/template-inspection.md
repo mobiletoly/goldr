@@ -95,7 +95,8 @@ Render the layout helper explicitly, usually near the end of the root layout:
 ```
 
 `goldr.TemplateInspector()` renders nothing in off or comments mode. In overlay
-mode, it renders a script tag for `/goldr/goldr-template-inspector.js`.
+mode, it renders a script tag for `/goldr/goldr-template-inspector.js`, the
+helper file named by `browser.TemplateInspectorHelperPath`.
 
 The browser helper reads the inspector comments and draws colored outlines and
 labels over layout, page, and fragment regions. It appends debug overlay nodes

@@ -61,8 +61,8 @@ go run ./examples/chat
 Inspect the example route tree:
 
 ```bash
-go run ./cmd/goldr routes layouts --root examples/full_feature
-go run ./cmd/goldr routes list --root examples/full_feature
+go run ./cmd/goldr routes layouts --app-root examples/full_feature
+go run ./cmd/goldr routes list --app-root examples/full_feature
 ```
 
 ## Current Scope

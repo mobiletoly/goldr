@@ -82,7 +82,7 @@ func exampleHandler() http.Handler {
 		},
 		TemplateInspection: templateInspectionMode(),
 	})
-	mux.Handle("/", appHeaders(deps.Middleware(appDeps, security.CSRF.Middleware(routesHandler))))
+	mux.Handle("/", appHeaders(deps.Middleware(appDeps, security.CSRF.TokenMiddleware(routesHandler))))
 	return mux
 }
 

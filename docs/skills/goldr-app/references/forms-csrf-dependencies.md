@@ -97,7 +97,7 @@ The secret must be at least 32 bytes.
 Wrap generated routes in app server setup:
 
 ```go
-mux.Handle("/", guard.Middleware(routes.Handler()))
+mux.Handle("/", guard.TokenMiddleware(routes.Handler()))
 ```
 
 Render a hidden field explicitly:

@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	rootFlag = "root"
-	jsonFlag = "json"
+	appRootFlag = "app-root"
+	jsonFlag    = "json"
 
 	assetsDirName = "assets"
 	buildDirName  = "build"
@@ -112,11 +112,11 @@ func distCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "dist",
 		Usage:       "build fingerprinted asset distribution",
-		UsageText:   "goldr assets dist [--root <dir>]",
+		UsageText:   "goldr assets dist [--app-root <dir>]",
 		Description: assetsDistDescription,
 		Flags:       []cli.Flag{rootStringFlag()},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			return runDist(options{root: cmd.String(rootFlag)})
+			return runDist(options{root: cmd.String(appRootFlag)})
 		},
 	}
 }
@@ -129,11 +129,11 @@ func checkCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "check",
 		Usage:       "check fingerprinted asset distribution",
-		UsageText:   "goldr assets check [--root <dir>]",
+		UsageText:   "goldr assets check [--app-root <dir>]",
 		Description: assetsCheckDescription,
 		Flags:       []cli.Flag{rootStringFlag()},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			return runCheck(options{root: cmd.String(rootFlag)})
+			return runCheck(options{root: cmd.String(appRootFlag)})
 		},
 	}
 }
@@ -146,11 +146,11 @@ func cleanCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "clean",
 		Usage:       "remove stale Goldr-managed asset files",
-		UsageText:   "goldr assets clean [--root <dir>]",
+		UsageText:   "goldr assets clean [--app-root <dir>]",
 		Description: assetsCleanDescription,
 		Flags:       []cli.Flag{rootStringFlag()},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			return runClean(options{root: cmd.String(rootFlag)})
+			return runClean(options{root: cmd.String(appRootFlag)})
 		},
 	}
 }
@@ -163,7 +163,7 @@ func listCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "list",
 		Usage:       "list fingerprinted assets",
-		UsageText:   "goldr assets list [--root <dir>] [--json]",
+		UsageText:   "goldr assets list [--app-root <dir>] [--json]",
 		Description: assetsListDescription,
 		Flags: []cli.Flag{
 			rootStringFlag(),
@@ -175,7 +175,7 @@ func listCommand() *cli.Command {
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return runList(options{
-				root: cmd.String(rootFlag),
+				root: cmd.String(appRootFlag),
 				json: cmd.Bool(jsonFlag),
 			}, cmd.Root().Writer)
 		},
@@ -188,9 +188,10 @@ Use --json when scripts or agents need stable machine-readable asset metadata.`
 
 func rootStringFlag() *cli.StringFlag {
 	return &cli.StringFlag{
-		Name:        rootFlag,
+		Name:        appRootFlag,
 		Value:       ".",
-		Usage:       "app root directory",
+		Usage:       "Goldr app root directory",
+		Config:      cli.StringConfig{TrimSpace: true},
 		HideDefault: false,
 	}
 }
@@ -376,7 +377,7 @@ func buildAssetManifest(root string) (assetPaths, []manifestAsset, error) {
 func assetPathsForRoot(root string) (assetPaths, error) {
 	appRoot, err := appfs.ResolveExistingDir(root)
 	if err != nil {
-		return assetPaths{}, fmt.Errorf("resolve --root %q: %w", root, err)
+		return assetPaths{}, fmt.Errorf("resolve --app-root %q: %w", root, err)
 	}
 	assetsDir := filepath.Join(appRoot, assetsDirName)
 	return assetPaths{

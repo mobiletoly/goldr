@@ -218,13 +218,13 @@ app/urls/goldr_gen.go
 It does not create `go.mod`, edit `go.mod`, write `main.go`, run templ, or
 start a server.
 
-Use `--root` when running from outside the application root:
+Use `--app-root` when running from outside the application root:
 
 ```bash
-go tool goldr init --root ./hello-goldr
+go tool goldr init --app-root ./hello-goldr
 ```
 
-`--root` points to the application root. goldr still uses
+`--app-root` points to the application root. goldr still uses
 `<root>/app/routes` and `<root>/app/urls`.
 
 ## Coding Agents
