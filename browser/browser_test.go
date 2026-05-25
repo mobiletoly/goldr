@@ -42,8 +42,15 @@ func TestFSContainsTemplateInspectorControls(t *testing.T) {
 	assertFSContains(t, TemplateInspectorHelperPath, `buttonStyle(mode !== "off" && selectedIndex !== null, disabled)`)
 	assertFSContains(t, TemplateInspectorHelperPath, `if (selectedIndex === null)`)
 	assertFSContains(t, TemplateInspectorHelperPath, `selectedIndex = (selectedIndex + 1) % boxes.length`)
+	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-copy`)
+	assertFSContains(t, TemplateInspectorHelperPath, `button.textContent = "\u29c9"`)
+	assertFSContains(t, TemplateInspectorHelperPath, `navigator.clipboard.writeText(path)`)
+	assertFSContains(t, TemplateInspectorHelperPath, `fallbackCopySourcePath(path)`)
+	assertFSContains(t, TemplateInspectorHelperPath, `event.stopPropagation()`)
+	assertFSContains(t, TemplateInspectorHelperPath, `appendCopyButton(label, sourcePath(meta))`)
 	assertFSNotContains(t, TemplateInspectorHelperPath, `appendModeButton(root, "Single"`)
 	assertFSNotContains(t, TemplateInspectorHelperPath, `mode === "single"`)
+	assertFSNotContains(t, TemplateInspectorHelperPath, `root.setAttribute("aria-hidden", "true")`)
 }
 
 func TestFSContainsTemplateInspectorControlsPersistAllAndOffOnly(t *testing.T) {

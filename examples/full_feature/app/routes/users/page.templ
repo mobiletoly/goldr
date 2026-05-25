@@ -47,9 +47,9 @@ templ DirectoryView(form bind.Form, contacts []Contact, csrfToken string) {
 		</form>
 		<div style="margin-top: 20px">
 			<div aria-label="Filter users by status">
-				<button type="button" hx-get={ urls.Users.FragTable.Path() } hx-target="#users-table-slot" hx-swap="innerHTML">All</button>
-				<button type="button" hx-get={ urls.Users.FragTable.Path() + "?status=active" } hx-target="#users-table-slot" hx-swap="innerHTML">Active only</button>
-				<button type="button" hx-get={ urls.Users.FragTable.Path() + "?status=inactive" } hx-target="#users-table-slot" hx-swap="innerHTML">Inactive only</button>
+				<button type="button" hx-get={ urls.Users.Table.Path() } hx-target="#users-table-slot" hx-swap="innerHTML">All</button>
+				<button type="button" hx-get={ urls.Users.Table.Path() + "?status=active" } hx-target="#users-table-slot" hx-swap="innerHTML">Active only</button>
+				<button type="button" hx-get={ urls.Users.Table.Path() + "?status=inactive" } hx-target="#users-table-slot" hx-swap="innerHTML">Inactive only</button>
 			</div>
 			<div id="users-table-slot">
 				@renderFragTable(FragTableView(contacts))

@@ -62,6 +62,21 @@ func TestNewFragmentRouteResponse(t *testing.T) {
 	if got := response.fragment.headers.Get("Hx-Trigger"); got != "fragment-loaded" {
 		t.Fatalf("Hx-Trigger = %q, want fragment-loaded", got)
 	}
+	if got := response.fragment.headers.Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+}
+
+func TestFragmentCacheControlCanBeOverridden(t *testing.T) {
+	response, err := resolveRouteResponse(
+		NewFragment(templ.NopComponent).WithHeader("Cache-Control", "public, max-age=60"),
+	)
+	if err != nil {
+		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
+	}
+	if got := response.fragment.headers.Get("Cache-Control"); got != "public, max-age=60" {
+		t.Fatalf("Cache-Control = %q, want public, max-age=60", got)
+	}
 }
 
 func TestResolveRouteResponseAcceptsPointers(t *testing.T) {
@@ -71,6 +86,7 @@ func TestResolveRouteResponseAcceptsPointers(t *testing.T) {
 	fragment := NewFragment(templ.NopComponent)
 	redirect := Redirect{Location: "/sign-in", Status: http.StatusSeeOther}
 	text := Text{Status: http.StatusForbidden, Body: "forbidden"}
+	noContent := NoContent{}
 	serverErr := ServerError{Err: appErr}
 
 	tests := []struct {
@@ -82,6 +98,7 @@ func TestResolveRouteResponseAcceptsPointers(t *testing.T) {
 		{name: "fragment", response: &fragment, kind: routeResponseFragment},
 		{name: "redirect", response: &redirect, kind: routeResponseRedirect},
 		{name: "text", response: &text, kind: routeResponseText},
+		{name: "no content", response: &noContent, kind: routeResponseNoContent},
 		{name: "server error", response: &serverErr, kind: routeResponseServerError},
 	}
 
@@ -148,11 +165,47 @@ func TestRouteResponseAddHeader(t *testing.T) {
 	}
 }
 
+func TestNoContentRouteResponse(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  NoContent
+		status int
+	}{
+		{name: "default", input: NoContent{}, status: http.StatusNoContent},
+		{name: "reset content", input: NoContent{Status: http.StatusResetContent}, status: http.StatusResetContent},
+		{name: "not modified", input: NoContent{Status: http.StatusNotModified}, status: http.StatusNotModified},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response, err := resolveRouteResponse(
+				test.input.
+					WithHeader("Cache-Control", "no-store").
+					AddHeader("Set-Cookie", "one=1").
+					AddHeader("Set-Cookie", "two=2"),
+			)
+			if err != nil {
+				t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
+			}
+			if response.noBody.Status != test.status {
+				t.Fatalf("status = %d, want %d", response.noBody.Status, test.status)
+			}
+			if got := response.noBody.headers.Get("Cache-Control"); got != "no-store" {
+				t.Fatalf("Cache-Control = %q, want no-store", got)
+			}
+			if got := response.noBody.headers.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
+				t.Fatalf("Set-Cookie = %#v, want [one=1 two=2]", got)
+			}
+		})
+	}
+}
+
 func TestRouteResponseValidation(t *testing.T) {
 	var nilPage *Page
 	var nilFragment *Fragment
 	var nilRedirect *Redirect
 	var nilText *Text
+	var nilNoContent *NoContent
 	var nilServerError *ServerError
 
 	tests := []struct {
@@ -169,6 +222,7 @@ func TestRouteResponseValidation(t *testing.T) {
 		{name: "informational text status", response: Text{Status: http.StatusContinue, Body: "continue"}, want: ErrInvalidRouteResponse},
 		{name: "no content text status", response: Text{Status: http.StatusNoContent, Body: "no content"}, want: ErrInvalidRouteResponse},
 		{name: "reset content text status", response: Text{Status: http.StatusResetContent, Body: "reset"}, want: ErrInvalidRouteResponse},
+		{name: "bad no content status", response: NoContent{Status: http.StatusOK}, want: ErrInvalidRouteResponse},
 		{name: "informational component status", response: NewPage(templ.NopComponent, PageMetadata{}).WithStatus(http.StatusSwitchingProtocols), want: ErrInvalidRouteResponse},
 		{name: "no content component status", response: NewPage(templ.NopComponent, PageMetadata{}).WithStatus(http.StatusNoContent), want: ErrInvalidRouteResponse},
 		{name: "no content fragment status", response: NewFragment(templ.NopComponent).WithStatus(http.StatusNoContent), want: ErrInvalidRouteResponse},
@@ -178,6 +232,7 @@ func TestRouteResponseValidation(t *testing.T) {
 		{name: "nil fragment pointer", response: nilFragment, want: ErrInvalidRouteResponse},
 		{name: "nil redirect pointer", response: nilRedirect, want: ErrInvalidRouteResponse},
 		{name: "nil text pointer", response: nilText, want: ErrInvalidRouteResponse},
+		{name: "nil no content pointer", response: nilNoContent, want: ErrInvalidRouteResponse},
 		{name: "nil server error pointer", response: nilServerError, want: ErrInvalidRouteResponse},
 		{name: "zero page", response: Page{}, want: ErrNilComponent},
 	}

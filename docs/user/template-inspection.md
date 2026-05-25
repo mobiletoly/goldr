@@ -38,9 +38,6 @@ boundaries without adding a visible overlay:
 import "github.com/mobiletoly/goldr"
 
 mux.Handle("/", routes.HandlerWithOptions(routes.HandlerOptions{
-	ErrorHandlers: routes.ErrorHandlers{
-		NotFound: routes.NotFound,
-	},
 	TemplateInspection: goldr.TemplateInspectionComments,
 }))
 ```
@@ -49,9 +46,9 @@ Generated dispatch emits paired HTML comments around page, layout, and
 fragment render boundaries:
 
 ```html
-<!--goldr:start id=g_pageusers_page_templ kind=page route=/users source=app/routes/users/page.templ go=app/routes/users/page.go-->
+<!--goldr:start id=g_pageusers_route_go kind=page route=/users source=app/routes/users/route.go go=app/routes/users/route.go-->
 ...
-<!--goldr:end id=g_pageusers_page_templ-->
+<!--goldr:end id=g_pageusers_route_go-->
 ```
 
 The paths are app-relative, never absolute machine paths. Redirect, text,
@@ -168,7 +165,7 @@ For HTMX refreshes, target the slot with `innerHTML`:
 
 ```templ
 <button
-	hx-get={ urls.Users.FragTable.Path() }
+	hx-get={ urls.Users.Table.Path() }
 	hx-target="#users-table-slot"
 	hx-swap="innerHTML"
 >
@@ -187,11 +184,11 @@ inspector boundary around the embedded fragment:
 @FragTableView(contacts)
 ```
 
-The wrapper name follows the fragment file name. For example,
-`frag_table.go` / `frag_table.templ` uses `renderFragTable`. The helper takes
-the component you already render, so the application still chooses the templ
-function and arguments.
+The wrapper name follows the fragment segment in `route.go`. For example,
+`goldr.FuncFragment("table", table)` uses `renderFragTable`. An index fragment
+uses `renderFragIndex`. The helper takes the component you already render, so
+the application still chooses the templ function and arguments.
 
-Multiple templ declarations inside one `frag_*.templ` file are internal to
-that fragment render unit. Split them into separate `frag_*.go` /
-`frag_*.templ` files when they need separately inspectable fragment identities.
+Multiple templ declarations inside one fragment template are internal to that
+fragment render unit. Declare separate fragments in `route.go` when they need
+separately inspectable fragment identities.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Goldr App"
+  short_description: "Create and maintain Goldr applications"
+  default_prompt: "Use $goldr-app to create or make a focused change in this Goldr application, including routes, Kit-backed shared implementations, HTMX fragments, actions, layouts, assets, and validation."

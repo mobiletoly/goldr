@@ -1,0 +1,12 @@
+package audit
+
+import "github.com/mobiletoly/goldr/examples/kit_routes/app/urls"
+
+templ PageView() {
+	<section class="report-page">
+		<p class="eyebrow">Admin</p>
+		<h1>Admin Report Tools</h1>
+		<p>Owner-only report operations that are not part of the shared mounted subtree.</p>
+		<p><a href={ urls.Admin.Reports.Path() }>Shared reports</a></p>
+	</section>
+}

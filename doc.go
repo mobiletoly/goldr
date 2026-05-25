@@ -6,18 +6,26 @@
 // Goldr is a server-first, HTML-first, HTMX-native web framework for Go. An
 // application keeps ownership of its net/http server, mux, middleware, static
 // asset serving, auth, sessions, persistence, validation, and deployment.
-// Goldr adds filesystem routing under app/routes, generated route wiring, and
-// generated URL helpers.
+// Goldr adds filesystem routing under app/routes, mounted non-live Kit route
+// subtrees under app/mounts, generated route wiring, and generated URL helpers.
 //
 // A minimal goldr app has a route tree like this:
 //
 //	app/routes/
 //	    layout.go
 //	    layout.templ
-//	    page.go
+//	    route.go
 //	    page.templ
 //
-// Page functions live beside their templ views and return RouteResponse:
+// Route declarations live in route.go. They declare the page, fragments, and
+// actions exposed by that filesystem route directory:
+//
+//	var Route = goldr.RouteDef{
+//	    Page: goldr.FuncPage(Page),
+//	}
+//
+// Page functions can live in route.go or ordinary helper files beside their
+// templ views. They return RouteResponse:
 //
 //	func Page(r *http.Request) goldr.RouteResponse {
 //	    return goldr.NewPage(
@@ -47,17 +55,22 @@
 //
 // Nested directories define nested routes. A directory named by_<name>
 // captures a path value that handlers read with r.PathValue("<name>").
-// Fragments are explicit HTMX partials named frag_<name>.go and
-// frag_<name>.templ. Fragment functions return RouteResponse values and use
-// NewFragment for normal fragment HTML. Actions are ordinary HTTP handlers
-// named by method and action, such as PostCreate, colocated with the route they
-// mutate. HTMX attributes should stay visible in templ files.
+// Fragments are explicit HTMX partials declared in route.go with segments such
+// as goldr.FuncFragment("table", FragTable), which maps to /table under that
+// route directory. goldr.FuncFragmentIndex declares a fragment at the route
+// directory path itself. Fragment functions return RouteResponse values and
+// use NewFragment for normal fragment HTML. Fragment responses default to
+// Cache-Control: no-store unless the application sets Cache-Control itself.
+// Actions are mutation endpoints declared in route.go with helpers such as
+// goldr.FuncPost("create", PostCreate) or goldr.FuncPostIndex(PostIndex).
+// Ordinary action handlers return RouteResponse values.
+// HTMX attributes should stay visible in templ files.
 //
-// Action handlers that redisplay templ HTML can set response headers, then call
-// WriteComponent with the intended status. When an action needs to return a
-// full page through the matched layout stack, call WriteRouteResponse with a
-// Page response. Page, fragment, redirect, and text route responses can carry
-// explicit headers with WithHeader and AddHeader.
+// Action handlers that redisplay templ HTML can return Fragment responses with
+// explicit headers and status. When an action needs to return a full page
+// through the matched layout stack, return a Page response. Page, fragment,
+// redirect, text, and no-content route responses can carry explicit headers
+// with WithHeader and AddHeader.
 //
 // For server-sent events, applications keep ownership of their stream routes,
 // mux registration, subscriber state, and replay policy. The sse package

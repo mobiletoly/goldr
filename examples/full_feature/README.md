@@ -8,7 +8,7 @@ Go/HTMX app.
 Run:
 
 ```bash
-go run ./examples/full_feature
+go run .
 ```
 
 Then open the printed localhost URL in a browser.
@@ -23,7 +23,7 @@ Useful paths:
 /admin
 /users
 /users/42
-/users/frag-table
+/users/table
 /users/save-preview
 /users/create
 ```
@@ -31,34 +31,34 @@ Useful paths:
 Use a custom address when needed:
 
 ```bash
-go run ./examples/full_feature -addr 127.0.0.1:0
+go run . -addr 127.0.0.1:0
 ```
 
-Inspect the route surface from the repository root:
+Inspect the route surface:
 
 ```bash
-go run ./cmd/goldr routes list --app-root examples/full_feature
-go run ./cmd/goldr routes layouts --app-root examples/full_feature
-go run ./cmd/goldr routes list --app-root examples/full_feature --json
-go run ./cmd/goldr assets list --app-root examples/full_feature
+go tool goldr routes list
+go tool goldr routes layouts
+go tool goldr routes list --json
+go tool goldr assets list
 ```
 
-Regenerate goldr-owned route and URL files from the repository root:
+Regenerate goldr-owned route and URL files:
 
 ```bash
-go run ./cmd/goldr generate --app-root examples/full_feature
+go tool goldr generate
 ```
 
 Check that generated files are current without writing:
 
 ```bash
-go run ./cmd/goldr generate --app-root examples/full_feature --check
+go tool goldr generate --check
 ```
 
 Check the route tree, render-unit pairs, and generated-file freshness:
 
 ```bash
-go run ./cmd/goldr check --app-root examples/full_feature
+go tool goldr check
 ```
 
 The example demonstrates root, settings, nested static, and dynamic page
@@ -71,7 +71,7 @@ that returns redirects and forbidden status responses from its page handler,
 and a route-rendered custom 404 page. The app shell uses page metadata for
 document title, description, canonical path, and active navigation. The `/users`
 and `/users/42` pages share the users section shell from `users/layout.templ`;
-`/users/frag-table` renders only the fragment partial.
+`/users/table` renders only the fragment partial.
 
 Generated route dispatch uses app-owned route-tree middleware in
 `app/routes/middleware.go` to issue signed-cookie CSRF tokens. The outer server
@@ -117,11 +117,11 @@ POST clients must do the same setup first: load `/users`, preserve the
 Post to `/users/save-preview` with the `goldr_csrf` cookie and matching
 `X-CSRF-Token` header to see `HX-Trigger`, `HX-Retarget`, and `HX-Reswap`
 response headers from `users.PostSavePreview` in
-`app/routes/users/actions.go`.
+`app/routes/users/route.go`.
 
 Post to `/users/create` with the `goldr_csrf` cookie, multipart `name`,
 `status`, optional `avatar`, and matching `csrf_token` fields to see
 `hx-encoding="multipart/form-data"`, CSRF validation, form parsing, app-owned
 request-size limiting, field-error redisplay with `422`, optional upload
 filename display, and successful HTMX replacement from `users.PostCreate` in
-`app/routes/users/actions.go`.
+`app/routes/users/route.go`.

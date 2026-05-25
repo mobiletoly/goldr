@@ -3,10 +3,32 @@
 package users
 
 import (
+	"net/http"
+
 	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/internal/goldrinspect"
 )
 
+// Route is read by goldr tooling; this reference keeps editors from marking it unused.
+var _ = Route
+
+func GoldrRoutePage(r *http.Request) goldr.RouteResponse {
+	return Page(r)
+}
+
+func GoldrRouteFragTable(r *http.Request) goldr.RouteResponse {
+	return FragTable(r)
+}
+
+func GoldrRoutePostCreate(w http.ResponseWriter, r *http.Request) {
+	PostCreate(w, r)
+}
+
+func GoldrRoutePostSavePreview(r *http.Request) goldr.RouteResponse {
+	return PostSavePreview(r)
+}
+
 func renderFragTable(component templ.Component) templ.Component {
-	return goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_fragmentusers_frag_table_templ kind=fragment route=/users/frag-table source=app/routes/users/frag_table.templ go=app/routes/users/frag_table.go-->", EndComment: "<!--goldr:end id=g_fragmentusers_frag_table_templ-->"})
+	return goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_fragmentusers_route_go kind=fragment route=/users/table source=app/routes/users/route.go go=app/routes/users/route.go-->", EndComment: "<!--goldr:end id=g_fragmentusers_route_go-->"})
 }

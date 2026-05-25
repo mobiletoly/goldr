@@ -138,16 +138,36 @@ func TestWriteRouteResponseUsesRoutePageRendererForPage(t *testing.T) {
 	}
 }
 
-func TestWritePageRouteResponseRejectsFragments(t *testing.T) {
+func TestWritePageRouteResponseWritesFragments(t *testing.T) {
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
 
-	err := WritePageRouteResponse(recorder, request, NewFragment(templ.NopComponent), func(_ *http.Request, page Page) (templ.Component, error) {
-		return page.Component, nil
-	})
+	err := WritePageRouteResponse(
+		recorder,
+		request,
+		NewFragment(stringComponent("<tbody>Users</tbody>")).
+			WithStatus(http.StatusAccepted).
+			WithHeader("Hx-Trigger", "fragment-loaded"),
+		func(_ *http.Request, page Page) (templ.Component, error) {
+			t.Fatalf("page renderer called for fragment response")
+			return page.Component, nil
+		},
+	)
 
-	if !errors.Is(err, ErrInvalidRouteResponse) {
-		t.Fatalf("WritePageRouteResponse(fragment) error = %v, want ErrInvalidRouteResponse", err)
+	if err != nil {
+		t.Fatalf("WritePageRouteResponse(fragment) error = %v, want nil", err)
+	}
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusAccepted)
+	}
+	if recorder.Body.String() != "<tbody>Users</tbody>" {
+		t.Fatalf("body = %q, want fragment body", recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Hx-Trigger"); got != "fragment-loaded" {
+		t.Fatalf("Hx-Trigger = %q, want fragment-loaded", got)
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
 }
 
@@ -193,6 +213,41 @@ func TestWriteRouteResponseWritesRedirectAndText(t *testing.T) {
 	if got := text.Header().Get("X-Robots-Tag"); got != "noindex" {
 		t.Fatalf("text X-Robots-Tag = %q, want noindex", got)
 	}
+
+	defaultText := httptest.NewRecorder()
+	if err := WriteRouteResponse(defaultText, request, Text{Body: "saved"}); err != nil {
+		t.Fatalf("WriteRouteResponse(default text) error = %v, want nil", err)
+	}
+	if defaultText.Code != http.StatusOK || defaultText.Body.String() != "saved" {
+		t.Fatalf("default text = (%d, %q), want 200 saved", defaultText.Code, defaultText.Body.String())
+	}
+
+	csv := httptest.NewRecorder()
+	if err := WriteRouteResponse(
+		csv,
+		request,
+		Text{Status: http.StatusOK, Body: "id,name\n1,Ada\n"}.WithHeader("Content-Type", "text/csv; charset=utf-8"),
+	); err != nil {
+		t.Fatalf("WriteRouteResponse(csv text) error = %v, want nil", err)
+	}
+	if got := csv.Header().Get("Content-Type"); got != "text/csv; charset=utf-8" {
+		t.Fatalf("csv Content-Type = %q, want text/csv; charset=utf-8", got)
+	}
+
+	noContent := httptest.NewRecorder()
+	if err := WriteRouteResponse(
+		noContent,
+		request,
+		NoContent{}.WithHeader("Hx-Trigger", "saved"),
+	); err != nil {
+		t.Fatalf("WriteRouteResponse(no content) error = %v, want nil", err)
+	}
+	if noContent.Code != http.StatusNoContent || noContent.Body.Len() != 0 {
+		t.Fatalf("no content = (%d, %q), want 204 empty", noContent.Code, noContent.Body.String())
+	}
+	if got := noContent.Header().Get("Hx-Trigger"); got != "saved" {
+		t.Fatalf("no content Hx-Trigger = %q, want saved", got)
+	}
 }
 
 func TestWriteRouteResponseWritesFragment(t *testing.T) {
@@ -218,6 +273,9 @@ func TestWriteRouteResponseWritesFragment(t *testing.T) {
 	}
 	if got := recorder.Header().Get("Hx-Trigger"); got != "fragment-loaded" {
 		t.Fatalf("Hx-Trigger = %q, want fragment-loaded", got)
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
 }
 

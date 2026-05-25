@@ -58,7 +58,7 @@ Create the route directory:
 mkdir -p app/routes
 ```
 
-Create `app/routes/page.go`:
+Create `app/routes/route.go`:
 
 ```go
 package routes
@@ -70,7 +70,11 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(_ *http.Request) goldr.RouteResponse {
+var Route = goldr.RouteDef{
+	Page: goldr.FuncPage(page),
+}
+
+func page(_ *http.Request) goldr.RouteResponse {
 	return goldr.NewPage(
 		PageView(time.Now()),
 		goldr.PageMetadata{
@@ -96,9 +100,10 @@ templ PageView(now time.Time) {
 }
 ```
 
-`page.go` handles the request-facing page function. `page.templ` renders the
-HTML. Pass ordinary Go values from `Page` into the templ component when the
-view needs request data, loaded records, validation state, or computed values.
+`route.go` declares the route endpoint and handles the request-facing page
+function. `page.templ` renders the HTML. Pass ordinary Go values from the page
+handler into the templ component when the view needs request data, loaded
+records, validation state, or computed values.
 
 ## Add The Root Layout
 
@@ -154,9 +159,8 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 ```
 
 The root layout wraps the root page and pages below it. Fragments are not
-layout-wrapped. Actions are ordinary handlers and can call
-`goldr.WriteRouteResponse` only when they need an explicit full-page response
-through the matched layout stack.
+layout-wrapped. Actions return route responses; page responses from actions are
+written through the matched layout stack.
 
 ## Generate And Run
 
@@ -206,7 +210,7 @@ go tool goldr init
 It creates:
 
 ```text
-app/routes/page.go
+app/routes/route.go
 app/routes/page.templ
 app/routes/layout.go
 app/routes/layout.templ

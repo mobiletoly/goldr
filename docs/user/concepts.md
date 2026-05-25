@@ -20,19 +20,17 @@ A small tree maps directly to URLs:
 app/routes/
   layout.go          -> layout logic for / and below
   layout.templ       -> layout HTML
-  page.go            -> GET /
+  route.go           -> GET /
   page.templ         -> page HTML
   users/
     layout.go        -> layout logic for /users and below
     layout.templ     -> users layout HTML
-    page.go          -> GET /users
+    route.go         -> GET /users, GET /users/table, POST /users/create
     page.templ       -> users page HTML
     by_id/
-      page.go        -> GET /users/{id}
+      route.go       -> GET /users/{id}
       page.templ     -> user detail HTML
-    frag_table.go    -> GET /users/frag-table
     frag_table.templ -> fragment HTML
-    actions.go       -> POST /users/create via PostCreate
 ```
 
 The route tree uses Go-safe names. Static directory underscores become hyphens
@@ -41,12 +39,12 @@ for `{id}`.
 
 ## Render Units
 
-Pages, layouts, and fragments are render units:
+Pages, layouts, and fragments keep request logic beside templates:
 
 ```text
-page.go       page.templ optional
-layout.go     layout.templ required
-frag_table.go frag_table.templ required
+route.go          page.templ optional for pages
+layout.go         layout.templ required
+route.go          fragment templates when the handler uses them
 ```
 
 The `.go` file owns request handling, data loading, and render state. The
@@ -55,12 +53,13 @@ server errors can omit `page.templ`.
 
 ## Pages
 
-A page is a route endpoint. `app/routes/users/page.go` maps to `/users`.
+A page is a route endpoint. `app/routes/users/route.go` maps to `/users` when
+it declares a page:
 
 Page functions return `goldr.RouteResponse`:
 
 ```go
-func Page(r *http.Request) goldr.RouteResponse
+func page(r *http.Request) goldr.RouteResponse
 ```
 
 The page component renders the body. Page metadata is passed to matching
@@ -112,7 +111,8 @@ page directory back to the root, so the root layout is outermost.
 Fragments are standalone partials for HTMX swaps.
 
 ```text
-app/routes/users/frag_table.go -> /users/frag-table
+goldr.FuncFragment("table", table) in app/routes/users/route.go -> /users/table
+goldr.FuncFragmentIndex(statusOptions) in app/routes/users/status_options/route.go -> /users/status-options
 ```
 
 Fragment functions return `goldr.RouteResponse`:
@@ -123,14 +123,24 @@ func FragTable(r *http.Request) goldr.RouteResponse
 
 Use `goldr.NewFragment` for normal fragment HTML. Fragments may also return
 redirect, text, and server-error route responses. They are not layout-wrapped.
+An index fragment uses the route directory path itself and cannot coexist with
+a page in the same directory.
+Fragment responses default to `Cache-Control: no-store`; set `Cache-Control`
+explicitly when a fragment should be cacheable.
 
 ## Actions
 
-Actions are ordinary `net/http` handlers colocated with a route directory.
-They live in `actions.go`:
+Actions are mutation endpoints colocated with a route directory. They are
+declared in `route.go`:
 
 ```go
-func PostCreate(w http.ResponseWriter, r *http.Request)
+var Route = goldr.RouteDef{
+	Actions: goldr.FuncActions{
+		goldr.FuncPost("create", postCreate),
+	},
+}
+
+func postCreate(r *http.Request) goldr.RouteResponse
 ```
 
 This maps to:
@@ -139,10 +149,9 @@ This maps to:
 POST /users/create
 ```
 
-Actions own status codes, headers, bodies, redirects, HTMX response headers,
-and form redisplay. They are not automatically layout-wrapped, but can call
-`goldr.WriteRouteResponse` when an action needs to return a full page through
-the matched layout stack.
+Actions may return pages, fragments, redirects, text, server errors, or
+`goldr.NoContent{}`. Page responses from actions are written through the
+matched layout stack.
 
 ## Generated Code
 
@@ -153,6 +162,7 @@ app/routes/goldr_gen.go
 app/routes/**/goldr_gen.go when route packages need generated helpers
 app/internal/goldrinspect/goldr_gen.go
 app/urls/goldr_gen.go
+app/mounts/<mount>/goldr_gen.go for referenced Kit mount subtrees
 ```
 
 `app/routes/goldr_gen.go` provides the generated route handler:
@@ -166,11 +176,15 @@ routes.Handler()
 ```go
 urls.Users.ByID(id).Path()
 urls.Users.Create.Path()
-urls.Users.FragTable.Path()
+urls.Users.Table.Path()
 ```
 
 Use helpers in links, forms, and HTMX attributes when a path should track the
 route tree.
+
+Referenced Kit mount subtrees also get mount-relative helpers in their own
+`app/mounts/<mount>/goldr_gen.go` file. Bind those helpers from the live route
+helper and keep owner-only child links in app-owned kit or page data.
 
 ## Application Ownership
 

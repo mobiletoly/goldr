@@ -52,11 +52,7 @@ revalidation. Do not apply immutable asset cache headers to this stable path.
 Wrap generated routes like any other `http.Handler`:
 
 ```go
-handler := appHeaders(routes.HandlerWithOptions(routes.HandlerOptions{
-	ErrorHandlers: routes.ErrorHandlers{
-		NotFound: routes.NotFound,
-	},
-}))
+handler := appHeaders(routes.Handler())
 
 mux.Handle("/", handler)
 ```
@@ -111,6 +107,10 @@ issuance or admin-subtree principal context. Goldr still does not provide
 CSRF validation policy, auth, roles, rate limits, or session policy through
 this convention.
 
+Middleware must live in the live `app/routes` tree. Mounted reusable route
+subtrees under `app/mounts` cannot declare middleware; policy belongs to the
+real route owner that exposes the URLs.
+
 ## Application Dependencies
 
 When several route packages need stable app dependencies such as stores, auth
@@ -125,11 +125,7 @@ appDeps := &deps.Dependencies{
 	BasePath: cfg.BasePath,
 }
 
-routesHandler := routes.HandlerWithOptions(routes.HandlerOptions{
-	ErrorHandlers: routes.ErrorHandlers{
-		NotFound: routes.NotFound,
-	},
-})
+routesHandler := routes.Handler()
 
 mux.Handle("/", deps.Middleware(appDeps, routesHandler))
 ```
@@ -199,14 +195,7 @@ pages, private fragments, or action responses.
 
 Generated route dispatch supports optional error hooks:
 
-```go
-mux.Handle("/", routes.HandlerWithOptions(routes.HandlerOptions{
-	ErrorHandlers: routes.ErrorHandlers{
-		NotFound: routes.NotFound,
-	},
-}))
-```
-
 Use these hooks for generated route dispatch errors such as unmatched routes or
 method mismatches. Action handlers and static asset handlers own their own
-errors.
+errors. See [Error Handling](error-handling.md) for the canonical hook API and
+examples.

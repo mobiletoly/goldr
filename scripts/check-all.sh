@@ -20,6 +20,14 @@ run() {
   "$@"
 }
 
+run_in() {
+  local dir="$1"
+  shift
+
+  note "(cd $dir && $*)"
+  (cd "$dir" && "$@")
+}
+
 fail() {
   printf "error: %s\n" "$*" >&2
   exit 1
@@ -157,6 +165,36 @@ check_govulncheck() {
   run govulncheck ./...
 }
 
+check_cli_module_self_contained() {
+  note "check CLI module has no root module dependency"
+
+  local deps
+  deps="$(cd cmd/goldr && go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./... | sort -u)"
+  if printf "%s\n" "$deps" | grep -x 'github.com/mobiletoly/goldr' >/dev/null; then
+    printf "%s\n" "$deps"
+    fail "CLI module depends on root module"
+  fi
+}
+
+check_downstream_tool_install() {
+  note "check downstream go get -tool goldr"
+
+  local tmp
+  tmp="$(mktemp -d)"
+  local status=0
+
+  (
+    cd "$tmp"
+    go mod init example.com/goldr-tool-probe >/dev/null
+    go mod edit -replace github.com/mobiletoly/goldr/cmd/goldr="$repo_root/cmd/goldr"
+    go get -tool github.com/mobiletoly/goldr/cmd/goldr
+    go tool goldr --help >/dev/null
+  ) || status=$?
+
+  rm -rf "$tmp"
+  return "$status"
+}
+
 require_cmd go
 require_cmd gofmt
 require_cmd git
@@ -173,10 +211,38 @@ else
   run go test -race ./...
 fi
 
+run_in cmd/goldr go mod tidy -diff
+run_in cmd/goldr go list ./...
+check_cli_module_self_contained
+run_in cmd/goldr go test ./...
+run_in cmd/goldr go vet ./...
+
+if [[ "${GOLDR_SKIP_RACE:-0}" == "1" ]]; then
+  note "skip cmd/goldr go test -race (GOLDR_SKIP_RACE=1)"
+else
+  run_in cmd/goldr go test -race ./...
+fi
+
+run_in cmd/goldr go run . --help
+check_downstream_tool_install
+
+example_modules=(
+  "examples/full_feature"
+  "examples/chat"
+  "examples/kit_routes"
+)
+
+for example_module in "${example_modules[@]}"; do
+  run_in "$example_module" go mod tidy -diff
+  run_in "$example_module" go tool goldr generate --check
+  run_in "$example_module" go tool goldr check
+  run_in "$example_module" go test ./...
+done
+
 layout_map_unicode_pathspecs=(
   "."
-  ":(exclude)internal/goldrcli/routes/layouts.go"
-  ":(exclude)internal/goldrcli/app_test.go"
+  ":(exclude)cmd/goldr/internal/goldrcli/routes/layouts.go"
+  ":(exclude)cmd/goldr/internal/goldrcli/app_test.go"
   ":(exclude)docs/user/cli.md"
   ":(exclude)docs/spec/a0008-route-layout-map.md"
 )

@@ -13,7 +13,7 @@ This example shows the goldr-friendly SSE pattern:
 Run:
 
 ```bash
-go run ./examples/chat
+go run .
 ```
 
 Then open the printed localhost URL in a browser. Enter a name, open a second
@@ -39,14 +39,14 @@ handler owns subscribers and replay behavior; `sse` only writes valid SSE
 responses. The stream sends named `chat-message` events, and the template uses
 `goldr-sse-event="chat-message"` so htmx swaps only that named event.
 
-Regenerate goldr-owned files from the repository root:
+Regenerate goldr-owned files:
 
 ```bash
-go run ./cmd/goldr generate --app-root examples/chat
+go tool goldr generate
 ```
 
 Check generated files without writing:
 
 ```bash
-go run ./cmd/goldr check --app-root examples/chat
+go tool goldr check
 ```

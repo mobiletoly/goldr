@@ -19,8 +19,12 @@ Then use the references:
 
 - [CLI](cli.md) - app-local `go tool goldr` commands.
 - [Routes](routes.md) - filesystem conventions and runtime behavior.
+- [Mounted Kit Route Subtrees](mounted-routes.md) - reusable non-live
+  `app/mounts` route surfaces mounted by real `app/routes` owners.
 - [HTMX](htmx.md) - visible `hx-*` attributes and response headers.
 - [Forms](forms.md) - form parsing, validation errors, and redisplay.
+- [Error Handling](error-handling.md) - route errors, custom generated error
+  hooks, full-page errors, and HTMX error fragments.
 - [Assets](assets.md) - fingerprinted static files, cache headers, and
   app-owned asset tooling.
 - [SSE](sse.md) - app-owned streams, event IDs, and named SSE swaps.
@@ -34,7 +38,7 @@ Then use the references:
 - [Template Inspection](template-inspection.md) - local render-unit comments,
   visible browser overlays, and app-owned env-var wiring.
 
-- [Goldr App Skill](../skills/goldr-app/SKILL.md) - installable skill package
+- [Goldr App Skill](../skills/goldr/SKILL.md) - installable skill package
   for agents working inside goldr applications.
 
 ## What To Build First
@@ -45,24 +49,24 @@ Use `examples/full_feature/` when you want to see a larger app that combines
 pages, nested layouts, fragments, actions, forms, URL helpers, custom errors,
 middleware, CSRF, and fingerprinted static assets.
 
-From the repository root:
+From a goldr checkout:
 
 ```bash
-go run ./examples/full_feature
+(cd examples/full_feature && go run .)
 ```
 
 Use `examples/chat/` when you want to see app-owned server-sent events with
 HTMX, the `sse` protocol helper, and Goldr's named-event browser swap helper:
 
 ```bash
-go run ./examples/chat
+(cd examples/chat && go run .)
 ```
 
 Inspect the example route tree:
 
 ```bash
-go run ./cmd/goldr routes layouts --app-root examples/full_feature
-go run ./cmd/goldr routes list --app-root examples/full_feature
+(cd examples/full_feature && go tool goldr routes layouts)
+(cd examples/full_feature && go tool goldr routes list)
 ```
 
 ## Current Scope

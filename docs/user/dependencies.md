@@ -7,7 +7,7 @@ keep simple request-facing signatures:
 func Page(r *http.Request) goldr.RouteResponse
 func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component
 func FragTable(r *http.Request) goldr.RouteResponse
-func PostCreate(w http.ResponseWriter, r *http.Request)
+func PostCreate(r *http.Request) goldr.RouteResponse
 ```
 
 Applications still need stable dependencies such as stores, auth managers,
@@ -95,11 +95,7 @@ appDeps := &deps.Dependencies{
 	BasePath: cfg.BasePath,
 }
 
-routesHandler := routes.HandlerWithOptions(routes.HandlerOptions{
-	ErrorHandlers: routes.ErrorHandlers{
-		NotFound: routes.NotFound,
-	},
-})
+routesHandler := routes.Handler()
 
 mux := http.NewServeMux()
 mux.Handle("/assets/", staticHandler())
@@ -128,16 +124,15 @@ Pass `r.Context()` to lower-level operations that execute work for the current
 request:
 
 ```go
-func PostIndex(w http.ResponseWriter, r *http.Request) {
+func PostIndex(r *http.Request) goldr.RouteResponse {
 	appDeps := deps.From(r)
 
 	user, err := appDeps.Auth.SignIn(r.Context(), r.FormValue("email"), r.FormValue("password"))
 	if err != nil {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
+		return goldr.Text{Status: http.StatusForbidden, Body: "forbidden"}
 	}
 	_ = user
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return goldr.Redirect{Location: "/", Status: http.StatusSeeOther}
 }
 ```
 

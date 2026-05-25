@@ -1,0 +1,11 @@
+package status_options
+
+templ OptionsView(selected string) {
+	if selected == "Inactive" {
+		<option value="Active">Active</option>
+		<option value="Inactive" selected>Inactive</option>
+	} else {
+		<option value="Active" selected>Active</option>
+		<option value="Inactive">Inactive</option>
+	}
+}

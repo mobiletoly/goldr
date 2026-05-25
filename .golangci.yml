@@ -28,6 +28,7 @@ linters:
     - noctx
     - nolintlint
     - recvcheck
+    - revive
     - staticcheck
     - thelper
     - tparallel

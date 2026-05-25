@@ -1,0 +1,48 @@
+package routes
+
+import "github.com/mobiletoly/goldr"
+
+templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ pageTitle(metadata) }</title>
+			if metadata.Description != "" {
+				<meta name="description" content={ metadata.Description }/>
+			}
+			<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3" integrity="sha384-bq4nTap5u8w4XlVP8JHkDioQVZBI5wUx5PxNwlbCq27H5QJ+q0CSeJcTYU+PLdCp" crossorigin="anonymous" defer></script>
+			<style>
+				:root { color-scheme: light; font-family: system-ui, sans-serif; background: #f7f8fa; color: #1f2937; }
+				body { margin: 0; }
+				a { color: #0f766e; }
+				.app-shell { max-width: 860px; margin: 0 auto; padding: 32px 20px; }
+				.app-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+				.app-header nav { display: flex; gap: 14px; }
+				.report-page { display: grid; gap: 16px; }
+				.eyebrow { margin: 0; color: #526071; font-weight: 700; text-transform: uppercase; }
+				button { border: 0; border-radius: 6px; padding: 10px 14px; background: #0f766e; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+				button:hover { background: #115e59; }
+				table { width: 100%; border-collapse: collapse; background: white; }
+				th, td { border: 1px solid #d7dde5; padding: 10px; text-align: left; }
+				th { background: #eef2f7; }
+			</style>
+		</head>
+		<body>
+			<div class="app-shell">
+				<header class="app-header">
+					<a href="/">Kit Routes</a>
+					<nav aria-label="Example routes">
+						<a href="/admin/reports">Admin</a>
+						<a href="/user/reports">User</a>
+					</nav>
+				</header>
+				<main>
+					@child
+				</main>
+			</div>
+			@goldr.TemplateInspector()
+		</body>
+	</html>
+}

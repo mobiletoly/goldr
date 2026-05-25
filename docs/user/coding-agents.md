@@ -5,7 +5,7 @@ before editing. If your application uses goldr, give the agent the framework
 rules in the app repository, not only in chat.
 
 If your agent supports installable skills, you can also install the
-[Goldr App skill](../skills/goldr-app/SKILL.md). The skill is self-contained
+[Goldr App skill](../skills/goldr/SKILL.md). The skill is self-contained
 and gives agents an operational workflow for editing Goldr applications.
 
 Copy this into your application's `AGENTS.md` and adjust the command list to
@@ -32,16 +32,32 @@ Goldr is server-first, HTML-first, HTMX-native, and Go-native.
 ## Goldr File Conventions
 
 - Routes live under `app/routes`.
+- Non-live reusable Kit route subtrees live under `app/mounts` and must be
+  mounted by real `app/routes` owners.
+- Owner-only child routes stay under the live `app/routes` owner, not under
+  `app/mounts`.
 - Static assets should not live under `app/routes`.
 - A render unit is normally a `.go` file beside a matching `.templ` file.
-- `page.go` defines a page route and returns `goldr.RouteResponse`.
+- `route.go` declares route pages, fragments, and actions with
+  `goldr.RouteDef`, `goldr.KitRouteDef`, or `goldr.KitRouteMount`.
 - `layout.go` defines a layout and accepts `goldr.LayoutContext`.
-- `frag_<name>.go` and `frag_<name>.templ` define HTMX fragments.
-- `actions.go` defines ordinary HTTP mutation handlers such as `PostCreate`.
+- Fragment declarations return `goldr.RouteResponse`.
+- Action declarations use ordinary HTTP mutation handlers.
+- Do not put `page.go`, `frag_<name>.go`, or `actions.go` under `app/routes`.
 - Use `by_<name>/` directories for path parameters.
 - Read path parameters with `r.PathValue("<name>")`.
-- Do not hand-edit Goldr-owned `goldr_gen.go` files or
-  `app/urls/goldr_gen.go`.
+- If an HTMX action or fragment only supports one page workflow, usually nest
+  it under that page route instead of making it a top-level sibling route.
+- Nested action or fragment directories do not need standalone pages.
+- Keep one-route templates directly in the route directory. Use `internal`
+  packages, shared packages, or Kit routes only for real reuse across sibling
+  routes or route trees.
+- Choose route directory names for generated helper readability. Prefer
+  `user_events/prepare -> UserEvents.Prepare` over redundant names such as
+  `prepare_user_event`.
+- Do not hand-edit Goldr-owned `goldr_gen.go` files,
+  `app/urls/goldr_gen.go`, or generated mount helper files under
+  `app/mounts`.
 
 ## Normal Change Loop
 
@@ -50,6 +66,7 @@ After route or template changes, run:
 ```bash
 go tool goldr generate
 go tool goldr check
+go tool goldr routes list
 go test ./...
 ```
 
@@ -57,6 +74,8 @@ go test ./...
 writing goldr-owned generated files. When `assets/build` exists, it also
 refreshes Goldr-managed asset outputs. `goldr check` runs templ check mode when
 `.templ` files exist and validates generated output without rewriting files.
+Use `goldr routes list --app-root <dir>` when the Goldr app root is nested, and
+use the `HELPER` column to confirm route ownership after route refactors.
 
 If this app has project-specific scripts, use those scripts instead of the raw
 commands above.

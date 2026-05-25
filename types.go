@@ -10,6 +10,8 @@ import (
 	"github.com/a-h/templ"
 )
 
+const fragmentDefaultCacheControl = "no-store"
+
 var (
 	// ErrInvalidRouteResponse reports a route response that cannot be written.
 	ErrInvalidRouteResponse = errors.New("invalid route response")
@@ -60,6 +62,14 @@ type Text struct {
 
 func (Text) goldrRouteResponse() {}
 
+// NoContent is a response that writes headers and status without a body.
+type NoContent struct {
+	Status  int
+	headers http.Header
+}
+
+func (NoContent) goldrRouteResponse() {}
+
 // ServerError delegates an application error to Goldr error handling.
 type ServerError struct {
 	Err error
@@ -75,6 +85,7 @@ const (
 	routeResponseFragment
 	routeResponseRedirect
 	routeResponseText
+	routeResponseNoContent
 	routeResponseServerError
 )
 
@@ -84,6 +95,7 @@ type resolvedRouteResponse struct {
 	fragment Fragment
 	redirect Redirect
 	text     Text
+	noBody   NoContent
 	err      error
 }
 
@@ -180,6 +192,24 @@ func (text Text) AddHeader(name, value string) Text {
 	return text
 }
 
+// WithStatus returns no-content response with status.
+func (noContent NoContent) WithStatus(status int) NoContent {
+	noContent.Status = status
+	return noContent
+}
+
+// WithHeader returns no-content response with name set to value.
+func (noContent NoContent) WithHeader(name, value string) NoContent {
+	noContent.headers = withResponseHeader(noContent.headers, name, value)
+	return noContent
+}
+
+// AddHeader returns no-content response with value added to name.
+func (noContent NoContent) AddHeader(name, value string) NoContent {
+	noContent.headers = addResponseHeader(noContent.headers, name, value)
+	return noContent
+}
+
 func resolveRouteResponse(response RouteResponse) (resolvedRouteResponse, error) {
 	switch response := response.(type) {
 	case Page:
@@ -210,6 +240,13 @@ func resolveRouteResponse(response RouteResponse) (resolvedRouteResponse, error)
 			return resolvedRouteResponse{}, ErrInvalidRouteResponse
 		}
 		return resolveTextResponse(*response)
+	case NoContent:
+		return resolveNoContentResponse(response)
+	case *NoContent:
+		if response == nil {
+			return resolvedRouteResponse{}, ErrInvalidRouteResponse
+		}
+		return resolveNoContentResponse(*response)
 	case ServerError:
 		return resolveServerErrorResponse(response)
 	case *ServerError:
@@ -248,6 +285,12 @@ func resolveFragmentResponse(response Fragment) (resolvedRouteResponse, error) {
 	}
 	response.Status = status
 	response.headers = cloneResponseHeaders(response.headers)
+	if response.headers == nil {
+		response.headers = make(http.Header)
+	}
+	if response.headers.Get("Cache-Control") == "" {
+		response.headers.Set("Cache-Control", fragmentDefaultCacheControl)
+	}
 	return resolvedRouteResponse{
 		kind:     routeResponseFragment,
 		fragment: response,
@@ -266,13 +309,34 @@ func resolveRedirectResponse(response Redirect) (resolvedRouteResponse, error) {
 }
 
 func resolveTextResponse(response Text) (resolvedRouteResponse, error) {
-	if err := validateTextResponse(response.Status); err != nil {
+	status := response.Status
+	if status == 0 {
+		status = http.StatusOK
+	}
+	if err := validateTextResponse(status); err != nil {
 		return resolvedRouteResponse{}, err
 	}
+	response.Status = status
 	response.headers = cloneResponseHeaders(response.headers)
 	return resolvedRouteResponse{
 		kind: routeResponseText,
 		text: response,
+	}, nil
+}
+
+func resolveNoContentResponse(response NoContent) (resolvedRouteResponse, error) {
+	status := response.Status
+	if status == 0 {
+		status = http.StatusNoContent
+	}
+	if !validNoContentStatus(status) {
+		return resolvedRouteResponse{}, ErrInvalidRouteResponse
+	}
+	response.Status = status
+	response.headers = cloneResponseHeaders(response.headers)
+	return resolvedRouteResponse{
+		kind:   routeResponseNoContent,
+		noBody: response,
 	}, nil
 }
 
@@ -350,6 +414,15 @@ func validRedirectStatus(status int) bool {
 		http.StatusSeeOther,
 		http.StatusTemporaryRedirect,
 		http.StatusPermanentRedirect:
+		return true
+	default:
+		return false
+	}
+}
+
+func validNoContentStatus(status int) bool {
+	switch status {
+	case http.StatusNoContent, http.StatusResetContent, http.StatusNotModified:
 		return true
 	default:
 		return false

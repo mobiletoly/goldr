@@ -83,7 +83,7 @@ Defaults:
 Use `--app-root` when running from outside the app root:
 
 ```bash
-go tool goldr dev --app-root examples/full_feature
+go tool goldr dev --app-root ../my-app
 ```
 
 Use `--cmd-dir` when the command should run from a different directory than the

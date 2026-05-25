@@ -7,7 +7,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/mobiletoly/goldr/internal/goldrcli"
+	"github.com/mobiletoly/goldr/cmd/goldr/internal/goldrcli"
 )
 
 const version = "dev"

@@ -65,21 +65,26 @@ type signInRoute struct {
 }
 
 type usersRoute struct {
-	basePath    string
-	Create      usersCreateRoute
-	FragTable   usersFragTableRoute
-	SavePreview usersSavePreviewRoute
+	basePath      string
+	Create        usersCreateRoute
+	SavePreview   usersSavePreviewRoute
+	StatusOptions usersStatusOptionsRoute
+	Table         usersTableRoute
 }
 
 type usersCreateRoute struct {
 	basePath string
 }
 
-type usersFragTableRoute struct {
+type usersSavePreviewRoute struct {
 	basePath string
 }
 
-type usersSavePreviewRoute struct {
+type usersStatusOptionsRoute struct {
+	basePath string
+}
+
+type usersTableRoute struct {
 	basePath string
 }
 
@@ -134,10 +139,11 @@ func newSignInRoute(basePath string) signInRoute {
 
 func newUsersRoute(basePath string) usersRoute {
 	return usersRoute{
-		basePath:    basePath,
-		Create:      newUsersCreateRoute(basePath),
-		FragTable:   newUsersFragTableRoute(basePath),
-		SavePreview: newUsersSavePreviewRoute(basePath),
+		basePath:      basePath,
+		Create:        newUsersCreateRoute(basePath),
+		SavePreview:   newUsersSavePreviewRoute(basePath),
+		StatusOptions: newUsersStatusOptionsRoute(basePath),
+		Table:         newUsersTableRoute(basePath),
 	}
 }
 
@@ -147,14 +153,20 @@ func newUsersCreateRoute(basePath string) usersCreateRoute {
 	}
 }
 
-func newUsersFragTableRoute(basePath string) usersFragTableRoute {
-	return usersFragTableRoute{
+func newUsersSavePreviewRoute(basePath string) usersSavePreviewRoute {
+	return usersSavePreviewRoute{
 		basePath: basePath,
 	}
 }
 
-func newUsersSavePreviewRoute(basePath string) usersSavePreviewRoute {
-	return usersSavePreviewRoute{
+func newUsersStatusOptionsRoute(basePath string) usersStatusOptionsRoute {
+	return usersStatusOptionsRoute{
+		basePath: basePath,
+	}
+}
+
+func newUsersTableRoute(basePath string) usersTableRoute {
+	return usersTableRoute{
 		basePath: basePath,
 	}
 }
@@ -207,12 +219,16 @@ func (r usersCreateRoute) Path() string {
 	return r.basePath + "/" + "users" + "/" + "create"
 }
 
-func (r usersFragTableRoute) Path() string {
-	return r.basePath + "/" + "users" + "/" + "frag-table"
-}
-
 func (r usersSavePreviewRoute) Path() string {
 	return r.basePath + "/" + "users" + "/" + "save-preview"
+}
+
+func (r usersStatusOptionsRoute) Path() string {
+	return r.basePath + "/" + "users" + "/" + "status-options"
+}
+
+func (r usersTableRoute) Path() string {
+	return r.basePath + "/" + "users" + "/" + "table"
 }
 
 func (r usersByIDRoute) Path() string {

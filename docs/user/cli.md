@@ -15,11 +15,13 @@ The usage text still shows the underlying command name, such as
 Use `--app-root` when running a command from outside the application root:
 
 ```bash
-go tool goldr check --app-root examples/full_feature
+go tool goldr check --app-root ../my-app
 ```
 
-`--app-root` points to the application root. goldr reads `<root>/app/routes` and
-writes generated files under `<root>/app/routes` and `<root>/app/urls`.
+`--app-root` points to the application root. goldr reads `<root>/app/routes`,
+expands any mounted route surfaces from `<root>/app/mounts`, and writes
+generated files under `<root>/app/routes`, `<root>/app/urls`, and referenced
+mount roots.
 
 ## Help And Version
 
@@ -57,7 +59,7 @@ go tool goldr init
 It creates:
 
 ```text
-app/routes/page.go
+app/routes/route.go
 app/routes/page.templ
 app/routes/layout.go
 app/routes/layout.templ
@@ -80,8 +82,8 @@ For a manual first-app walkthrough, read [Getting Started](getting-started.md).
 ## Generate
 
 `goldr generate` runs templ generation when `.templ` files exist, scans
-`app/routes`, writes route and URL helper files, and refreshes fingerprinted
-assets when `assets/build` exists:
+`app/routes`, expands mounted surfaces from `app/mounts`, writes route and URL
+helper files, and refreshes fingerprinted assets when `assets/build` exists:
 
 ```bash
 go tool goldr generate
@@ -94,6 +96,7 @@ app/routes/goldr_gen.go
 app/routes/**/goldr_gen.go when route packages need generated helpers
 app/internal/goldrinspect/goldr_gen.go
 app/urls/goldr_gen.go
+app/mounts/<mount>/goldr_gen.go for referenced Kit mount subtrees
 assets/goldr_assets_gen.go when assets/build exists
 ```
 
@@ -101,7 +104,7 @@ Use `--check` in CI or before committing generated files:
 
 ```bash
 go tool goldr generate --check
-go tool goldr generate --app-root examples/full_feature --check
+go tool goldr generate --app-root ../my-app --check
 ```
 
 Check mode runs templ check mode when `.templ` files exist, compares
@@ -145,12 +148,13 @@ freshness:
 
 ```bash
 go tool goldr check
-go tool goldr check --app-root examples/full_feature
+go tool goldr check --app-root ../my-app
 ```
 
 It checks:
 
 - `app/routes` naming and action conventions
+- mounted `app/mounts` route-surface validity when mounts are referenced
 - page handler signatures
 - layout and fragment `.go` / `.templ` pairs
 - route dispatch generation readiness
@@ -182,7 +186,7 @@ Examples:
 
 ```text
 app/routes/Users: GOLDR002 static route directories must use lowercase Go-safe names
-app/routes/page.go: GOLDR003 page /: page handlers must use func Page(*http.Request) goldr.RouteResponse
+app/routes/page.go: GOLDR002 route surface belongs in route.go
 GOLDR006 app/routes/goldr_gen.go is stale
 GOLDR007 templ generated files are not up to date; run go tool goldr generate
 GOLDR008 Goldr-managed assets are not current; run go tool goldr generate
@@ -209,7 +213,7 @@ handlers. For the full workflow, read [Assets](assets.md).
 
 ```bash
 go tool goldr assets dist
-go tool goldr assets dist --app-root examples/full_feature
+go tool goldr assets dist --app-root ../my-app
 ```
 
 Verify asset output without writing:
@@ -237,31 +241,69 @@ Run `go tool goldr assets check` when you want the asset-only check.
 
 ## Routes List
 
-`goldr routes list` prints the route surface goldr sees:
+`goldr routes list` prints the route surface goldr sees. During route
+refactors, use it before and after generation to inspect browser paths and
+generated helper names together:
 
 ```bash
 go tool goldr routes list
-go tool goldr routes list --app-root examples/full_feature
+go tool goldr routes list --app-root ../my-app
+go tool goldr routes list --mount reports
 ```
 
 Columns:
 
 ```text
-KIND    METHOD    PATH    PARAMS    SOURCE    HELPER
+KIND    METHOD    PATH    PARAMS    SOURCE    OWNER    DECL    NAME    TITLE    LABELS    HELPER
 ```
 
 Rows include pages, layouts, fragments, and actions. Pages and fragments show
-`GET,HEAD`. Actions show their HTTP method. Layouts show `METHOD` and `HELPER`
-as `-`.
+`GET,HEAD`. Actions show their HTTP method. Layouts show `METHOD`, `OWNER`,
+and `HELPER` as `-`.
+
+The `HELPER` column is useful when naming nested route directories. A
+route-local workflow such as `notifications/pending_events/send` should produce
+a helper like:
+
+```text
+urls.Notifications.PendingEvents.Send.Path()
+```
+
+If the helper repeats parent context, such as
+`urls.Notifications.SendPendingEvents.Path()`, the route tree may still be too
+flat for the workflow ownership you intended.
+
+For route declaration rows, `DECL` is `local` for `goldr.RouteDef` routes,
+`kit` for `goldr.KitRouteDef[K]` routes, and `mounted-kit` for routes expanded
+from `app/mounts`. `NAME`, `TITLE`, and `LABELS` come from the static
+declaration metadata. Labels are shown as sorted `key="value"` pairs. Goldr
+displays this metadata opaquely; it does not treat labels as auth, navigation,
+tenant, portal, or policy configuration. `HELPER` stays path-derived and does
+not use declaration names or labels. For mounted rows, `OWNER` is the live
+mount owner under `app/routes`.
+
+Use `--mount <path>` to filter the existing inventory to routes expanded from
+one mounted subtree. The filter keeps the same table and JSON shapes, and is
+useful for checking which live owners expose a shared mount.
 
 Use `--json` for machine-readable output:
 
 ```bash
 go tool goldr routes list --json
-go tool goldr routes list --app-root examples/full_feature --json
+go tool goldr routes list --app-root ../my-app --json
+go tool goldr routes list --mount reports --json
 ```
 
 JSON rows include `kind`, `methods`, `path`, `params`, `source`, and `helper`.
+Declaration-backed endpoint rows also include a `declaration` object with
+`source`, `kind`, `name`, `title`, sorted `labels`, and the page, fragment, or
+action implementation evidence Goldr parsed from `route.go`. Mounted route
+declarations include a `mount` object with the mount path and live owner.
+Fragment and
+action declaration evidence includes `index` when the endpoint uses the route
+directory path itself. Kit declarations also include static kit type and
+constructor. Layout rows omit `declaration`. JSON arrays are emitted as empty
+arrays when no values exist.
 
 ## Routes Layouts
 
@@ -269,7 +311,7 @@ JSON rows include `kind`, `methods`, `path`, `params`, `source`, and `helper`.
 
 ```bash
 go tool goldr routes layouts
-go tool goldr routes layouts --app-root examples/full_feature
+go tool goldr routes layouts --app-root ../my-app
 ```
 
 The output shows where layouts start, which pages inherit them, which actions
@@ -286,8 +328,8 @@ or `TERM=dumb`.
 
 ```bash
 go tool goldr routes explain /users/7
-go tool goldr routes explain --app-root examples/full_feature http://127.0.0.1:8080/users/7
-go tool goldr routes explain --app-root examples/full_feature --method POST /users/create
+go tool goldr routes explain --app-root ../my-app http://127.0.0.1:8080/users/7
+go tool goldr routes explain --app-root ../my-app --method POST /users/create
 ```
 
 It accepts full URLs and absolute paths. Query strings and fragments are
@@ -297,6 +339,10 @@ debugging an action or method mismatch.
 Matched page routes show the route pattern, source file, dynamic params, and
 layout stack. Matched actions show the layout stack available to
 `goldr.WriteRouteResponse`. Fragments are reported as not layout-wrapped.
+For routes declared in `route.go`, matched output also shows `DECLARATION` and
+`IMPLEMENTATION` sections with the static declaration metadata and generated
+adapter evidence. These sections are read-only inspection output; they do not
+execute handlers or change route matching.
 
 If a path exists but the method is wrong, the command exits non-zero and prints
 the allowed methods. If no generated route matches the path, it exits non-zero

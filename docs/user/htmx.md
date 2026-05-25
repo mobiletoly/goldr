@@ -15,7 +15,7 @@ import "example.com/hello-goldr/app/urls"
 templ DirectoryView() {
 	<div>
 		<button
-			hx-get={ urls.Users.FragTable.Path() }
+			hx-get={ urls.Users.Table.Path() }
 			hx-target="#users-table-slot"
 			hx-swap="innerHTML"
 		>
@@ -51,7 +51,7 @@ stable page-owned slot for those interactions instead of appending directly to
 
 ```templ
 <button
-	hx-get={ urls.Tenants.ByID(id).WebhookSettings.FragEdit.Path() }
+	hx-get={ urls.Tenants.ByID(id).WebhookSettings.Edit.Path() }
 	hx-target="#webhook-settings-dialog-slot"
 	hx-swap="innerHTML"
 >
@@ -79,13 +79,11 @@ import (
 	"github.com/mobiletoly/goldr/hx"
 )
 
-func PostCreate(w http.ResponseWriter, r *http.Request) {
-	hx.Retarget(w, "#users-table-slot")
-	hx.Reswap(w, "innerHTML")
-	hx.Trigger(w, "user:created")
-	if err := goldr.WriteComponent(w, r, http.StatusOK, UsersTable()); err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-	}
+func PostCreate(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(UsersTable()).
+		WithHeader(hx.HeaderRetarget, "#users-table-slot").
+		WithHeader(hx.HeaderReswap, "innerHTML").
+		WithHeader(hx.HeaderTrigger, "user:created")
 }
 ```
 
@@ -101,11 +99,41 @@ func FragTable(r *http.Request) goldr.RouteResponse
 Use actions when a route-local mutation needs to set headers, parse forms, or
 redisplay partial HTML.
 
-For templ HTML action responses, set any headers first, then call
-`goldr.WriteComponent(w, r, status, component)`. It buffers the component before
-committing headers, sets `Content-Type: text/html; charset=utf-8`, writes the
-status, and skips the body for `HEAD`. `goldr.WriteComponent` does not set HTMX
-headers, parse forms, redirect, or choose application status codes.
+For templ HTML action responses, return `goldr.NewFragment(component)` with
+the intended status and headers. Goldr buffers the component before committing
+headers, sets `Content-Type: text/html; charset=utf-8`, writes the status, and
+skips the body for `HEAD`.
+
+When an HTMX action or fragment exists only for one page workflow, keep the
+endpoint under that page route:
+
+```text
+users/
+  route.go
+  page.templ
+  prepare/
+    route.go
+    action_handlers.go
+    result.templ
+  save/
+    route.go
+    action_handlers.go
+```
+
+Nested action or fragment directories do not need standalone pages. They can
+exist solely to own the route segment, handler, local templates, middleware, or
+helper name. Keep one-route templates in the route directory; move them to
+`internal` or shared packages only when multiple sibling routes or route trees
+actually reuse them.
+
+Choose child route names for the generated helper shape:
+
+```text
+users/prepare -> urls.Users.Prepare.Path()
+users/save    -> urls.Users.Save.Path()
+```
+
+Avoid names that repeat the parent route context.
 
 ## CSRF Headers
 
@@ -192,13 +220,13 @@ See package documentation or completion for the full list.
 - `HX-Trigger`, `HX-Retarget`, and `HX-Reswap` in action handlers
 - CSRF validation for unsafe HTMX requests
 - `goldr.WriteComponent` for action-owned templ HTML responses
-- fragment rendering for `/users/frag-table`
+- fragment rendering for `/users/table`
 - form redisplay from `/users/create`
 
-Run it from the repository root:
+Run it from a goldr checkout:
 
 ```bash
-go run ./examples/full_feature
+(cd examples/full_feature && go run .)
 ```
 
 For server-sent event streams and named SSE swaps, read [SSE](sse.md).

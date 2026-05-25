@@ -3,18 +3,18 @@
 goldr provides small form helpers in the `bind` package. Validation rules and
 persistence stay application-owned.
 
-Use form helpers from an action route or another ordinary `net/http` handler.
+Use form helpers from a response-returning action route or another ordinary
+`net/http` handler.
 
 ## Parse And Validate
 
 For ordinary URL-encoded forms, use `bind.ParseForm`:
 
 ```go
-func PostCreate(w http.ResponseWriter, r *http.Request) {
+func PostCreate(r *http.Request) goldr.RouteResponse {
     form, err := bind.ParseForm(r)
     if err != nil {
-        http.Error(w, "bad request", http.StatusBadRequest)
-        return
+        return goldr.Text{Status: http.StatusBadRequest, Body: "bad request"}
     }
 
     var errors bind.FieldErrors
@@ -24,18 +24,14 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 
     form = form.WithErrors(errors)
     if form.HasErrors() {
-        hx.Retarget(w, "#user-form")
-        hx.Reswap(w, "outerHTML")
-        if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, UserForm(form)); err != nil {
-            http.Error(w, "internal server error", http.StatusInternalServerError)
-        }
-        return
+        return goldr.NewFragment(UserForm(form)).
+            WithStatus(http.StatusUnprocessableEntity).
+            WithHeader(hx.HeaderRetarget, "#user-form").
+            WithHeader(hx.HeaderReswap, "outerHTML")
     }
 
     // Application-owned persistence happens here.
-    if err := goldr.WriteComponent(w, r, http.StatusOK, UsersTable()); err != nil {
-        http.Error(w, "internal server error", http.StatusInternalServerError)
-    }
+    return goldr.NewFragment(UsersTable())
 }
 ```
 
@@ -63,6 +59,8 @@ and returns the same `bind.Form` type as `ParseForm`. `maxMemory` is the
 standard library memory threshold for multipart parsing. It is not a hard
 request-size limit. Use `http.MaxBytesReader` before parsing when the
 application needs a total request-size limit.
+Declare actions that need `http.MaxBytesReader` with `goldr.FuncPostHandler`
+or the matching low-level handler helper.
 
 For HTMX multipart submissions, set both ordinary HTML form encoding and HTMX
 request encoding:
@@ -152,17 +150,16 @@ messages := form.FieldErrors("name")
 ## Redisplay With HTMX
 
 Page, layout, and fragment render functions do not receive
-`http.ResponseWriter`. Use `actions.go` when a route-local mutation needs to
+`http.ResponseWriter`. Use a route action when a route-local mutation needs to
 parse a form, set headers, or redisplay partial HTML.
 
 For HTMX redisplay, combine `bind` with `hx` response headers:
 
 ```go
-hx.Retarget(w, "#user-form")
-hx.Reswap(w, "outerHTML")
-if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, UserForm(form)); err != nil {
-    http.Error(w, "internal server error", http.StatusInternalServerError)
-}
+return goldr.NewFragment(UserForm(form)).
+    WithStatus(http.StatusUnprocessableEntity).
+    WithHeader(hx.HeaderRetarget, "#user-form").
+    WithHeader(hx.HeaderReswap, "outerHTML")
 ```
 
 goldr does not validate required fields, allowed values, or business rules.
@@ -171,14 +168,13 @@ the submitted token after parsing:
 
 ```go
 if err := guard.Validate(r, form.Value(csrf.FieldName)); err != nil {
-    http.Error(w, "forbidden", http.StatusForbidden)
-    return
+    return goldr.Text{Status: http.StatusForbidden, Body: "forbidden"}
 }
 ```
 
-`goldr.WriteComponent` provides the default buffered templ HTML response. If
-redisplayed HTML should use a non-200 status such as `422`, set response
-headers first and then call `goldr.WriteComponent(w, r, status, component)`.
+`goldr.NewFragment` provides the default buffered templ HTML response for
+partial redisplay. If redisplayed HTML should use a non-200 status such as
+`422`, attach it with `WithStatus`.
 
 ## Runnable Example
 
@@ -187,5 +183,5 @@ redisplay with `422`, optional file-header access, and successful HTMX
 replacement from `PostCreate` in:
 
 ```text
-app/routes/users/actions.go
+app/routes/users/route.go
 ```

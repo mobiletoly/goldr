@@ -1,0 +1,22 @@
+package reports
+
+templ PageView(report ReportData) {
+	<section class="report-page">
+		<p class="eyebrow">{ report.Audience }</p>
+		<h1>{ report.Heading }</h1>
+		<p>{ report.Description }</p>
+		if report.OwnerToolsURL != "" {
+			<p><a href={ report.OwnerToolsURL }>Admin report tools</a></p>
+		}
+		<div class="report-actions">
+			<label for="report-period">Period</label>
+			<select id="report-period" name="period" hx-get={ report.URLs.Table.Path() } hx-target="#report-table-slot" hx-swap="innerHTML" hx-trigger="change">
+				@PeriodOptionsView(report, "30d")
+			</select>
+			<button type="button" hx-get={ report.URLs.Table.Path() } hx-target="#report-table-slot" hx-swap="innerHTML">Refresh table</button>
+		</div>
+		<div id="report-table-slot">
+			@TableView(report)
+		</div>
+	</section>
+}

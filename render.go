@@ -83,7 +83,7 @@ func WriteRouteResponse(w http.ResponseWriter, r *http.Request, response RouteRe
 // WritePageRouteResponse writes a page route response from generated route
 // dispatch.
 func WritePageRouteResponse(w http.ResponseWriter, r *http.Request, response RouteResponse, render RoutePageRenderer) error {
-	return writeRouteResponse(w, r, response, render, true, false)
+	return writeRouteResponse(w, r, response, render, true, true)
 }
 
 // WriteFragmentRouteResponse writes a fragment route response from generated
@@ -130,6 +130,10 @@ func writeRouteResponse(w http.ResponseWriter, r *http.Request, response RouteRe
 	case routeResponseText:
 		applyResponseHeaders(w, resolved.text.headers)
 		return writeTextResponse(w, r, resolved.text.Status, resolved.text.Body)
+	case routeResponseNoContent:
+		applyResponseHeaders(w, resolved.noBody.headers)
+		w.WriteHeader(resolved.noBody.Status)
+		return nil
 	case routeResponseServerError:
 		return resolved.err
 	default:
@@ -167,7 +171,9 @@ func writeTextResponse(w http.ResponseWriter, r *http.Request, status int, body 
 	if r == nil {
 		return ErrNilRequest
 	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	}
 	w.WriteHeader(status)
 	if r.Method == http.MethodHead {
 		return nil

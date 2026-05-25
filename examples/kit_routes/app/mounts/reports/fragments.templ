@@ -1,0 +1,35 @@
+package reports
+
+templ PeriodOptionsView(report ReportData, selected string) {
+	for _, period := range report.Periods {
+		if period.Value == selected {
+			<option value={ period.Value } selected>{ period.Label }</option>
+		} else {
+			<option value={ period.Value }>{ period.Label }</option>
+		}
+	}
+}
+
+templ TableView(report ReportData) {
+	<section class="report-table" aria-label={ report.Heading + " table" }>
+		<h2>{ report.Audience } report table</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>Metric</th>
+					<th>Value</th>
+					<th>Note</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, row := range report.Rows {
+					<tr>
+						<td>{ row.Metric }</td>
+						<td>{ row.Value }</td>
+						<td>{ row.Note }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</section>
+}

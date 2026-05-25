@@ -62,18 +62,17 @@ templ PageView(csrfToken string) {
 Validate after parsing form values:
 
 ```go
-func PostSave(w http.ResponseWriter, r *http.Request) {
+func PostSave(r *http.Request) goldr.RouteResponse {
     form, err := bind.ParseForm(r)
     if err != nil {
-        http.Error(w, "bad request", http.StatusBadRequest)
-        return
+        return goldr.Text{Status: http.StatusBadRequest, Body: "bad request"}
     }
     if err := guard.Validate(r, form.Value(csrf.FieldName)); err != nil {
-        http.Error(w, "forbidden", http.StatusForbidden)
-        return
+        return goldr.Text{Status: http.StatusForbidden, Body: "forbidden"}
     }
 
     // Perform the mutation.
+    return goldr.NoContent{}
 }
 ```
 

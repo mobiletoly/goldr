@@ -14,21 +14,280 @@ Goldr ignores Go-special directories named `internal`, `testdata`, and `vendor`
 so applications can keep route-adjacent private code, test fixtures, or vendored
 code without exposing those names as URL segments.
 
-## Pages
+## Route Declarations
 
-`page.go` defines a page route for its directory.
-
-```text
-app/routes/page.go                     -> /
-app/routes/users/page.go               -> /users
-app/routes/settings/build_info/page.go -> /settings/build-info
-app/routes/users/by_id/page.go         -> /users/{id}
-```
-
-Each page must provide:
+`route.go` is the primary route surface for a route directory. It declares the
+page, fragments, and actions for that directory in one static `Route` value:
 
 ```go
-func Page(r *http.Request) goldr.RouteResponse
+package users
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.RouteDef{
+	Page: goldr.FuncPage(page),
+	Fragments: goldr.FuncFragments{
+		goldr.FuncFragment("table", table),
+	},
+	Actions: goldr.FuncActions{
+		goldr.FuncPost("create", postCreate),
+	},
+}
+
+func page(r *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(PageView(), goldr.PageMetadata{Title: "Users"})
+}
+
+func table(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(TableView())
+}
+
+func postCreate(r *http.Request) goldr.RouteResponse {
+	return goldr.Redirect{Location: "/users", Status: http.StatusSeeOther}
+}
+```
+
+The `Route` value must be a static `goldr.RouteDef`, `goldr.KitRouteDef[K]`,
+or `goldr.KitRouteMount[K]` composite literal. Goldr parses the declaration
+without evaluating Go code, so `Page`, `Fragments`, and `Actions` use the
+Goldr helper calls shown above.
+
+Route declarations are tooling input, not executable configuration. Keep route
+declaration expressions named and inspectable. In particular, Kit constructors
+in `New` must be named functions or method selectors accepted for that route
+kind; inline function literals are not supported in `New`.
+
+`RouteDef.Name`, `RouteDef.Title`, `KitRouteDef.Name`,
+`KitRouteDef.Title`, and `RouteMeta.Labels` are optional declaration metadata.
+Goldr can show them in route inspection output, but it treats them as
+display-only and opaque. Labels are app-owned strings. Goldr does not interpret
+them as auth, navigation, tenant, portal, or policy configuration.
+
+`page.go`, `frag_*.go`, and `actions.go` under `app/routes` are invalid route
+surface files. Layouts, middleware, templates, helpers, tests, and other
+ordinary Go files can still live beside `route.go`.
+
+For real route packages, prefer this file layout:
+
+```text
+route.go       route declaration only
+handlers.go    page, fragment, and action handlers for one route workflow
+page.templ     page-owned HTML when the page renders HTML
+frag_*.templ   fragment-owned HTML when fragment handlers use templates
+```
+
+Split handlers into files such as `page_handlers.go`, `action_handlers.go`, or
+`fragment_handlers.go` only when the package is large enough that one
+`handlers.go` is harder to scan. Documentation examples may keep tiny handlers
+inside `route.go` for brevity.
+
+Keep templates used by only one route directly in that route directory. Use
+`internal` packages or shared packages only when implementation is genuinely
+shared by multiple sibling routes or route trees.
+
+If a handler lives in another package and that package's declared package name
+does not match the final import path segment, add an explicit import alias in
+`route.go`:
+
+```go
+import view "example.com/app/pages/handlers"
+```
+
+### Shared Kit Routes
+
+Use `goldr.KitRouteDef[K]` when multiple filesystem-owned routes should
+reuse the same page, fragment, or action implementation. The route directory
+still owns the URL and exposed route surface through its own `route.go`; the
+shared package owns ordinary Go methods and templ components.
+
+For example, `/admin/reports` and `/user/reports` can both bind to
+`reports.Kit.Page` and `reports.Kit.Table` while each route provides its own
+request-scoped constructor:
+
+```go
+var Route = goldr.KitRouteDef[reports.Kit]{
+	Title: "Admin Reports",
+	New:   newReportKit,
+	Page:  goldr.KitPage(reports.Kit.Page),
+	Fragments: goldr.KitFragments[reports.Kit]{
+		goldr.KitFragment("table", reports.Kit.Table),
+	},
+}
+
+func newReportKit(r *http.Request) reports.Kit {
+	return reports.New(reportData(r))
+}
+```
+
+Goldr generates direct route-local adapters that call
+`newReportKit(r)` and then call the selected kit method. The shared package
+does not declare URLs or hidden route surface. See
+`examples/kit_routes` for a focused runnable example.
+
+### Mounted Kit Route Subtrees
+
+Use `goldr.KitRouteMount[K]` with `app/mounts` when multiple live route owners
+need the same child route subtree. `app/routes` remains the only live URL tree;
+`app/mounts` contains reusable route surfaces that are not routable unless a
+real route mounts them.
+
+```text
+app/routes/admin/reports/route.go
+app/routes/user/reports/route.go
+
+app/mounts/reports/route.go
+app/mounts/reports/page.templ
+app/mounts/reports/fragments.templ
+```
+
+A live owner mounts the subtree:
+
+```go
+var Route = goldr.KitRouteMount[reports.Kit]{
+	New:   newReportKit,
+	Mount: "reports",
+}
+```
+
+The mounted files declare route surfaces with `KitRouteDef` and omit `New`.
+The live `KitRouteMount` owner supplies the request-scoped kit constructor as
+a local identifier. `Mount` is a clean relative slash path under `app/mounts`;
+each component is a lowercase Go-safe route directory name, with underscores
+still becoming hyphens in final URL paths.
+
+`KitRouteMount.New` must be a local named function in the mount owner's route
+package. Do not use an inline function literal there, even though the Go field
+type is `func(*http.Request) K`.
+
+Keep only routes that are valid for every live owner in the mounted subtree.
+Owner-only children stay under the owner in `app/routes`. Shared mounted pages
+can still render links to owner-only children when the owner passes those URLs
+through kit or page data.
+
+```go
+var Route = goldr.KitRouteDef[reports.Kit]{
+	Page: goldr.KitPage(reports.Kit.Page),
+	Fragments: goldr.KitFragments[reports.Kit]{
+		goldr.KitFragment("table", reports.Kit.Table),
+	},
+}
+```
+
+For each referenced mounted subtree, Goldr also writes mount-relative URL
+helpers into the mounted package:
+
+```text
+app/mounts/reports/goldr_gen.go
+```
+
+Bind those helpers from the real owner route helper before passing them to
+shared code:
+
+```go
+reportURLs := reports.NewGoldrMountURLs(urls.Admin.Reports)
+```
+
+The mounted package can use helpers such as `reportURLs.Path()` and
+`reportURLs.Table.Path()` without knowing whether the live owner is
+`/admin/reports`, `/user/reports`, or another mount point.
+
+The mounted package can own the reusable kit type and templ components for the
+mounted subtree.
+
+The final paths and helpers are still derived from the live mount owner:
+
+```go
+urls.Admin.Reports.Table.Path()
+urls.User.Reports.Table.Path()
+```
+
+See [Mounted Kit Route Subtrees](mounted-routes.md) for rules, layout behavior,
+inspection output, and collision checks.
+
+## Route-Local Workflows
+
+If an HTMX action or fragment exists only to support one page workflow, prefer
+nesting it under that page route instead of making it a top-level sibling.
+
+```text
+users/
+  route.go
+  page.templ
+  prepare/
+    route.go
+    action_handlers.go
+    result.templ
+  save/
+    route.go
+    action_handlers.go
+```
+
+This is appropriate even when `prepare/` or `save/` has no standalone page. A
+child route directory can declare only index actions, named actions, index
+fragments, or named fragments. The directory owns the workflow segment,
+templates, middleware, params, or generated helper namespace.
+
+Prefer shallow route-owned files for one-route fragments:
+
+```text
+user_events/prepare/
+  route.go
+  action_handlers.go
+  user_registered_tab.templ
+  user_updated_tab.templ
+```
+
+Do not create packages such as `prepare/internal/prepareui` unless the UI is
+actually reused by multiple sibling routes or route trees.
+
+### Naming Nested Routes
+
+Generated URL helpers mirror route directory names and action or fragment
+segments. Choose child names relative to the parent route.
+
+Good:
+
+```text
+pending_events/send      -> PendingEvents.Send
+user_events/prepare      -> UserEvents.Prepare
+user_events/send_updated -> UserEvents.SendUpdated
+```
+
+Avoid repeating parent context:
+
+```text
+user_events/send_user_updated_event
+notifications/send_pending_events
+notifications/prepare_user_event
+```
+
+Use `go tool goldr routes list --app-root <app-root>` during route refactors to
+inspect paths and helpers together. The helper should read like the filesystem
+ownership you intended.
+
+## Pages
+
+In `route.go`, the `Page` field defines the page route for its directory:
+
+```go
+var Route = goldr.RouteDef{
+	Page: goldr.FuncPage(page),
+}
+
+func page(r *http.Request) goldr.RouteResponse {
+	return goldr.NewPage(PageView(), goldr.PageMetadata{Title: "Users"})
+}
+```
+
+```text
+app/routes/route.go                     -> /
+app/routes/users/route.go               -> /users
+app/routes/settings/build_info/route.go -> /settings/build-info
+app/routes/users/by_id/route.go         -> /users/{id}
 ```
 
 `page.templ` is optional. Use it for page-owned HTML written in templ. A page
@@ -97,33 +356,9 @@ return goldr.Redirect{
 
 ### Page Error Handling
 
-Use explicit status responses for request-shaped failures:
-
-```go
-if !validID(r.PathValue("project_id")) {
-	return goldr.NewPage(BadRequestView(), goldr.PageMetadata{Title: "Bad request"}).WithStatus(http.StatusBadRequest)
-}
-
-project, err := store.Project(r.Context(), r.PathValue("project_id"))
-if errors.Is(err, store.ErrNotFound) {
-	return goldr.NewPage(NotFoundView(), goldr.PageMetadata{Title: "Not found"}).WithStatus(http.StatusNotFound)
-}
-if err != nil {
-	return goldr.ServerError{Err: err}
-}
-
-return goldr.NewPage(ProjectView(project), goldr.PageMetadata{Title: project.Name})
-```
-
-Use `goldr.ServerError{Err: err}` only for unexpected application or runtime
-failures that should use Goldr's internal server error handling:
-
-```go
-project, err := store.Project(r.Context(), r.PathValue("project_id"))
-if err != nil {
-	return goldr.ServerError{Err: err}
-}
-```
+Use explicit status responses for expected request-shaped failures. Use
+`goldr.ServerError{Err: err}` only for unexpected application or runtime
+failures that should use Goldr's internal server error handling.
 
 Generated dispatch resolves the returned route response internally. If
 resolution returns an error, the page returned an invalid Goldr contract, such
@@ -135,6 +370,9 @@ as `goldr.Page{}`, `goldr.NewPage(nil, metadata)`,
 server error handling. `goldr.ServerError{Err: err}` is a valid route response:
 its error is the application error passed to the generated internal server
 error handler.
+
+See [Error Handling](error-handling.md) for route handler error examples,
+custom generated error hooks, and HTMX error fragments.
 
 ## Layouts
 
@@ -154,17 +392,15 @@ func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component
 `ctx.Child` is the child page or nested layout component. `ctx.Metadata` is the
 page metadata returned by the matched page.
 
-Fragments are not layout-wrapped. Actions are ordinary handlers and are not
-automatically layout-wrapped, but an action can explicitly call
-`goldr.WriteRouteResponse` to write a full page through the matched route
-layout stack.
+Fragments are not layout-wrapped. Actions return route responses; page
+responses from actions are written through the matched route layout stack.
 
 ## Dynamic Routes
 
 Dynamic route directories use `by_<param>/`.
 
 ```text
-app/routes/users/by_id/page.go
+app/routes/users/by_id/route.go
 ```
 
 maps to:
@@ -176,7 +412,7 @@ maps to:
 Nested dynamic routes work the same way:
 
 ```text
-app/routes/orgs/by_org_id/users/by_user_id/page.go
+app/routes/orgs/by_org_id/users/by_user_id/route.go
 ```
 
 maps to:
@@ -196,25 +432,67 @@ route could both match.
 
 ## Fragments
 
-Fragments use the `frag_` prefix and render standalone partial HTML.
-
-```text
-app/routes/users/frag_table.go -> /users/frag-table
-```
-
-Each fragment must have a matching `.templ` file and must provide:
+Fragments render standalone partial HTML. In `route.go`, fragment segments map
+to `<segment>` browser routes:
 
 ```go
-func FragTable(r *http.Request) goldr.RouteResponse
+var Route = goldr.RouteDef{
+	Fragments: goldr.FuncFragments{
+		goldr.FuncFragment("table", table),
+	},
+}
+```
+
+```text
+goldr.FuncFragment("table", table) in app/routes/users/route.go -> /users/table
 ```
 
 Fragments use route params from their directory prefix:
 
 ```text
-app/routes/users/by_id/frag_row.go -> /users/{id}/frag-row
+goldr.FuncFragment("row", row) in app/routes/users/by_id/route.go -> /users/{id}/row
 ```
 
 Fragments render for `GET` and `HEAD`. They are not layout-wrapped.
+Fragment responses created with `goldr.NewFragment` default to
+`Cache-Control: no-store`. Set `Cache-Control` with `WithHeader` or `AddHeader`
+when a fragment is intentionally cacheable.
+
+Use an index fragment when an HTMX partial owns the route directory path itself:
+
+```go
+var Route = goldr.RouteDef{
+	Fragments: goldr.FuncFragments{
+		goldr.FuncFragmentIndex(statusOptions),
+	},
+}
+```
+
+```text
+goldr.FuncFragmentIndex(statusOptions) in app/routes/users/status_options/route.go -> /users/status-options
+```
+
+Index fragments are still fragments. They are not layout-wrapped, they must not
+be declared beside `Page` in the same route directory, and they may share the
+path with index actions when the HTTP methods differ:
+
+```text
+GET  /users/status-options -> FuncFragmentIndex
+HEAD /users/status-options -> FuncFragmentIndex
+POST /users/status-options -> FuncPostIndex
+```
+
+Kit routes use the same shape. When a Kit page already owns the parent path,
+put the index fragment in a child route directory:
+
+```go
+var Route = goldr.KitRouteDef[reports.Kit]{
+	New: newReportKit,
+	Fragments: goldr.KitFragments[reports.Kit]{
+		goldr.KitFragmentIndex(reports.Kit.StatusOptions),
+	},
+}
+```
 
 Use `goldr.NewFragment` for normal fragment HTML:
 
@@ -231,81 +509,66 @@ route-response contract because fragments do not render through layouts.
 
 ## Actions
 
-Actions live in one `actions.go` file per route directory.
-
-```text
-app/routes/users/actions.go
-app/routes/users/by_id/actions.go
-```
-
-Action functions are exported top-level `net/http` handlers with a supported
-method prefix:
+Actions return `goldr.RouteResponse` by default. In `route.go`, action
+declarations name the HTTP method and route segment:
 
 ```go
-func PostCreate(w http.ResponseWriter, r *http.Request)
-func PutProfile(w http.ResponseWriter, r *http.Request)
-func PatchProfile(w http.ResponseWriter, r *http.Request)
-func DeleteAvatar(w http.ResponseWriter, r *http.Request)
-```
-
-Supported prefixes are:
-
-```text
-Post   -> POST
-Put    -> PUT
-Patch  -> PATCH
-Delete -> DELETE
+var Route = goldr.RouteDef{
+	Actions: goldr.FuncActions{
+		goldr.FuncPost("create", postCreate),
+		goldr.FuncPostIndex(postIndex),
+	},
+}
 ```
 
 `Get<Name>` is not an action route. Pages and fragments own generated `GET`
 and `HEAD` behavior.
 
-`Index` maps to the current route directory path:
+`goldr.FuncPostIndex`, `goldr.FuncPutIndex`, `goldr.FuncPatchIndex`, and
+`goldr.FuncDeleteIndex` map to the current route directory path:
 
 ```text
-PostIndex -> POST /users
+goldr.FuncPostIndex(postIndex) in app/routes/users/route.go -> POST /users
 ```
 
-Other suffixes map to one lowercase kebab-case child segment:
+The action helper segment maps to one lowercase kebab-case child segment.
+Underscores in the segment are normalized to hyphens in browser paths:
 
 ```text
-PostCreate      -> POST /users/create
-PostSavePreview -> POST /users/save-preview
-PatchProfile    -> PATCH /users/{id}/profile
+goldr.FuncPost("create", postCreate) in app/routes/users/route.go -> POST /users/create
+goldr.FuncPost("save-preview", postSavePreview) in app/routes/users/route.go -> POST /users/save-preview
+goldr.FuncPatch("profile", patchProfile) in app/routes/users/by_id/route.go -> PATCH /users/{id}/profile
 ```
 
-Action handlers are called directly. They own status codes, headers, response
-bodies, redirects, HTMX response headers, and form redisplay.
+Action handlers may return pages, fragments, redirects, text, server errors,
+or no-content responses. Goldr writes the response with the same writer used
+for pages and fragments.
 
-Use `goldr.WriteComponent` for fragment-style rendered action responses:
+Use `goldr.NewFragment` for fragment-style rendered action responses:
 
 ```go
-hx.Retarget(w, "#user-form")
-hx.Reswap(w, "outerHTML")
-if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, UserForm(form)); err != nil {
-	http.Error(w, "internal server error", http.StatusInternalServerError)
-}
+return goldr.NewFragment(UserForm(form)).
+	WithStatus(http.StatusUnprocessableEntity).
+	WithHeader(hx.HeaderRetarget, "#user-form").
+	WithHeader(hx.HeaderReswap, "outerHTML")
 ```
 
-Use `goldr.WriteRouteResponse` when an action needs to return a full page
-through the matched layout stack:
+Return a page when an action needs to render through the matched layout stack:
 
 ```go
-err := goldr.WriteRouteResponse(
-	w,
-	r,
-	goldr.NewPage(CreatedView(key), goldr.PageMetadata{Title: "Created"}).
-		WithStatus(http.StatusCreated).
-		WithHeader("Cache-Control", "no-store"),
-)
-if err != nil {
-	http.Error(w, "internal server error", http.StatusInternalServerError)
-}
+return goldr.NewPage(CreatedView(key), goldr.PageMetadata{Title: "Created"}).
+	WithStatus(http.StatusCreated).
+	WithHeader("Cache-Control", "no-store")
 ```
 
-This is explicit. Actions are not automatically layout-wrapped, so fragments,
-redirects, validation snippets, and custom responses stay ordinary
-`net/http` handler behavior.
+Use `goldr.NoContent{}` for header-only action responses. It defaults to
+`204 No Content` and also accepts `205 Reset Content` and `304 Not Modified`.
+
+Use `goldr.FuncPostHandler`, `goldr.FuncPutHandler`,
+`goldr.FuncPatchHandler`, or `goldr.FuncDeleteHandler` when an action needs
+direct `http.ResponseWriter` control, such as streaming, setting cookies, or
+installing `http.MaxBytesReader`. The matching `...HandlerIndex` helpers map
+to the route directory path.
 
 ## URL Helpers
 
@@ -327,7 +590,7 @@ Helpers are route-shaped namespaces ending in `.Path()`:
 urls.Root.Path()
 urls.Users.Path()
 urls.Users.Create.Path()
-urls.Users.FragTable.Path()
+urls.Users.Table.Path()
 urls.Users.ByID(id).Path()
 urls.Users.ByID(id).Profile.Path()
 ```
@@ -338,7 +601,8 @@ site:
 
 ```templ
 <a href={ urls.Users.ByID(contact.ID).Path() }>{ contact.Name }</a>
-<button hx-get={ urls.Users.FragTable.Path() } hx-target="#users-table-slot" hx-swap="innerHTML">
+<button hx-get={ urls.Users.Table.Path() } hx-target="#users-table-slot" hx-swap="innerHTML">
+<select hx-get={ urls.Users.StatusOptions.Path() } hx-target="#status-options" hx-swap="innerHTML">
 <form method="post" hx-post={ urls.Users.Create.Path() }>
 ```
 
@@ -364,10 +628,23 @@ slashes. `""` and `"/"` mean no mount prefix. The generated handler still
 receives the unmounted path after the application's mux or middleware strips
 the prefix.
 
+Referenced `app/mounts` Kit subtrees also get mount-relative helpers in their
+own package, such as `app/mounts/reports/goldr_gen.go`. A mount owner should
+bind them from the final live helper:
+
+```go
+reportURLs := reports.NewGoldrMountURLs(urls.Admin.Reports)
+```
+
+Those helpers are for shared mounted code to link within its own subtree. They
+do not replace the final route inventory in `app/urls`.
+
 Generated dispatch matches escaped request paths and exposes decoded values
 through `r.PathValue`.
 
 Static assets are application-owned and are not included in URL helpers.
+Route declaration names, titles, and labels do not change generated helper
+names. Helper namespaces are derived from the route path.
 
 ## Generated Handler
 
@@ -425,13 +702,12 @@ Middleware wraps matched route endpoints:
 - fragments
 
 Layouts are not standalone middleware targets. Page layout rendering happens
-inside the already wrapped endpoint request. Actions can still render a full
-page through `goldr.WriteRouteResponse`; that rendering also happens inside the
-action middleware request.
+inside the already wrapped endpoint request. Page responses returned from
+actions are rendered inside the action middleware request.
 
 Middleware inheritance follows the route package tree, not runtime URL prefix
 matching. A middleware in `app/routes/users/create/middleware.go` does not wrap
-`PostCreate` from `app/routes/users/actions.go` just because that action maps
+`postCreate` from `app/routes/users/route.go` just because that action maps
 to `/users/create`.
 
 Goldr does not own CSRF, auth, roles, rate limits, sessions, or adapter policy.
@@ -445,40 +721,19 @@ Generated 404 and 405 responses do not run route-tree middleware.
 
 ## Custom Error Responses
 
-Use `HandlerWithOptions` when generated route dispatch should render custom
-error responses:
-
-```go
-mux.Handle("/", routes.HandlerWithOptions(routes.HandlerOptions{
-	ErrorHandlers: routes.ErrorHandlers{
-		NotFound: routes.NotFound,
-	},
-}))
-```
-
-Each hook is optional:
+Generated route packages expose optional error hooks:
 
 ```go
 type ErrorHandlers struct {
-	NotFound            http.HandlerFunc
-	MethodNotAllowed    http.HandlerFunc
-	InternalServerError func(http.ResponseWriter, *http.Request, error)
+	NotFound            func(*http.Request) goldr.RouteResponse
+	MethodNotAllowed    func(*http.Request) goldr.RouteResponse
+	InternalServerError func(*http.Request, error) goldr.RouteResponse
 }
 ```
 
-Nil hooks keep goldr defaults:
-
-- unmatched generated routes return `404`
-- matched generated paths with unsupported methods return `405`
-- nil components and templ render failures return `500`
-
-Generated `405` responses set the `Allow` header before calling a custom
-`MethodNotAllowed` hook.
-
-Custom internal-server-error hooks receive `goldr.ErrNilComponent` for nil
-render units or the underlying templ render error.
-
-Action error responses and static asset error responses are application-owned.
+Hooks return normal `goldr.RouteResponse` values. See
+[Error Handling](error-handling.md) for wiring, status policy, layout behavior,
+HTMX fragments, and app-owned error surfaces.
 
 ## Template Inspection
 
@@ -514,7 +769,8 @@ testdata/
 ```
 
 Non-convention Go files such as `helpers.go` and `post_save.go` are ignored by
-the scanner. Only `actions.go` has action-routing meaning.
+the scanner. `route.go` declares route endpoints. `.templ` files, tests,
+generated templ files, and ordinary helper files do not declare routes.
 
 Go test files and templ-generated `*_templ.go` files are ignored by the
 scanner.

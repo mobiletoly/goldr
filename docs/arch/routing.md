@@ -1,6 +1,6 @@
 # Routing Scanner
 
-`internal/routing` owns route filesystem scanning and route manifest assembly.
+`cmd/goldr/internal/routing` owns route filesystem scanning and route manifest assembly.
 
 The scanner and manifest provide route data for framework internals without
 performing rendering, handler registration, or code generation.
@@ -15,8 +15,9 @@ semantics of JavaScript routers.
 Pages are route endpoints. Layouts are route-subtree wrappers.
 
 Generated runtime wiring keeps this model Go-native: route packages expose
-plain `Page` and `Layout` functions returning `templ.Component`, params live on
-the request, and rendering remains server-side HTML.
+route declaration adapters or convention functions, layouts return
+`templ.Component`, params live on the request, and rendering remains
+server-side HTML.
 
 ## Scanner Boundary
 
@@ -26,17 +27,21 @@ The scanner reads a route root and returns a deterministic tree of:
 - layouts
 - fragments
 - actions
+- route declarations
 - middleware
 
 It records matching `.templ` files when present.
 
 It does not:
-- parse Go files other than `actions.go` and `middleware.go`
+- parse arbitrary Go files
 - parse templ files
 - render HTML
 - register HTTP handlers
 - generate code
 - assign fragment URLs
+
+It parses only Goldr convention files that carry route meaning:
+`route.go`, `layout.go`, and `middleware.go`.
 
 ## Route Root
 
@@ -45,6 +50,15 @@ User-facing applications use:
 ```text
 app/routes/
 ```
+
+Reusable mounted route subtrees use:
+
+```text
+app/mounts/
+```
+
+`app/mounts` is not a live route root. It is scanned only when a real
+`app/routes` route declares `goldr.KitRouteMount[K]`.
 
 The internal scanner accepts any root path so callers can pass a concrete
 directory.
@@ -71,11 +85,12 @@ Static source identifiers map to browser path segments by replacing `_` with
 The scanner validates the forms goldr supports:
 - lowercase static route directories
 - `by_<param>/` dynamic route directories
-- `page.go`, with optional `page.templ`
+- `route.go`
 - `layout.go` and `layout.templ`
-- `frag_*.go` and `frag_*.templ`
-- `actions.go`
 - `middleware.go`
+- ordinary helper Go files
+- `.templ` files
+- Go test files and templ-generated Go files, which are ignored
 
 The scanner rejects:
 - underscore-prefixed route directories
@@ -85,7 +100,7 @@ The scanner rejects:
 - route directories with uppercase letters or hyphens
 - dot-prefixed Go route files
 - underscore-prefixed Go route files
-- malformed fragment files such as `frag_.go`
+- `page.go`, `frag_*.go`, and `actions.go` anywhere under the route root
 
 The scanner should enforce goldr's allowed forms directly. It should not grow
 special defensive branches for unsupported conventions from other frameworks.
@@ -104,19 +119,19 @@ The scanner collects validation problems and returns one `ScanError`.
 Examples:
 
 ```text
-page.go
+route.go with Page
 /
 
-users/page.go
+users/route.go with Page
 /users
 
-settings/build_info/page.go
+settings/build_info/route.go with Page
 /settings/build-info
 
-users/by_id/page.go
+users/by_id/route.go with Page
 /users/{id}
 
-orgs/by_org_id/users/by_user_id/page.go
+orgs/by_org_id/users/by_user_id/route.go with Page
 /orgs/{org_id}/users/{user_id}
 ```
 
@@ -127,16 +142,103 @@ Parameter names are preserved in route traversal order.
 The scanner records templ-pair presence:
 
 ```text
-page.go       page.templ optional
+route.go      page.templ optional
 layout.go     layout.templ required
-frag_row.go   frag_row.templ required
 ```
 
 Missing templ pairs do not fail the scanner.
 
-Layout and fragment render-unit pairing is enforced after manifest assembly by
-`internal/renderunit`. Page signature validation is enforced from `page.go`
-even when `page.templ` is absent.
+Layout render-unit pairing is enforced after manifest assembly by
+`cmd/goldr/internal/renderunit`. Generated adapter readiness validates that route
+declaration handler expression roots resolve to imports or route-package
+declarations. The Go compiler type-checks the selected handler values passed to
+`goldr.RouteDef`, `goldr.KitRouteDef`, or `goldr.KitRouteMount`.
+
+Fragment templates are ordinary templ declarations used by handlers selected in
+`route.go`. The fragment URL surface comes from `Route.Fragments`, not from a
+`frag_*.go` file.
+
+## Route Declaration Discovery
+
+`route.go` declares a route directory's endpoint surface with one top-level
+`Route` variable:
+
+```go
+var Route = goldr.RouteDef{
+	Page: goldr.FuncPage(page),
+	Fragments: goldr.FuncFragments{
+		goldr.FuncFragment("table", table),
+		goldr.FuncFragmentIndex(statusOptions),
+	},
+	Actions: goldr.FuncActions{
+		goldr.FuncPost("create", postCreate),
+	},
+}
+```
+
+The declaration parser accepts static `goldr.RouteDef`, `goldr.KitRouteDef[K]`,
+and `goldr.KitRouteMount[K]` composite literals. It parses the declaration and
+imports syntactically; it does not type-check, evaluate code, inspect function
+bodies, register handlers, or render templates.
+
+`route.go` owns pages, fragments, and actions for its directory. Named
+fragments append their declared segment to the route path. Index fragments use
+the route directory path itself and cannot coexist with `Page` because both own
+`GET,HEAD` for the same path. The scanner rejects `page.go`, `frag_*.go`, and
+`actions.go` anywhere under the route root. Layouts, middleware, templates,
+tests, templ-generated files, and ordinary helper files remain separate
+route-package files.
+
+Generated route-package adapters call the route declaration's selected handler
+symbols. Adapter generation reconstructs only the imports used by those handler
+expressions. Dot and blank imports are invalid. If an unaliased import's
+package name differs from the final import path segment, the application must
+use an explicit import alias in `route.go` so the generated adapter can import
+the same selector name.
+
+## Mounted Kit Route Subtrees
+
+`KitRouteMount[K]` lets a live route owner mount a non-live Kit route subtree
+from `app/mounts`:
+
+```go
+var Route = goldr.KitRouteMount[reports.Kit]{
+	New:   newReportKit,
+	Mount: "reports",
+}
+```
+
+The mounted subtree uses `KitRouteDef[K]` without `New`:
+
+```go
+var Route = goldr.KitRouteDef[reports.Kit]{
+	Page: goldr.KitPage(reports.Kit.Page),
+}
+```
+
+Live `KitRouteDef[K]` declarations under `app/routes` require `New`.
+Mounted `KitRouteDef[K]` declarations under `app/mounts` must omit `New`
+because the `KitRouteMount[K]` owner supplies the request-scoped kit
+constructor.
+
+Mount expansion happens after the live route tree scan. The mount path must be
+a clean relative slash path under `app/mounts`, and each component must be a
+lowercase Go-safe route directory name. Underscores are still converted to
+hyphens in final URL segments. The scanner reads the referenced subtree under
+`app/mounts`, rebases routes, params, layouts, fragments, and actions under the
+live owner path, and records both the mounted source and owner source in the
+manifest. The expanded routes are ordinary final runtime routes for dispatch
+and URL helper generation.
+
+Mounted middleware is rejected. Middleware remains owned by the live
+`app/routes` tree. Mounted layouts are allowed and are rebased under the mount
+path; real ancestry layouts wrap mounted layouts, and a real layout at the same
+final prefix is ordered outside the mounted layout.
+
+Mounted route subtrees contain only routes valid for every live owner that
+mounts them. Owner-only children remain under the live `app/routes` owner. If
+shared mounted templates need links to owner-only children, the live owner passes
+those URLs through app-owned kit or page data.
 
 ## Determinism
 
@@ -144,7 +246,7 @@ Scanner output is sorted.
 
 Pages and layouts sort by route.
 
-Fragments sort by route prefix and fragment name.
+Fragments sort by route prefix and fragment segment.
 
 Actions sort by route, method, and function symbol.
 
@@ -154,44 +256,39 @@ No dependency, package-load, or filesystem timestamp ordering should affect scan
 
 ## Action Discovery
 
-`internal/actionscan` owns parsing `actions.go`.
-
-It parses only files named:
-
-```text
-actions.go
-```
-
-The action parser inspects top-level function declarations only. It ignores
-function bodies, does not type-check, and does not use reflection.
-
-Supported action names use method prefixes:
-
-```text
-Post<Name>   -> POST
-Put<Name>    -> PUT
-Patch<Name>  -> PATCH
-Delete<Name> -> DELETE
-```
-
-`Get<Name>` is rejected because generated pages and fragments own `GET` and
-`HEAD`.
-
-Each action function must have this shape:
+Actions are declared in `route.go` with `Route.Actions`.
 
 ```go
-func PostCreate(w http.ResponseWriter, r *http.Request)
+var Route = goldr.RouteDef{
+	Actions: goldr.FuncActions{
+		goldr.FuncPost("create", postCreate),
+		goldr.FuncDelete("archive", deleteArchive),
+	},
+}
 ```
 
-The suffix `Index` maps to the current route path. Other suffixes map to one
-lowercase kebab-case child segment.
+Default action handlers return `goldr.RouteResponse`:
 
-The scanner combines action metadata with the route directory path and params.
-An `actions.go` file with no supported action functions adds no action rows.
+```go
+func postCreate(r *http.Request) goldr.RouteResponse
+```
+
+The declaration parser inspects the static `Route.Actions` entries and records
+the HTTP method, URL segment, handler expression, handler shape, imports
+needed by generated adapters, and route-directory params. It does not inspect
+function bodies, type-check, use reflection, or infer actions from function
+names.
+
+The empty action segment maps to the current route path. Other segments map to
+one lowercase kebab-case child path segment.
+
+Files named `actions.go` are invalid under the route root. Helper files may
+still contain action handler functions as long as the route surface is declared
+from `route.go`.
 
 ## Middleware Discovery
 
-`internal/middlewarescan` owns parsing `middleware.go`.
+`cmd/goldr/internal/middlewarescan` owns parsing `middleware.go`.
 
 It parses only files named:
 
@@ -225,8 +322,8 @@ post_save.go
 actions_helper.go
 ```
 
-Only `actions.go` and `middleware.go` have scanner meaning beyond render-unit
-files.
+Only `route.go`, `layout.go`, and `middleware.go` have scanner meaning beyond
+directory validation.
 
 ## Route Manifest
 
@@ -251,7 +348,7 @@ slice ownership between scanner trees and manifests.
 
 ## Manifest Render Units
 
-Each manifest page, layout, and fragment has one `RenderUnit`:
+Each manifest page, layout, and first-class fragment row has one `RenderUnit`:
 
 ```text
 GoFile
@@ -262,8 +359,9 @@ HasTempl
 The manifest records whether a matching `.templ` file exists. It does not make
 missing `.templ` files an error.
 
-Page signature validation and layout/fragment render-unit pairing are outside
-routing.
+Layout render-unit pairing is outside routing. Page, fragment, and action
+handler contracts selected by route declarations are checked by normal Go
+compilation of generated adapters.
 
 ## Manifest Determinism
 
@@ -273,7 +371,7 @@ Pages sort by route.
 
 Layouts sort by route prefix.
 
-Fragments sort by route prefix and fragment name.
+Fragments sort by route prefix and fragment segment.
 
 Actions sort by route, method, and function symbol.
 
@@ -296,39 +394,35 @@ The manifest does not:
 
 ## Render-Unit Validation
 
-`internal/renderunit` owns render-unit validation.
+`cmd/goldr/internal/renderunit` owns layout render-unit validation.
 
-It consumes a `Manifest` and validates that every page, layout, and fragment
-render unit has the expected Go function signature:
+It consumes a `Manifest` and validates that every layout render unit has the
+expected Go function signature:
 
 ```go
-func Page(*http.Request) goldr.RouteResponse
 func Layout(*http.Request, goldr.LayoutContext) templ.Component
-func FragName(*http.Request) goldr.RouteResponse
 ```
 
-For layouts and fragments, it also validates that the render unit has:
+It also validates that the layout render unit has:
 - `HasTempl` set
 - a non-empty templ file path
 
-Page render units may omit `page.templ`.
-
 Validation does not parse `.templ` files, inspect generated templ Go files,
-require component names, register HTTP handlers, resolve layouts, or assign
-fragment URLs.
+require component names, validate route declaration handler types, register
+HTTP handlers, resolve layouts, or assign fragment URLs.
 
-Missing layout and fragment render-unit pairs are collected into one validation
-error so callers can report all missing `.templ` files together.
+Missing layout render-unit pairs are collected into one validation error so
+callers can report all missing `.templ` files together.
 
 ## templ Rendering
 
 goldr uses templ for v0 render units.
 
-`internal/renderunit` includes a thin internal helper for rendering a
+`cmd/goldr/internal/renderunit` includes a thin internal helper for rendering a
 `templ.Component` to an `io.Writer`.
 
 This helper is not public goldr API. Public runtime routing, layout
-resolution, and fragment rendering are generated by `internal/wiring`.
+resolution, and fragment rendering are generated by `cmd/goldr/internal/wiring`.
 
 ## templ Dependency Boundary
 
@@ -362,7 +456,7 @@ checks and helpers cannot solve the problem.
 
 ## Generated Metadata Wiring
 
-`internal/wiring` owns deterministic generated Go metadata.
+`cmd/goldr/internal/wiring` owns deterministic generated Go metadata.
 
 It consumes a validated `Manifest` and emits source intended for:
 
@@ -376,7 +470,7 @@ import goldr internal packages.
 Generated metadata includes:
 - page routes, params, Go files, and templ files
 - layout route prefixes, params, Go files, and templ files
-- fragment names, route prefixes, params, Go files, and templ files
+- fragment segments, route prefixes, params, Go files, and templ files
 - action methods, routes, params, Go files, functions, suffixes, and URL
   segments
 
@@ -389,22 +483,27 @@ packages.
 
 Generated metadata is emitted beside generated runtime wiring. The metadata
 does not define templ component names. Runtime wiring derives page, layout, and
-fragment function calls from goldr's filesystem conventions and calls action
-functions by their scanned symbols.
+fragment function calls from goldr's filesystem conventions, calls action
+functions by their scanned symbols, and calls generated `GoldrRoute*` adapters
+for route declarations.
 
 Page metadata is not scanner metadata. It is runtime data returned by page
 functions and passed to layout functions by generated dispatch.
 
 ## Generated URL Helper Wiring
 
-`internal/wiring` also owns deterministic generated URL helper source for:
+`cmd/goldr/internal/wiring` also owns deterministic generated URL helper source for:
 
 ```text
 app/urls/goldr_gen.go
+app/mounts/<mount>/goldr_gen.go for referenced Kit mount subtrees
 ```
 
 The helper package is separate from `app/routes` so route packages and
 templ-generated Go can import `app/urls` without creating an import cycle.
+Mounted helper files are generated into the referenced `app/mounts` package so
+shared mounted handlers and templates can accept owner-bound helpers without
+importing `app/urls`.
 
 URL helpers are generated from the same runtime paths used by generated
 dispatch:
@@ -422,7 +521,7 @@ The generated API uses route-node namespaces ending in `.Path()`:
 urls.Root.Path()
 urls.Users.Path()
 urls.Users.Create.Path()
-urls.Users.FragTable.Path()
+urls.Users.Table.Path()
 urls.BySlug(slug).Path()
 urls.Users.ByID(id).Path()
 urls.Users.ByID(id).Profile.Path()
@@ -457,6 +556,15 @@ base path. Mounted helpers only affect generated strings; generated dispatch
 continues to match unmounted paths after the application strips its mount
 prefix.
 
+Referenced Kit mount subtrees also get mount-relative helper files. These files
+expose `NewGoldrMountURLs(route interface{ Path() string })` and a
+`GoldrMountURLs` route set. The mount owner passes the final live route helper,
+usually from `app/urls`, and the mounted package uses helpers such as
+`mountURLs.Path()` and
+`mountURLs.Table.Path()`. `Path()` returns the normalized mount path itself
+instead of forcing a trailing slash. Child and dynamic helpers follow the same
+path-derived naming and escaping rules as `app/urls`.
+
 Generated URL helper source imports only standard library packages. It imports
 `net/url` only when dynamic params exist. It does not import route packages,
 goldr internals, templ, HTMX helpers, or application handlers.
@@ -478,7 +586,7 @@ and URL-helper readiness are separate generated-file contracts.
 
 ## Route Surface Inspection
 
-`internal/wiring` owns the read-only route surface used by `goldr routes list`.
+`cmd/goldr/internal/wiring` owns the read-only route surface used by `goldr routes list`.
 
 The route surface consumes a `Manifest` and returns table rows for:
 
@@ -491,7 +599,7 @@ It reuses the same runtime path helpers as generated dispatch and generated URL
 helpers:
 
 - page paths from the manifest
-- fragment paths using the generated `frag-<name>` browser route rule
+- fragment paths using the generated `<name>` browser route rule
 - action paths from scanned action metadata
 - runtime path deduplication and validation
 - URL helper tree construction and collision checks
@@ -501,19 +609,31 @@ model. It must not grow a second router, route registry, matcher, or annotation
 system.
 
 Route-surface rows include kind, methods, path, params, route-relative source,
-and URL helper expression. Layout rows do not have HTTP methods or URL helpers.
-Page and fragment rows carry `GET` and `HEAD`. Action rows carry the scanned
-HTTP method and include the action function in the source column.
+optional route declaration metadata, and URL helper expression. Layout rows do
+not have HTTP methods, declaration metadata, or URL helpers. Page and fragment
+rows carry `GET` and `HEAD`. Action rows carry the scanned HTTP method and
+include the generated action adapter in the source column.
+
+Route declaration metadata is derived from the already-scanned
+`ManifestRouteDeclaration`. It identifies whether the route came from
+`goldr.RouteDef`, `goldr.KitRouteDef[K]`, or an expanded mounted Kit route,
+shows static name, title, and sorted labels, and records the parsed page,
+fragment, action, kit, mounted source, and mount owner expressions. The route
+surface must not execute app code, infer policy from labels, or make
+declaration names affect URL helper generation.
 
 `goldr routes list` renders that route surface either as the default text table
-or as JSON when `--json` is passed. JSON output is CLI-owned formatting over
-the same internal route-surface rows. It is not a persisted manifest and must
-not be loaded by generated runtime dispatch.
+or as JSON when `--json` is passed. `--mount <path>` filters the same route
+surface to rows expanded from one mounted subtree. JSON output is CLI-owned
+formatting over the same internal route-surface rows. Declaration-backed
+endpoint rows include a structured `declaration` object; layout rows omit it.
+It is not a persisted manifest and must not be loaded by generated runtime
+dispatch.
 
 `goldr routes layouts` renders a text-only layout map over the same manifest
-and runtime route helpers. `internal/wiring` owns the read-only layout-map model:
+and runtime route helpers. `cmd/goldr/internal/wiring` owns the read-only layout-map model:
 route-tree nodes, layouts, pages, fragments, actions, and page layout stacks.
-`internal/goldrcli` owns Unicode tree rendering, automatic terminal styling, and
+`cmd/goldr/internal/goldrcli` owns Unicode tree rendering, automatic terminal styling, and
 cwd-relative source-path formatting. Terminal styles are display-only and must
 not affect plain piped output, route discovery, route ordering, source paths, or
 the layout-map model. The layout map is an inspection view; it must not
@@ -521,7 +641,7 @@ introduce a second router, route registry, matcher, generated runtime contract,
 or JSON schema.
 
 The route surface does not validate render-unit health. Missing layout or
-fragment template pairs remain visible in `goldr routes`; `internal/renderunit`
+fragment template pairs remain visible in `goldr routes`; `cmd/goldr/internal/renderunit`
 and `goldr check` own health validation.
 
 Rows sort root first, then by generated runtime path priority, kind order,
@@ -529,7 +649,7 @@ method order, and source path.
 
 ## Route Explain Inspection
 
-`internal/wiring` owns the read-only route explanation model used by
+`cmd/goldr/internal/wiring` owns the read-only route explanation model used by
 `goldr routes explain`.
 
 Route explanation consumes the same `Manifest` and runtime route helpers used by
@@ -545,12 +665,19 @@ same method ownership as generated dispatch:
 - matched paths with unsupported methods report allowed methods
 - dynamic params are decoded with `url.PathUnescape`
 
-`internal/goldrcli` owns command parsing, full-URL path extraction, human text
+`cmd/goldr/internal/goldrcli` owns command parsing, full-URL path extraction, human text
 rendering, automatic terminal styling, and cwd-relative source paths.
 
 `goldr routes explain` is an inspection view. It does not call a running server,
 write files, validate generated-file freshness, persist a manifest, define JSON
 output, or change generated runtime dispatch.
+
+For declaration-backed matches, route explanation carries the same static
+declaration metadata as route-surface rows plus implementation evidence for
+the matched page, fragment, or action adapter. The CLI renders this as
+`DECLARATION` and `IMPLEMENTATION` sections before the layout stack. These
+sections are display-only and must not become a second route registry or policy
+engine.
 
 ## CLI Generation
 
@@ -572,11 +699,13 @@ It writes:
 <root>/app/routes/**/goldr_gen.go when route packages need generated helpers
 <root>/app/internal/goldrinspect/goldr_gen.go
 <root>/app/urls/goldr_gen.go
+<root>/app/mounts/<mount>/goldr_gen.go for referenced Kit mount subtrees
 ```
 
 Route dispatch output is generated as `package routes`. Package-local route
 helpers use the package name of the route directory they are generated into.
 URL helper output is always generated as `package urls`.
+Mounted URL helper output uses the package name of the referenced mount root.
 
 Nested route packages require a real Go import path. The command derives the
 route-root import path by running `go env GOMOD` with `cwd=<root>`, parsing the
@@ -586,10 +715,10 @@ module-relative `app/routes` path.
 For example, running:
 
 ```bash
-goldr generate --app-root examples/full_feature
+(cd examples/full_feature && go tool goldr generate)
 ```
 
-inside the goldr repository derives:
+inside the full-feature example module derives:
 
 ```text
 github.com/mobiletoly/goldr/examples/full_feature/app/routes
@@ -636,8 +765,8 @@ composition over ordinary `net/http` middleware, not a runtime registry or URL
 prefix matcher.
 
 Layouts are not middleware endpoints. Layout rendering happens inside the
-already wrapped page request or inside an action request when the action calls
-`goldr.WriteRouteResponse`.
+already wrapped page request or inside an action request when the action
+returns a page response.
 
 Generated 404 and 405 responses do not run route-tree middleware. Custom error
 hooks still apply only inside generated route dispatch.
@@ -684,6 +813,10 @@ The generated handler calls each matched route package's page function:
 ```go
 func Page(r *http.Request) goldr.RouteResponse
 ```
+
+For route declarations, generated dispatch calls the route package's generated
+`GoldrRoutePage` adapter instead. The adapter calls the handler selected by
+`route.go`.
 
 The returned `goldr.RouteResponse` is written through root-package route
 writers. Generated page dispatch calls `goldr.WritePageRouteResponse` with a
@@ -765,11 +898,11 @@ A manifest fragment route prefix and name map to a public URL:
 ```text
 RoutePrefix: /users
 Name: table
-URL: /users/frag-table
+URL: /users/table
 
 RoutePrefix: /users/{id}
 Name: row
-URL: /users/{id}/frag-row
+URL: /users/{id}/row
 ```
 
 The generated handler calls each matched route package's fragment function:
@@ -778,15 +911,26 @@ The generated handler calls each matched route package's fragment function:
 func Frag<Name>(r *http.Request) goldr.RouteResponse
 ```
 
-Fragment function names are derived from the fragment name:
+For route declarations, generated dispatch calls a generated
+`GoldrRouteFrag<Name>` adapter instead. The adapter calls the fragment handler
+selected by `route.go`.
+
+Fragment function names are derived from the fragment segment, with `Index`
+reserved for index fragments:
 
 ```text
 table      -> FragTable
 user_row   -> FragUserRow
+index      -> FragIndex
 ```
 
-Fragment browser path segments use the `frag-` prefix plus the fragment source
-name with `_` replaced by `-`.
+Fragment browser path segments use the declared fragment segment directly. For
+legacy manifest fixtures without a declaration segment, the fragment source
+name is used with `_` replaced by `-`.
+
+Index fragments do not append a segment. An index fragment declared in
+`app/routes/users/status_options/route.go` serves `/users/status-options` and
+uses the generated adapter `GoldrRouteFragIndex`.
 
 Dynamic route params are attached to the request before fragment functions run.
 Application code reads them with `r.PathValue`.
@@ -807,34 +951,45 @@ It returns:
 Successful fragment responses use:
 
 ```text
+Cache-Control: no-store
 Content-Type: text/html; charset=utf-8
 ```
 
+The default cache policy is attached to `goldr.NewFragment` responses during
+route-response resolution. An application-owned `Cache-Control` header on the
+fragment response takes precedence.
+
 Generated dispatch rejects ambiguous runtime patterns, including page-fragment
 URL collisions and same-shape dynamic fragment routes such as
-`/users/{id}/frag-row` and `/users/{slug}/frag-row`.
+`/users/{id}/row` and `/users/{slug}/row`.
 
 ## Runtime Action Routing
 
 Generated wiring dispatches action routes through the same
 `Handler() http.Handler` used for pages and fragments.
 
-Actions are plain `net/http` handlers:
+Default actions return `goldr.RouteResponse`:
 
 ```go
-func PostCreate(w http.ResponseWriter, r *http.Request)
+func PostCreate(r *http.Request) goldr.RouteResponse
 ```
 
-The generated handler calls action functions directly. Actions own response
-status, headers, body, redirects, HTMX response headers, and form redisplay.
+The generated handler calls action functions and writes returned route
+responses with `goldr.WriteRouteResponse`. For route declarations, generated
+dispatch calls a generated `GoldrRoute<Method><Name>` adapter, and that adapter
+calls the action handler selected by `route.go`.
 
-When an action needs to render a full page through the matched layout stack, it
-calls `goldr.WriteRouteResponse` with a `goldr.Page` response. Generated
-dispatch attaches a route page renderer to the request before calling matched
-actions. `WriteRouteResponse` uses that renderer for page responses, while
-redirect, text, fragment, and server-error responses are handled by the root
-writer directly. Actions without a matched layout stack still use the same API;
-the renderer returns the page component without adding layouts.
+For page responses, generated dispatch attaches the matched route page renderer
+before calling the action. `WriteRouteResponse` uses that renderer for page
+responses, while redirect, text, fragment, no-content, and server-error
+responses are handled by the root writer directly. Actions without a matched
+layout stack still use the same API; the renderer returns the page component
+without adding layouts.
+
+Low-level writer actions are explicit. Route declarations use
+`FuncPostHandler`, `FuncPutHandler`, `FuncPatchHandler`, `FuncDeleteHandler`,
+or their `...HandlerIndex` forms when an action needs direct
+`http.ResponseWriter` control.
 
 Dynamic route params are attached to the request before action handlers run.
 Application code reads them with `r.PathValue`.
@@ -868,9 +1023,9 @@ Generated route packages expose:
 
 ```go
 type ErrorHandlers struct {
-	NotFound            http.HandlerFunc
-	MethodNotAllowed    http.HandlerFunc
-	InternalServerError func(http.ResponseWriter, *http.Request, error)
+	NotFound            func(*http.Request) goldr.RouteResponse
+	MethodNotAllowed    func(*http.Request) goldr.RouteResponse
+	InternalServerError func(*http.Request, error) goldr.RouteResponse
 }
 
 type HandlerOptions struct {
@@ -881,6 +1036,15 @@ type HandlerOptions struct {
 
 `HandlerWithOptions` accepts this value and applies the hooks only to generated
 route dispatch. Nil fields use the default generated behavior independently.
+
+Generated error hooks return route responses rather than writing to
+`http.ResponseWriter`. Not-found and method-not-allowed page responses render
+through the root layout stack when one exists. Internal-server-error page
+responses render through the matched route layout stack because generated
+dispatch already knows which endpoint failed. Fragment, text, redirect, and
+no-content error responses are written as returned. If writing a custom error
+response fails, generated dispatch writes a plain `500` and does not call the
+custom hooks recursively.
 
 The generated not-found helper handles unmatched generated routes and invalid
 dynamic path unescape failures.
@@ -909,17 +1073,17 @@ routes call the generated `goldrinspect.Wrap` helper. The wrapping helper is
 app-internal generated code, not a public `goldr` package API.
 
 Embedded fragment boundaries are opt-in at the template call site. For every
-first-class fragment render unit outside the root route package, Goldr writes a
+first-class fragment declared outside the root route package, Goldr writes a
 package-local `goldr_gen.go` containing a helper such as:
 
 ```go
 func renderFragTable(component templ.Component) templ.Component
 ```
 
-The helper name is derived from the fragment file identity:
-`frag_table.go` / `frag_table.templ` maps to `renderFragTable`. Root-package
-fragment helpers are emitted into the existing `app/routes/goldr_gen.go`, so
-each route package has at most one Goldr-generated `goldr_gen.go` file.
+The helper name is derived from the fragment segment in `route.go`: a fragment
+segment `table` maps to `renderFragTable`. Root-package fragment helpers are
+emitted into the existing `app/routes/goldr_gen.go`, so each route package has
+at most one Goldr-generated `goldr_gen.go` file.
 
 Templates can use the helper when an embedded fragment should be visible to the
 inspector:
@@ -937,9 +1101,9 @@ the marker comments and fragment root inside one replacement boundary.
 
 Calling `@FragTableView(contacts)` directly remains valid and renders the same
 HTML, but no embedded fragment inspector boundary is emitted. Multiple templ
-declarations in one `frag_*.templ` file are internal details of that fragment
-file; separately inspectable fragments require separate `frag_*.go` /
-`frag_*.templ` render units.
+declarations in one template file are ordinary application implementation
+details; separately inspectable fragments require separate `goldr.FuncFragment`
+declarations in `route.go`.
 
 Generated helper names are reserved by convention. Goldr does not preflight
 collisions; normal Go compilation reports redeclarations in the affected route

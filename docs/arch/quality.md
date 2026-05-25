@@ -37,7 +37,7 @@ Avoid enabling noisy linters just to look strict.
 
 Good linter additions catch likely defects, dependency drift, unsafe HTTP behavior, unchecked errors, hidden complexity, or non-Go-native code.
 
-`errcheck` remains enabled, but ordinary CLI terminal writes in `internal/goldrcli` may ignore `fmt.Fprint*` errors.
+`errcheck` remains enabled, but ordinary CLI terminal writes in `cmd/goldr/internal/goldrcli` may ignore `fmt.Fprint*` errors.
 
 Do not use that exception for file writes, generated output, HTTP responses, subprocess pipes, or framework-controlled side effects.
 

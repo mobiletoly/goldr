@@ -93,6 +93,10 @@
     return (meta.kind || "template") + ": " + (meta.source || meta.go || meta.route || "unknown");
   }
 
+  function sourcePath(meta) {
+    return meta.source || meta.go || meta.route || "unknown";
+  }
+
   function sameAnchor(a, b) {
     return Math.abs(a.left - b.left) < 8 && Math.abs(a.top - b.top) < 8;
   }
@@ -177,23 +181,99 @@
     var color = colors[meta.kind] || "#7c3aed";
     var label = document.createElement("div");
     label.setAttribute("data-goldr-template-label", "1");
-    label.textContent = labelText(meta);
     label.style.cssText = [
       "position:fixed",
       "left:" + (rect.left + inset - 2) + "px",
       "top:" + (rect.top + inset - 2) + "px",
       "max-width:min(520px,calc(100% - 8px),90vw)",
-      "overflow:hidden",
-      "text-overflow:ellipsis",
-      "white-space:nowrap",
+      "display:flex",
+      "align-items:center",
+      "gap:4px",
       "background:" + color,
       "color:white",
       "font:11px/15px system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif",
       "padding:1px 4px",
-      "border-radius:2px"
+      "border-radius:2px",
+      "pointer-events:auto"
     ].join(";");
 
+    var text = document.createElement("span");
+    text.textContent = labelText(meta);
+    text.style.cssText = [
+      "min-width:0",
+      "overflow:hidden",
+      "text-overflow:ellipsis",
+      "white-space:nowrap"
+    ].join(";");
+    label.appendChild(text);
+    appendCopyButton(label, sourcePath(meta));
     root.appendChild(label);
+  }
+
+  function appendCopyButton(label, path) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "\u29c9";
+    button.title = "Copy source path to clipboard";
+    button.setAttribute("aria-label", "Copy source path to clipboard");
+    button.setAttribute("data-goldr-template-copy", "1");
+    button.style.cssText = [
+      "appearance:none",
+      "flex:0 0 auto",
+      "border:0",
+      "border-radius:2px",
+      "background:rgba(255,255,255,.18)",
+      "color:inherit",
+      "font:11px/13px system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif",
+      "padding:0 3px",
+      "cursor:pointer"
+    ].join(";");
+    button.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      copySourcePath(path, button);
+    });
+    label.appendChild(button);
+  }
+
+  function copySourcePath(path, button) {
+    function copied() {
+      button.title = "Copied source path";
+      window.setTimeout(function () {
+        button.title = "Copy source path to clipboard";
+      }, 1200);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(path).then(copied, function () {
+        fallbackCopySourcePath(path);
+        copied();
+      });
+      return;
+    }
+
+    fallbackCopySourcePath(path);
+    copied();
+  }
+
+  function fallbackCopySourcePath(path) {
+    var input = document.createElement("textarea");
+    input.value = path;
+    input.setAttribute("readonly", "readonly");
+    input.style.cssText = [
+      "position:fixed",
+      "left:-9999px",
+      "top:0"
+    ].join(";");
+    document.body.appendChild(input);
+    input.select();
+    try {
+      document.execCommand("copy");
+    } catch (_) {
+      return;
+    } finally {
+      input.remove();
+    }
   }
 
   function buttonStyle(active, disabled) {
@@ -357,7 +437,6 @@
 
     var root = document.createElement("div");
     root.setAttribute(overlayAttribute, "1");
-    root.setAttribute("aria-hidden", "true");
     root.style.cssText = [
       "position:fixed",
       "inset:0",

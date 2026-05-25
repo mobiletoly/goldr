@@ -33,7 +33,7 @@ func TestTemplateInspectionOverlayIncludesScript(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	testHandlerWithOptions(HandlerOptions{TemplateInspection: goldr.TemplateInspectionOverlay}).ServeHTTP(recorder, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users", nil))
 
-	if !strings.Contains(recorder.Body.String(), `<!--goldr:start id=g_pageusers_page_templ`) {
+	if !strings.Contains(recorder.Body.String(), `<!--goldr:start id=g_pageusers_route_go`) {
 		t.Fatalf("body missing inspector marker:\n%s", recorder.Body.String())
 	}
 	if !strings.Contains(recorder.Body.String(), `<script src="/goldr/goldr-template-inspector.js" defer></script>`) {
@@ -123,9 +123,9 @@ func TestHandlerGetPages(t *testing.T) {
 				`hx-post="/users/create"`,
 				`hx-encoding="multipart/form-data"`,
 				`id="users-table-slot"`,
-				`hx-get="/users/frag-table" hx-target="#users-table-slot" hx-swap="innerHTML"`,
-				`hx-get="/users/frag-table?status=active" hx-target="#users-table-slot" hx-swap="innerHTML"`,
-				`hx-get="/users/frag-table?status=inactive" hx-target="#users-table-slot" hx-swap="innerHTML"`,
+				`hx-get="/users/table" hx-target="#users-table-slot" hx-swap="innerHTML"`,
+				`hx-get="/users/table?status=active" hx-target="#users-table-slot" hx-swap="innerHTML"`,
+				`hx-get="/users/table?status=inactive" hx-target="#users-table-slot" hx-swap="innerHTML"`,
 				"Active only",
 				"Inactive only",
 				`href="/users/42"`,
@@ -290,9 +290,8 @@ func TestHandlerProtectedPageResponses(t *testing.T) {
 func TestHandlerProtectedPageErrorResponse(t *testing.T) {
 	handler := testHandlerWithOptions(HandlerOptions{
 		ErrorHandlers: ErrorHandlers{
-			InternalServerError: func(w http.ResponseWriter, r *http.Request, err error) {
-				w.WriteHeader(http.StatusInternalServerError)
-				_, _ = w.Write([]byte(err.Error()))
+			InternalServerError: func(r *http.Request, err error) goldr.RouteResponse {
+				return goldr.Text{Status: http.StatusInternalServerError, Body: err.Error()}
 			},
 		},
 	})
@@ -461,67 +460,73 @@ func TestHandlerProtectedResourceDemoActionRequiresAuth(t *testing.T) {
 	}
 }
 
-func TestHandlerGetFragmentPartial(t *testing.T) {
-	recorder := recordRoute(t, http.MethodGet, "/users/frag-table")
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
-	}
-	body := recorder.Body.String()
-	if !strings.Contains(body, "User Table Fragment") {
-		t.Fatalf("body = %q", body)
-	}
-	if !strings.Contains(body, `href="/users/42"`) {
-		t.Fatalf("body = %q", body)
-	}
-	for _, layoutText := range []string{"goldr app shell", "people section shell"} {
-		if strings.Contains(body, layoutText) {
-			t.Fatalf("body = %q, want no layout text %q", body, layoutText)
-		}
-	}
-}
-
-func TestHandlerGetFragmentPartialFiltersByStatus(t *testing.T) {
+func TestHandlerGetFragmentPartials(t *testing.T) {
 	tests := []struct {
 		name    string
-		query   string
+		path    string
 		want    []string
 		wantNot []string
 	}{
 		{
-			name:    "active",
-			query:   "?status=active",
-			want:    []string{"Ada Lovelace", "Grace Hopper"},
-			wantNot: []string{"Katherine Johnson"},
+			name:    "table",
+			path:    "/users/table",
+			want:    []string{"User Table Fragment", `href="/users/42"`},
+			wantNot: fragmentLayoutText(),
 		},
 		{
-			name:    "inactive",
-			query:   "?status=inactive",
+			name:    "active filter",
+			path:    "/users/table?status=active",
+			want:    []string{"Ada Lovelace", "Grace Hopper"},
+			wantNot: append([]string{"Katherine Johnson"}, fragmentLayoutText()...),
+		},
+		{
+			name:    "inactive filter",
+			path:    "/users/table?status=inactive",
 			want:    []string{"Katherine Johnson"},
-			wantNot: []string{"Ada Lovelace", "Grace Hopper"},
+			wantNot: append([]string{"Ada Lovelace", "Grace Hopper"}, fragmentLayoutText()...),
+		},
+		{
+			name: "status options",
+			path: "/users/status-options?selected=Inactive",
+			want: []string{
+				`<option value="Active">Active</option>`,
+				`<option value="Inactive" selected>Inactive</option>`,
+			},
+			wantNot: fragmentLayoutText(),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			recorder := recordRoute(t, http.MethodGet, "/users/frag-table"+test.query)
-
-			if recorder.Code != http.StatusOK {
-				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
-			}
-			body := recorder.Body.String()
-			for _, want := range test.want {
-				if !strings.Contains(body, want) {
-					t.Fatalf("body = %q, want %q", body, want)
-				}
-			}
-			for _, wantNot := range test.wantNot {
-				if strings.Contains(body, wantNot) {
-					t.Fatalf("body = %q, want no %q", body, wantNot)
-				}
-			}
+			recorder := recordRoute(t, http.MethodGet, test.path)
+			assertFragmentResponse(t, recorder, test.want, test.wantNot)
 		})
 	}
+}
+
+func assertFragmentResponse(t *testing.T, recorder *httptest.ResponseRecorder, want []string, wantNot []string) {
+	t.Helper()
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+	body := recorder.Body.String()
+	for _, text := range want {
+		if !strings.Contains(body, text) {
+			t.Fatalf("body = %q, want %q", body, text)
+		}
+	}
+	for _, text := range wantNot {
+		if strings.Contains(body, text) {
+			t.Fatalf("body = %q, want no %q", body, text)
+		}
+	}
+}
+
+func fragmentLayoutText() []string {
+	return []string{"goldr app shell", "people section shell"}
 }
 
 func TestHandlerHeadRoot(t *testing.T) {
