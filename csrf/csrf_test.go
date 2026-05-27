@@ -4,9 +4,12 @@
 package csrf
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -40,11 +43,17 @@ func TestNewAppliesDefaults(t *testing.T) {
 	}
 }
 
+func TestHeaderNameUsesCanonicalPublicSpelling(t *testing.T) {
+	if HeaderName != "X-CSRF-Token" {
+		t.Fatalf("HeaderName = %q, want X-CSRF-Token", HeaderName)
+	}
+}
+
 func TestTokenMiddlewareIssuesTokenCookieAndStoresToken(t *testing.T) {
 	guard := newTestGuard(t)
 	var requestToken string
 	handler := guard.TokenMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		requestToken = guard.Token(r)
+		requestToken = Token(r)
 	}))
 
 	recorder := httptest.NewRecorder()
@@ -73,7 +82,7 @@ func TestTokenMiddlewareReusesValidCookie(t *testing.T) {
 	token := newToken(t, guard, fixedNow)
 	var requestToken string
 	handler := guard.TokenMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		requestToken = guard.Token(r)
+		requestToken = Token(r)
 	}))
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	request.AddCookie(&http.Cookie{Name: DefaultCookieName, Value: token})
@@ -86,6 +95,16 @@ func TestTokenMiddlewareReusesValidCookie(t *testing.T) {
 	}
 	if len(recorder.Result().Cookies()) != 0 {
 		t.Fatalf("cookies = %#v, want no replacement cookie", recorder.Result().Cookies())
+	}
+}
+
+func TestTokenReturnsEmptyForNilOrMissingRequestToken(t *testing.T) {
+	if token := Token(nil); token != "" {
+		t.Fatalf("Token(nil) = %q, want empty", token)
+	}
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	if token := Token(request); token != "" {
+		t.Fatalf("Token(request) = %q, want empty", token)
 	}
 }
 
@@ -116,6 +135,17 @@ func TestValidateAcceptsHeaderTokenBeforeFormToken(t *testing.T) {
 	token := newToken(t, guard, fixedNow)
 	request := unsafeRequest(token)
 	request.Header.Set(HeaderName, token)
+
+	if err := guard.Validate(request, "bad-form-token"); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidateAcceptsCaseInsensitiveHeaderName(t *testing.T) {
+	guard := newTestGuard(t)
+	token := newToken(t, guard, fixedNow)
+	request := unsafeRequest(token)
+	request.Header.Set("x-csrf-token", token)
 
 	if err := guard.Validate(request, "bad-form-token"); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)
@@ -196,6 +226,33 @@ func TestValidateRejectsInvalidUnsafeRequests(t *testing.T) {
 	}
 }
 
+func TestInputRendersEscapedHiddenField(t *testing.T) {
+	html := renderComponent(t, Input(`tok"en<&`))
+	want := `<input type="hidden" name="csrf_token" value="tok&#34;en&lt;&amp;">`
+	if html != want {
+		t.Fatalf("Input() = %q, want %q", html, want)
+	}
+}
+
+func TestHeadersReturnsHTMXHeaderJSON(t *testing.T) {
+	headers := Headers(`tok"en`)
+	var decoded map[string]string
+	if err := json.Unmarshal([]byte(headers), &decoded); err != nil {
+		t.Fatalf("Headers() JSON error = %v, body = %q", err, headers)
+	}
+	if decoded[HeaderName] != `tok"en` {
+		t.Fatalf("Headers()[%q] = %q, want token", HeaderName, decoded[HeaderName])
+	}
+}
+
+func TestMetaRendersEscapedTokenMeta(t *testing.T) {
+	html := renderComponent(t, Meta(`tok"en<&`))
+	want := `<meta name="csrf-token" content="tok&#34;en&lt;&amp;">`
+	if html != want {
+		t.Fatalf("Meta() = %q, want %q", html, want)
+	}
+}
+
 func TestConfiguredCookieAttributes(t *testing.T) {
 	guard, err := New(Config{
 		Secret:     testSecret(),
@@ -272,6 +329,17 @@ func findCookie(t *testing.T, cookies []*http.Cookie, name string) *http.Cookie 
 	}
 	t.Fatalf("cookie %q not found in %#v", name, cookies)
 	return nil
+}
+
+func renderComponent(t *testing.T, component interface {
+	Render(context.Context, io.Writer) error
+}) string {
+	t.Helper()
+	var buffer bytes.Buffer
+	if err := component.Render(context.Background(), &buffer); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	return buffer.String()
 }
 
 func replaceSignature(token string) string {

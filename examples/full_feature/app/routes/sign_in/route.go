@@ -29,7 +29,6 @@ var Route = goldr.RouteDef{
 }
 
 func Page(r *http.Request) goldr.RouteResponse {
-	appDeps := deps.From(r)
 	next := signInReturnPath(r)
 	notice := ""
 	if next == adminReturnPath {
@@ -41,7 +40,7 @@ func Page(r *http.Request) goldr.RouteResponse {
 	}
 
 	return goldr.NewPage(
-		PageView(appDeps.CSRF.Token(r), security.DemoRole(r), next, notice, errorMessage),
+		PageView(csrf.Token(r), security.DemoRole(r), next, notice, errorMessage),
 		goldr.PageMetadata{
 			Title:       "Sign in - Goldr Example",
 			Description: "Demo sign-in page for page-level redirect and status responses.",

@@ -2,11 +2,12 @@ package routes
 
 import (
 	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/assets"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
 )
 
-templ LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Component) {
+templ LayoutView(metadata goldr.PageMetadata, activeNav string, csrfToken string, child templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -17,10 +18,11 @@ templ LayoutView(metadata goldr.PageMetadata, activeNav string, child templ.Comp
 				<meta name="description" content={ metadata.Description }/>
 			}
 			<link rel="stylesheet" href={ assets.Path("app.css") }/>
+			@csrf.Meta(csrfToken)
 			<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3" integrity="sha384-bq4nTap5u8w4XlVP8JHkDioQVZBI5wUx5PxNwlbCq27H5QJ+q0CSeJcTYU+PLdCp" crossorigin="anonymous" defer></script>
 			<script src={ assets.Path("app.js") } defer></script>
 		</head>
-		<body>
+		<body hx-headers={ csrf.Headers(csrfToken) }>
 			<header class="app-header">
 				<a class="app-title" href={ urls.Root.Path() }>Goldr Example</a>
 				<nav class="app-nav" aria-label="Primary">

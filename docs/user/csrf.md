@@ -38,13 +38,13 @@ Pass the request token to the template:
 ```go
 func Page(r *http.Request) goldr.RouteResponse {
     return goldr.NewPage(
-        PageView(guard.Token(r)),
+        PageView(csrf.Token(r)),
         goldr.PageMetadata{},
     )
 }
 ```
 
-Render the hidden input explicitly:
+Render the hidden input with `csrf.Input`:
 
 ```templ
 package routes
@@ -53,7 +53,7 @@ import "github.com/mobiletoly/goldr/csrf"
 
 templ PageView(csrfToken string) {
     <form method="post">
-        <input type="hidden" name={ csrf.FieldName } value={ csrfToken }/>
+        @csrf.Input(csrfToken)
         <button type="submit">Save</button>
     </form>
 }
@@ -81,15 +81,15 @@ policy application-owned.
 
 ## HTMX Headers
 
-For unsafe HTMX requests that do not submit a form field, send the same token
-in `X-CSRF-Token`:
+For unsafe HTMX requests that do not submit a form field, render inherited
+`hx-headers` from the current request token:
 
-```html
-<button
-  hx-post="/users/save-preview"
-  hx-headers='{"X-CSRF-Token": "..."}'>
-  Save
-</button>
+```templ
+templ LayoutView(csrfToken string, child templ.Component) {
+    <body hx-headers={ csrf.Headers(csrfToken) }>
+        @child
+    </body>
+}
 ```
 
 Then validate with an empty form token:
@@ -101,8 +101,25 @@ if err := guard.Validate(r, ""); err != nil {
 }
 ```
 
-`X-CSRF-Token` takes precedence over a submitted form token when both are
-present.
+`csrf.HeaderName` is `X-CSRF-Token`. HTTP header names are case-insensitive, so
+normal Go request header lookup also accepts equivalent spellings such as
+`x-csrf-token`. `X-CSRF-Token` takes precedence over a submitted form token
+when both are present.
+
+## App JavaScript
+
+Do not create a readable CSRF cookie for app JavaScript. Keep the signed token
+cookie HttpOnly and render the current request token into the page when a
+non-HTMX `fetch` helper needs it:
+
+```templ
+<head>
+    @csrf.Meta(csrfToken)
+</head>
+```
+
+App-owned JavaScript can read `meta[name="csrf-token"]` and send the value in
+`X-CSRF-Token`.
 
 ## Cookie Policy
 

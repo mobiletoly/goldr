@@ -6,6 +6,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/csrf"
 )
 
 const defaultTitle = "goldr full-feature example"
@@ -18,7 +19,7 @@ const (
 )
 
 func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component {
-	return LayoutView(ctx.Metadata, activeNav(r), ctx.Child)
+	return LayoutView(ctx.Metadata, activeNav(r), csrf.Token(r), ctx.Child)
 }
 
 func pageTitle(metadata goldr.PageMetadata) string {

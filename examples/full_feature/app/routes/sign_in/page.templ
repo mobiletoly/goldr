@@ -1,5 +1,7 @@
 package sign_in
 
+import "github.com/mobiletoly/goldr/csrf"
+
 templ PageView(csrfToken string, role string, next string, notice string, errorMessage string) {
 	<section>
 		<h1>Sign in</h1>
@@ -15,7 +17,7 @@ templ PageView(csrfToken string, role string, next string, notice string, errorM
 			<p>Current demo role: { role }</p>
 		}
 		<form method="post" action="/sign-in">
-			<input type="hidden" name="csrf_token" value={ csrfToken }/>
+			@csrf.Input(csrfToken)
 			<input type="hidden" name="next" value={ next }/>
 			<fieldset>
 				<legend>Choose demo credentials</legend>

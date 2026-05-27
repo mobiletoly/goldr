@@ -137,19 +137,18 @@ Avoid names that repeat the parent route context.
 
 ## CSRF Headers
 
-For unsafe HTMX requests that do not submit a form field, send the token from
-Goldr's `csrf` guard with `X-CSRF-Token`:
+For unsafe HTMX requests that do not submit a form field, put Goldr's CSRF
+header JSON on a shared layout element:
 
-```html
-<button
-  hx-post="/users/save-preview"
-  hx-headers='{"X-CSRF-Token": "..."}'>
-  Save
-</button>
+```templ
+<body hx-headers={ csrf.Headers(csrfToken) }>
+    @child
+</body>
 ```
 
 The action validates the header token with `guard.Validate(r, "")`. For normal
-forms, prefer a visible hidden input named `csrf.FieldName`.
+forms, prefer `@csrf.Input(csrfToken)`. Keep the signed CSRF cookie HttpOnly;
+do not add readable CSRF cookies for HTMX convenience.
 
 ## Request Helpers
 

@@ -114,7 +114,7 @@ func Page(r *http.Request) goldr.RouteResponse {
 	appDeps := deps.From(r)
 
 	return goldr.NewPage(
-		PageView(appDeps.CSRF.Token(r), appDeps.BasePath),
+		PageView(csrf.Token(r), appDeps.BasePath),
 		goldr.PageMetadata{Title: "Sign in"},
 	)
 }

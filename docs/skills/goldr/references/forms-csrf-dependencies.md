@@ -174,25 +174,61 @@ func Middleware(next http.Handler) http.Handler {
 }
 ```
 
-Render a hidden field explicitly:
+### Recommended CSRF Shape
 
-```templ
-<input type="hidden" name={ csrf.FieldName } value={ csrfToken }/>
-```
-
-Page handlers usually get the hidden-field token from the request-scoped guard:
+In `app/routes/layout.go`, read the request token that `TokenMiddleware`
+stored:
 
 ```go
-func page(r *http.Request) goldr.RouteResponse {
-	appDeps := deps.From(r)
+func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component {
+	return LayoutView(csrf.Token(r), ctx.Child)
+}
+```
+
+In `app/routes/layout.templ`, expose that token through server-rendered HTML:
+
+```templ
+package routes
+
+import "github.com/mobiletoly/goldr/csrf"
+
+templ LayoutView(csrfToken string, child templ.Component) {
+	<head>
+		@csrf.Meta(csrfToken)
+	</head>
+	<body hx-headers={ csrf.Headers(csrfToken) }>
+		@child
+	</body>
+}
+```
+
+Use `csrf.Input` inside ordinary forms:
+
+```templ
+package users
+
+import "github.com/mobiletoly/goldr/csrf"
+
+templ PageView(csrfToken string) {
+	<form hx-post={ urls.Users.Create.Path() }>
+		@csrf.Input(csrfToken)
+		<button type="submit">Save</button>
+	</form>
+}
+```
+
+Page handlers pass the request token to templates:
+
+```go
+func Page(r *http.Request) goldr.RouteResponse {
 	return goldr.NewPage(
-		PageView(appDeps.CSRF.Token(r)),
+		PageView(csrf.Token(r)),
 		goldr.PageMetadata{Title: "Users"},
 	)
 }
 ```
 
-Validate after parsing:
+Validate form submissions after parsing:
 
 ```go
 appDeps := deps.From(r)
@@ -202,18 +238,25 @@ if err := appDeps.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
 }
 ```
 
-For unsafe HTMX requests that do not submit a form field, send
-`csrf.HeaderName` and validate with an empty form token:
+For unsafe HTMX controls that do not submit a form field, rely on the inherited
+layout `hx-headers` and validate with an empty form token:
 
 ```go
-if err := guard.Validate(r, ""); err != nil {
+appDeps := deps.From(r)
+if err := appDeps.CSRF.Validate(r, ""); err != nil {
 	http.Error(w, "forbidden", http.StatusForbidden)
 	return
 }
 ```
 
-`csrf.HeaderName` takes precedence over the submitted form token when both are
+`csrf.HeaderName` is `X-CSRF-Token`. Header matching is case-insensitive, and
+the header token takes precedence over the submitted form token when both are
 present.
+
+Keep the signed CSRF cookie HttpOnly. Do not read CSRF tokens from cookies in
+browser JavaScript. App-owned JavaScript fetch helpers can read
+`meta[name="csrf-token"]`, rendered by `csrf.Meta(csrfToken)`, and send that
+value in `X-CSRF-Token`.
 
 ## App Dependencies
 

@@ -75,9 +75,11 @@ and `/users/42` pages share the users section shell from `users/layout.templ`;
 
 Generated route dispatch uses app-owned route-tree middleware in
 `app/routes/middleware.go` to issue signed-cookie CSRF tokens. The outer server
-still wraps the handler with app-owned security headers. The users form renders
-a visible hidden CSRF field, and unsafe actions validate the submitted token
-before mutating example state.
+still wraps the handler with app-owned security headers. The root layout renders
+the request token into inherited `hx-headers` with `csrf.Headers`, exposes a
+`csrf.Meta` tag for app-owned JavaScript, and forms render hidden fields with
+`csrf.Input`. Unsafe actions validate the submitted token before mutating
+example state.
 
 The example also includes `app/deps/deps.go`, an app-owned typed dependency
 helper. `main.go` constructs one `*deps.Dependencies` value with the example
@@ -110,9 +112,9 @@ server middleware that sets `X-Content-Type-Options: nosniff`.
 For the broader asset workflow, read `docs/user/assets.md`.
 
 In a browser, the `/users` page receives the signed `goldr_csrf` cookie and
-renders the matching hidden token before HTMX submits unsafe requests. Manual
-POST clients must do the same setup first: load `/users`, preserve the
-`goldr_csrf` cookie, and reuse the rendered CSRF token.
+renders the matching hidden token and layout-level HTMX headers before unsafe
+requests. Manual POST clients must do the same setup first: load `/users`,
+preserve the `goldr_csrf` cookie, and reuse the rendered CSRF token.
 
 Post to `/users/save-preview` with the `goldr_csrf` cookie and matching
 `X-CSRF-Token` header to see `HX-Trigger`, `HX-Retarget`, and `HX-Reswap`

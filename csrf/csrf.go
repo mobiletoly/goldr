@@ -16,18 +16,24 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/a-h/templ"
 )
 
 const (
 	// FieldName is the default form field name for CSRF tokens.
 	FieldName = "csrf_token"
 	// HeaderName is the request header name for non-form CSRF tokens.
-	HeaderName = "X-Csrf-Token"
+	HeaderName = "X-CSRF-Token"
+	// MetaName is the token meta tag name for app-owned JavaScript requests.
+	MetaName = "csrf-token"
 	// DefaultCookieName is the default cookie name for signed CSRF tokens.
 	DefaultCookieName = "goldr_csrf"
 )
@@ -135,12 +141,56 @@ func (g *Guard) TokenMiddleware(next http.Handler) http.Handler {
 }
 
 // Token returns the request token stored by TokenMiddleware.
-func (g *Guard) Token(r *http.Request) string {
+func Token(r *http.Request) string {
 	if r == nil {
 		return ""
 	}
 	token, _ := r.Context().Value(tokenContextKey{}).(string)
 	return token
+}
+
+// Input renders a hidden form field containing token.
+func Input(token string) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		if _, err := io.WriteString(w, "<input"); err != nil {
+			return err
+		}
+		if err := templ.RenderAttributes(ctx, w, templ.OrderedAttributes{
+			{Key: "type", Value: "hidden"},
+			{Key: "name", Value: FieldName},
+			{Key: "value", Value: token},
+		}); err != nil {
+			return err
+		}
+		_, err := io.WriteString(w, ">")
+		return err
+	})
+}
+
+// Headers returns an hx-headers JSON value containing token.
+func Headers(token string) string {
+	value, err := json.Marshal(map[string]string{HeaderName: token})
+	if err != nil {
+		return "{}"
+	}
+	return string(value)
+}
+
+// Meta renders a meta tag containing token for app-owned JavaScript requests.
+func Meta(token string) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		if _, err := io.WriteString(w, "<meta"); err != nil {
+			return err
+		}
+		if err := templ.RenderAttributes(ctx, w, templ.OrderedAttributes{
+			{Key: "name", Value: MetaName},
+			{Key: "content", Value: token},
+		}); err != nil {
+			return err
+		}
+		_, err := io.WriteString(w, ">")
+		return err
+	})
 }
 
 // Validate validates the CSRF token for an unsafe request.

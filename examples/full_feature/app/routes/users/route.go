@@ -34,9 +34,8 @@ var Route = goldr.RouteDef{
 }
 
 func Page(r *http.Request) goldr.RouteResponse {
-	appDeps := deps.From(r)
 	return goldr.NewPage(
-		PageView(bind.Form{}, ListContacts(), appDeps.CSRF.Token(r)),
+		PageView(bind.Form{}, ListContacts(), csrf.Token(r)),
 		goldr.PageMetadata{
 			Title:       "Users - Goldr Example",
 			Description: "Browse and manage example contacts.",
@@ -80,12 +79,12 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 	hx.Retarget(w, "#users-directory")
 	hx.Reswap(w, "outerHTML")
 	if form.HasErrors() {
-		if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, DirectoryView(form, ListContacts(), appDeps.CSRF.Token(r))); err != nil {
+		if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, DirectoryView(form, ListContacts(), csrf.Token(r))); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 		return
 	}
-	if err := goldr.WriteComponent(w, r, http.StatusOK, DirectoryView(form, ListContacts(), appDeps.CSRF.Token(r))); err != nil {
+	if err := goldr.WriteComponent(w, r, http.StatusOK, DirectoryView(form, ListContacts(), csrf.Token(r))); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }

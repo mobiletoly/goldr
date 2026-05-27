@@ -161,6 +161,14 @@ func TestHandlerGetPages(t *testing.T) {
 				t.Fatalf("content-type = %q", recorder.Header().Get("Content-Type"))
 			}
 			body := recorder.Body.String()
+			for _, want := range []string{
+				`<meta name="csrf-token" content="`,
+				`hx-headers="{&#34;` + csrf.HeaderName + `&#34;:`,
+			} {
+				if !strings.Contains(body, want) {
+					t.Fatalf("body = %q, want %q", body, want)
+				}
+			}
 			for _, want := range test.want {
 				if !strings.Contains(body, want) {
 					t.Fatalf("body = %q, want %q", body, want)

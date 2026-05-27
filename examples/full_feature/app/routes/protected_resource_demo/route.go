@@ -19,9 +19,8 @@ var Route = goldr.RouteDef{
 }
 
 func Page(r *http.Request) goldr.RouteResponse {
-	appDeps := deps.From(r)
 	return goldr.NewPage(
-		PageView(appDeps.CSRF.Token(r), security.DemoRole(r)),
+		PageView(csrf.Token(r), security.DemoRole(r)),
 		goldr.PageMetadata{
 			Title:       "Protected Resource Demo - Goldr Example",
 			Description: "Sign in as different demo users before opening a protected page.",

@@ -25,7 +25,7 @@ func CSRFPair(t TB, guard *csrf.Guard) (*http.Cookie, string) {
 
 	recorder := httptest.NewRecorder()
 	handler := guard.TokenMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(guard.Token(r)))
+		_, _ = w.Write([]byte(csrf.Token(r)))
 	}))
 	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil))
 
