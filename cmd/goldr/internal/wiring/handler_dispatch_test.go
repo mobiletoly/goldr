@@ -359,7 +359,6 @@ func TestGenerateManifestDeclarationRoutesDispatch(t *testing.T) {
 		"routeResponse := goldrroute_local.GoldrRoutePostIndex(r)",
 		"routeResponse := goldrroute_kit.GoldrRoutePostExport(r)",
 		"expected in file: app/routes/local/route.go",
-		"expected function: func GoldrRoutePage(*http.Request) goldr.RouteResponse { ... }",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing %q:\n%s", want, source)
@@ -378,13 +377,13 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragment("preview", preview),
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/preview", preview),
 	},
-	Actions: goldr.FuncActions{
-		goldr.FuncPostIndex(postIndex),
-		goldr.FuncPost("save", postSave),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/", postIndex),
+		goldr.Action(http.MethodPost, "/save", postSave),
 	},
 }
 
@@ -441,13 +440,13 @@ func New(r *http.Request) Kit {
 
 var Route = goldr.KitRouteDef[Kit]{
 	New:  New,
-	Page: goldr.KitPage(Kit.Page),
+	Page: Kit.Page,
 	Fragments: goldr.KitFragments[Kit]{
-		goldr.KitFragment("panel", Kit.Panel),
+		goldr.KitFragmentRoute("/panel", Kit.Panel),
 	},
 	Actions: goldr.KitActions[Kit]{
-		goldr.KitPostIndex(Kit.PostIndex),
-		goldr.KitPost("export", Kit.PostExport),
+		goldr.KitAction(http.MethodPost, "/", Kit.PostIndex),
+		goldr.KitAction(http.MethodPost, "/export", Kit.PostExport),
 	},
 }
 
@@ -544,10 +543,9 @@ func TestGenerateManifestIndexFragmentDeclarationRoutesDispatch(t *testing.T) {
 	}
 	source := generateOK(t, manifest)
 	for _, want := range []string{
-		"fragment GET,HEAD /local",
 		"goldrroute_local.GoldrRouteFragIndex(r)",
 		"goldrroute_kit.GoldrRouteFragIndex(r)",
-		"expected function: func GoldrRouteFragIndex(*http.Request) goldr.RouteResponse { ... }",
+		"expected in file: app/routes/local/route.go",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing %q:\n%s", want, source)
@@ -588,11 +586,11 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragmentIndex(options),
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/", options),
 	},
-	Actions: goldr.FuncActions{
-		goldr.FuncPostIndex(postIndex),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/", postIndex),
 	},
 }
 
@@ -636,7 +634,7 @@ func New(r *http.Request) Kit {
 var Route = goldr.KitRouteDef[Kit]{
 	New: New,
 	Fragments: goldr.KitFragments[Kit]{
-		goldr.KitFragmentIndex(Kit.Options),
+		goldr.KitFragmentRoute("/", Kit.Options),
 	},
 }
 

@@ -59,8 +59,7 @@ and returns the same `bind.Form` type as `ParseForm`. `maxMemory` is the
 standard library memory threshold for multipart parsing. It is not a hard
 request-size limit. Use `http.MaxBytesReader` before parsing when the
 application needs a total request-size limit.
-Declare actions that need `http.MaxBytesReader` with `goldr.FuncPostHandler`
-or the matching low-level handler helper.
+Declare actions that need `http.MaxBytesReader` with `goldr.HTTPAction`.
 
 For HTMX multipart submissions, set both ordinary HTML form encoding and HTMX
 request encoding:
@@ -151,7 +150,7 @@ messages := form.FieldErrors("name")
 
 Page, layout, and fragment render functions do not receive
 `http.ResponseWriter`. Use a route action when a route-local mutation needs to
-parse a form, set headers, or redisplay partial HTML.
+parse a form, attach response headers, or redisplay partial HTML.
 
 For HTMX redisplay, combine `bind` with `hx` response headers:
 

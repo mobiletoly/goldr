@@ -184,10 +184,10 @@ inspector boundary around the embedded fragment:
 @FragTableView(contacts)
 ```
 
-The wrapper name follows the fragment segment in `route.go`. For example,
-`goldr.FuncFragment("table", table)` uses `renderFragTable`. An index fragment
-uses `renderFragIndex`. The helper takes the component you already render, so
-the application still chooses the templ function and arguments.
+The wrapper name follows the fragment path in `route.go`. For example,
+`goldr.FragmentRoute("/table", table)` uses `renderFragTable`. An index
+fragment uses `renderFragIndex`. The helper takes the component you already
+render, so the application still chooses the templ function and arguments.
 
 Multiple templ declarations inside one fragment template are internal to that
 fragment render unit. Declare separate fragments in `route.go` when they need

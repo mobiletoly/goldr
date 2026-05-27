@@ -21,7 +21,7 @@
 // actions exposed by that filesystem route directory:
 //
 //	var Route = goldr.RouteDef{
-//	    Page: goldr.FuncPage(Page),
+//	    Page: Page,
 //	}
 //
 // Page functions can live in route.go or ordinary helper files beside their
@@ -55,14 +55,15 @@
 //
 // Nested directories define nested routes. A directory named by_<name>
 // captures a path value that handlers read with r.PathValue("<name>").
-// Fragments are explicit HTMX partials declared in route.go with segments such
-// as goldr.FuncFragment("table", FragTable), which maps to /table under that
-// route directory. goldr.FuncFragmentIndex declares a fragment at the route
-// directory path itself. Fragment functions return RouteResponse values and
-// use NewFragment for normal fragment HTML. Fragment responses default to
+// Fragments are explicit HTMX partials declared in route.go with route-local
+// paths such as goldr.FragmentRoute("/table", FragTable), which maps to /table
+// under that route directory. goldr.FragmentRoute("/", FragIndex) declares a
+// fragment at the route directory path itself. Fragment functions return
+// RouteResponse values and use NewFragment for normal fragment HTML. Fragment
+// responses default to
 // Cache-Control: no-store unless the application sets Cache-Control itself.
 // Actions are mutation endpoints declared in route.go with helpers such as
-// goldr.FuncPost("create", PostCreate) or goldr.FuncPostIndex(PostIndex).
+// goldr.Action(http.MethodPost, "/create", PostCreate) or goldr.Action(http.MethodPost, "/", PostIndex).
 // Ordinary action handlers return RouteResponse values.
 // HTMX attributes should stay visible in templ files.
 //

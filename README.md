@@ -136,7 +136,7 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
+	Page: page,
 }
 
 func page(_ *http.Request) goldr.RouteResponse {
@@ -367,9 +367,9 @@ func PostCreate(r *http.Request) goldr.RouteResponse {
 }
 ```
 
-Use `goldr.FuncPostHandler` and the other `...Handler` action helpers only
-when the action needs direct `http.ResponseWriter` control, such as streaming,
-setting cookies, or installing `http.MaxBytesReader`.
+Use `goldr.HTTPAction` only when the action needs direct
+`http.ResponseWriter` control, such as streaming, installing
+`http.MaxBytesReader`, or calling an API that requires the writer.
 
 For app-owned server-sent event streams, use the small `sse` package for
 event-stream headers, comments, event fields, templ-rendered HTML data, and

@@ -27,8 +27,8 @@ Fragments are declared in `route.go`. Fragment templates can stay in
 `frag_<name>.templ` when handlers use them.
 
 ```text
-goldr.FuncFragment("table", table) in app/routes/users/route.go -> /users/table
-goldr.FuncFragmentIndex(statusOptions) in app/routes/users/status_options/route.go -> /users/status-options
+goldr.FragmentRoute("/table", table) in app/routes/users/route.go -> /users/table
+goldr.FragmentRoute("/", statusOptions) in app/routes/users/status_options/route.go -> /users/status-options
 ```
 
 A fragment route provides:
@@ -51,16 +51,16 @@ Prefer a named fragment on the page route for simple child endpoints:
 
 ```go
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragment("filters", filterui.Fragment),
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/filters", filterui.Fragment),
 	},
 }
 ```
 
 This keeps `/users/filters` owned by `app/routes/users/route.go` while letting
 `filterui` provide reusable implementation code. Do not add a child
-`filters/route.go` with `FuncFragmentIndex` only to create the `/filters`
+`filters/route.go` with an index fragment only to create the `/filters`
 segment. Use a child index fragment when that child directory has independent
 route ownership, such as its own middleware, params, actions, page, or
 route-local behavior.
@@ -84,8 +84,8 @@ route directly in `prepare/` instead of adding a route-local UI package.
 Kit-backed fragments use the same browser path shape:
 
 ```text
-goldr.KitFragment("table", reports.Kit.Table) -> /reports/table
-goldr.KitFragment("summary", reports.Kit.Summary) -> /reports/summary
+goldr.KitFragmentRoute("/table", reports.Kit.Table) -> /reports/table
+goldr.KitFragmentRoute("/summary", reports.Kit.Summary) -> /reports/summary
 ```
 
 The shared kit method receives the request-scoped kit value and the request:
@@ -162,8 +162,8 @@ Function names are ordinary Go names. `route.go` declares the route surface:
 
 ```go
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
-		goldr.FuncPost("create", postCreate),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create", postCreate),
 	},
 }
 ```
@@ -217,7 +217,7 @@ kit value as the first argument:
 
 ```go
 Actions: goldr.KitActions[reports.Kit]{
-	goldr.KitPost("refresh", reports.Kit.PostRefresh),
+	goldr.KitAction(http.MethodPost, "/refresh", reports.Kit.PostRefresh),
 }
 
 func (kit Kit) PostRefresh(r *http.Request) goldr.RouteResponse {
@@ -225,9 +225,9 @@ func (kit Kit) PostRefresh(r *http.Request) goldr.RouteResponse {
 }
 ```
 
-Use `FuncPostHandler`, `KitPostHandler`, and the other `...Handler` helpers
-only when direct `http.ResponseWriter` control is required, such as streaming,
-setting cookies, or installing `http.MaxBytesReader`.
+Use `HTTPAction` or `KitHTTPAction` only when direct `http.ResponseWriter`
+control is required, such as streaming, installing `http.MaxBytesReader`, or
+calling an API that requires the writer.
 
 ## HTMX Header Helpers
 

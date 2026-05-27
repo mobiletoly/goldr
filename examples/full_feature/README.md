@@ -73,13 +73,13 @@ document title, description, canonical path, and active navigation. The `/users`
 and `/users/42` pages share the users section shell from `users/layout.templ`;
 `/users/table` renders only the fragment partial.
 
-Generated route dispatch uses app-owned route-tree middleware in
-`app/routes/middleware.go` to issue signed-cookie CSRF tokens. The outer server
-still wraps the handler with app-owned security headers. The root layout renders
-the request token into inherited `hx-headers` with `csrf.Headers`, exposes a
-`csrf.Meta` tag for app-owned JavaScript, and forms render hidden fields with
-`csrf.Input`. Unsafe actions validate the submitted token before mutating
-example state.
+Generated route dispatch uses app-owned route-tree endpoint middleware in
+`app/routes/middleware.go` to issue signed-cookie CSRF tokens for matched
+endpoints. The outer server still wraps the handler with app-owned security
+headers. The root layout renders the request token into inherited `hx-headers`
+with `csrf.Headers`, exposes a `csrf.Meta` tag for app-owned JavaScript, and
+forms render hidden fields with `csrf.Input`. Unsafe actions validate the
+submitted token before mutating example state.
 
 The example also includes `app/deps/deps.go`, an app-owned typed dependency
 helper. `main.go` constructs one `*deps.Dependencies` value with the example

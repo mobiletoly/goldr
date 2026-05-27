@@ -29,12 +29,12 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragment("table", table),
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/table", table),
 	},
-	Actions: goldr.FuncActions{
-		goldr.FuncPost("create", postCreate),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create", postCreate),
 	},
 }
 
@@ -53,8 +53,8 @@ func postCreate(r *http.Request) goldr.RouteResponse {
 
 The `Route` value must be a static `goldr.RouteDef`, `goldr.KitRouteDef[K]`,
 or `goldr.KitRouteMount[K]` composite literal. Goldr parses the declaration
-without evaluating Go code, so `Page`, `Fragments`, and `Actions` use the
-Goldr helper calls shown above.
+without evaluating Go code, so `Page`, `Fragments`, and `Actions` use named
+handlers and the Goldr helper calls shown above.
 
 Route declarations are tooling input, not executable configuration. Keep route
 declaration expressions named and inspectable. In particular, Kit constructors
@@ -112,9 +112,9 @@ request-scoped constructor:
 var Route = goldr.KitRouteDef[reports.Kit]{
 	Title: "Admin Reports",
 	New:   newReportKit,
-	Page:  goldr.KitPage(reports.Kit.Page),
+	Page:  reports.Kit.Page,
 	Fragments: goldr.KitFragments[reports.Kit]{
-		goldr.KitFragment("table", reports.Kit.Table),
+		goldr.KitFragmentRoute("/table", reports.Kit.Table),
 	},
 }
 
@@ -170,9 +170,9 @@ through kit or page data.
 
 ```go
 var Route = goldr.KitRouteDef[reports.Kit]{
-	Page: goldr.KitPage(reports.Kit.Page),
+	Page: reports.Kit.Page,
 	Fragments: goldr.KitFragments[reports.Kit]{
-		goldr.KitFragment("table", reports.Kit.Table),
+		goldr.KitFragmentRoute("/table", reports.Kit.Table),
 	},
 }
 ```
@@ -275,7 +275,7 @@ In `route.go`, the `Page` field defines the page route for its directory:
 
 ```go
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
+	Page: page,
 }
 
 func page(r *http.Request) goldr.RouteResponse {
@@ -437,20 +437,20 @@ to `<segment>` browser routes:
 
 ```go
 var Route = goldr.RouteDef{
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragment("table", table),
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/table", table),
 	},
 }
 ```
 
 ```text
-goldr.FuncFragment("table", table) in app/routes/users/route.go -> /users/table
+goldr.FragmentRoute("/table", table) in app/routes/users/route.go -> /users/table
 ```
 
 Fragments use route params from their directory prefix:
 
 ```text
-goldr.FuncFragment("row", row) in app/routes/users/by_id/route.go -> /users/{id}/row
+goldr.FragmentRoute("/row", row) in app/routes/users/by_id/route.go -> /users/{id}/row
 ```
 
 Fragments render for `GET` and `HEAD`. They are not layout-wrapped.
@@ -462,14 +462,14 @@ Use an index fragment when an HTMX partial owns the route directory path itself:
 
 ```go
 var Route = goldr.RouteDef{
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragmentIndex(statusOptions),
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/", statusOptions),
 	},
 }
 ```
 
 ```text
-goldr.FuncFragmentIndex(statusOptions) in app/routes/users/status_options/route.go -> /users/status-options
+goldr.FragmentRoute("/", statusOptions) in app/routes/users/status_options/route.go -> /users/status-options
 ```
 
 Index fragments are still fragments. They are not layout-wrapped, they must not
@@ -477,9 +477,9 @@ be declared beside `Page` in the same route directory, and they may share the
 path with index actions when the HTTP methods differ:
 
 ```text
-GET  /users/status-options -> FuncFragmentIndex
-HEAD /users/status-options -> FuncFragmentIndex
-POST /users/status-options -> FuncPostIndex
+GET  /users/status-options -> goldr.FragmentRoute("/", statusOptions)
+HEAD /users/status-options -> goldr.FragmentRoute("/", statusOptions)
+POST /users/status-options -> goldr.Action(http.MethodPost, "/", postIndex)
 ```
 
 Kit routes use the same shape. When a Kit page already owns the parent path,
@@ -489,7 +489,7 @@ put the index fragment in a child route directory:
 var Route = goldr.KitRouteDef[reports.Kit]{
 	New: newReportKit,
 	Fragments: goldr.KitFragments[reports.Kit]{
-		goldr.KitFragmentIndex(reports.Kit.StatusOptions),
+		goldr.KitFragmentRoute("/", reports.Kit.StatusOptions),
 	},
 }
 ```
@@ -514,9 +514,9 @@ declarations name the HTTP method and route segment:
 
 ```go
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
-		goldr.FuncPost("create", postCreate),
-		goldr.FuncPostIndex(postIndex),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create", postCreate),
+		goldr.Action(http.MethodPost, "/", postIndex),
 	},
 }
 ```
@@ -524,20 +524,21 @@ var Route = goldr.RouteDef{
 `Get<Name>` is not an action route. Pages and fragments own generated `GET`
 and `HEAD` behavior.
 
-`goldr.FuncPostIndex`, `goldr.FuncPutIndex`, `goldr.FuncPatchIndex`, and
-`goldr.FuncDeleteIndex` map to the current route directory path:
+Use `"/"` to map an action to the current route directory path:
 
 ```text
-goldr.FuncPostIndex(postIndex) in app/routes/users/route.go -> POST /users
+goldr.Action(http.MethodPost, "/", postIndex) in app/routes/users/route.go -> POST /users
 ```
 
-The action helper segment maps to one lowercase kebab-case child segment.
-Underscores in the segment are normalized to hyphens in browser paths:
+The action path maps to `"/"` or one route-local child segment. Child segments
+must use lowercase ASCII letters, digits, underscores, or hyphens, and must
+start with a lowercase ASCII letter. Underscores are normalized to hyphens in
+browser paths:
 
 ```text
-goldr.FuncPost("create", postCreate) in app/routes/users/route.go -> POST /users/create
-goldr.FuncPost("save-preview", postSavePreview) in app/routes/users/route.go -> POST /users/save-preview
-goldr.FuncPatch("profile", patchProfile) in app/routes/users/by_id/route.go -> PATCH /users/{id}/profile
+goldr.Action(http.MethodPost, "/create", postCreate) in app/routes/users/route.go -> POST /users/create
+goldr.Action(http.MethodPost, "/save-preview", postSavePreview) in app/routes/users/route.go -> POST /users/save-preview
+goldr.Action(http.MethodPatch, "/profile", patchProfile) in app/routes/users/by_id/route.go -> PATCH /users/{id}/profile
 ```
 
 Action handlers may return pages, fragments, redirects, text, server errors,
@@ -564,11 +565,10 @@ return goldr.NewPage(CreatedView(key), goldr.PageMetadata{Title: "Created"}).
 Use `goldr.NoContent{}` for header-only action responses. It defaults to
 `204 No Content` and also accepts `205 Reset Content` and `304 Not Modified`.
 
-Use `goldr.FuncPostHandler`, `goldr.FuncPutHandler`,
-`goldr.FuncPatchHandler`, or `goldr.FuncDeleteHandler` when an action needs
-direct `http.ResponseWriter` control, such as streaming, setting cookies, or
-installing `http.MaxBytesReader`. The matching `...HandlerIndex` helpers map
-to the route directory path.
+Use `goldr.HTTPAction` when an action needs direct `http.ResponseWriter`
+control, such as streaming, installing `http.MaxBytesReader`, or calling an
+API that requires the writer. Use `"/"` to map the raw HTTP action to the
+route directory path.
 
 ## URL Helpers
 
@@ -670,8 +670,9 @@ and sets `Allow` to the supported methods for that path.
 
 ## Route-Tree Middleware
 
-`middleware.go` defines ordinary `net/http` middleware for its route directory
-and child route directories.
+`middleware.go` defines ordinary `net/http` endpoint middleware for matched
+pages, actions, and fragments in its route directory and child route
+directories.
 
 ```text
 app/routes/middleware.go                  -> / and below
@@ -685,8 +686,10 @@ Each middleware file must provide:
 func Middleware(next http.Handler) http.Handler
 ```
 
+Use the exact `http.Handler` spelling with an unaliased `net/http` import.
+
 Goldr discovers middleware by route directory and composes it into generated
-dispatch. Runtime execution is root-to-leaf:
+endpoint dispatch. Runtime execution is root-to-leaf:
 
 ```text
 app/routes/Middleware
@@ -695,7 +698,7 @@ app/routes/main/admin/Middleware
 endpoint
 ```
 
-Middleware wraps matched route endpoints:
+Route-tree middleware wraps matched route endpoints:
 
 - pages
 - actions
@@ -711,7 +714,9 @@ matching. A middleware in `app/routes/users/create/middleware.go` does not wrap
 to `/users/create`.
 
 Goldr does not own CSRF, auth, roles, rate limits, sessions, or adapter policy.
-Middleware remains application code. Common patterns are:
+Middleware remains application code. Use mux-level middleware for concerns that
+must also run on generated 404 and 405 responses. Common route-tree patterns
+are:
 
 - `app/routes/middleware.go` issuing CSRF tokens for a cookie/session HTML app
 - `app/routes/main/admin/middleware.go` authenticating, checking an admin role,

@@ -89,19 +89,10 @@ func TestGenerateManifestWritesCallSiteComments(t *testing.T) {
 	}))
 
 	for _, want := range []string{
-		`// page GET,HEAD /users
-// expected in file: app/routes/users/page.go
-// expected function: func Page(*http.Request) goldr.RouteResponse { ... }`,
-		`// layout /users
-// expected in file: app/routes/users/layout.go
-// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
-component = goldrroute_users.Layout(r, layoutContext)`,
-		`// fragment GET,HEAD /users/table
-// expected in file: app/routes/users/frag_table.go
-// expected function: func FragTable(*http.Request) goldr.RouteResponse { ... }`,
-		`// action POST /users/save-preview
-// expected in file: app/routes/users/actions.go
-// expected function: func PostSavePreview(*http.Request) goldr.RouteResponse { ... }`,
+		`// expected in file: app/routes/users/page.go`,
+		`// expected in file: app/routes/users/layout.go`,
+		`// expected in file: app/routes/users/frag_table.go`,
+		`// expected in file: app/routes/users/actions.go`,
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing call-site comment block:\n--- want ---\n%s\n--- source ---\n%s", want, source)

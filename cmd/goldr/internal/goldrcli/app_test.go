@@ -146,9 +146,9 @@ import (
 type Kit struct{}
 
 var Route = goldr.KitRouteDef[Kit]{
-	Page: goldr.KitPage(Kit.Page),
+	Page: Kit.Page,
 	Fragments: goldr.KitFragments[Kit]{
-		goldr.KitFragment("table", Kit.Table),
+		goldr.KitFragmentRoute("/table", Kit.Table),
 	},
 }
 
@@ -217,17 +217,17 @@ var Route = goldr.RouteDef{
 		builder.WriteString("\",\n")
 	}
 	if options.Page {
-		builder.WriteString("\tPage: goldr.FuncPage(")
+		builder.WriteString("\tPage: ")
 		builder.WriteString(pageFunc)
-		builder.WriteString("),\n")
+		builder.WriteString(",\n")
 	}
 	if len(options.Fragments) > 0 || options.IndexFragment {
-		builder.WriteString("\tFragments: goldr.FuncFragments{\n")
+		builder.WriteString("\tFragments: goldr.Fragments{\n")
 		if options.IndexFragment {
-			builder.WriteString("\t\tgoldr.FuncFragmentIndex(fragIndex),\n")
+			builder.WriteString("\t\tgoldr.FragmentRoute(\"/\", fragIndex),\n")
 		}
 		for _, fragment := range options.Fragments {
-			builder.WriteString("\t\tgoldr.FuncFragment(\"")
+			builder.WriteString("\t\tgoldr.FragmentRoute(\"/")
 			builder.WriteString(fragment)
 			builder.WriteString("\", frag")
 			builder.WriteString(exportName(fragment))
@@ -236,17 +236,18 @@ var Route = goldr.RouteDef{
 		builder.WriteString("\t},\n")
 	}
 	if len(options.Actions) > 0 {
-		builder.WriteString("\tActions: goldr.FuncActions{\n")
+		builder.WriteString("\tActions: goldr.Actions{\n")
 		for _, action := range options.Actions {
 			builder.WriteString("\t\tgoldr.")
 			builder.WriteString(action.Helper)
+			builder.WriteString("(http.MethodPost, \"")
 			if action.Name == "" {
-				builder.WriteString("(")
+				builder.WriteString("/")
 			} else {
-				builder.WriteString("(\"")
+				builder.WriteString("/")
 				builder.WriteString(action.Name)
-				builder.WriteString("\", ")
 			}
+			builder.WriteString("\", ")
 			builder.WriteString(action.Func)
 			builder.WriteString("),\n")
 		}

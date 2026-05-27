@@ -193,7 +193,7 @@ func TestRunCheckReportsURLHelperGenerationErrors(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "go.mod", "module example.com/badurls\n\ngo 1.26.3\n")
 	writeFile(t, root, "app/routes/users/route.go", routeDeclarationSource("users", "page", routeDeclarationOptions{
-		Actions: []routeDeclarationAction{{Helper: "FuncPost", Name: "path", Func: "postPath"}},
+		Actions: []routeDeclarationAction{{Helper: "Action", Name: "path", Func: "postPath"}},
 	}))
 
 	requireCheckFailureContains(t, root, "goldr check:", checkCodeURLGenerate, "ambiguous URL helper", "Path method")

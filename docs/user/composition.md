@@ -82,7 +82,8 @@ Read [CSRF](csrf.md) for form and HTMX validation patterns.
 
 ## Route-Tree Middleware
 
-When middleware belongs to a route subtree, colocate it in `app/routes`:
+When endpoint middleware belongs to a route subtree, colocate it in
+`app/routes`:
 
 ```go
 package routes
@@ -98,14 +99,15 @@ func Middleware(next http.Handler) http.Handler {
 ```
 
 Goldr discovers `middleware.go` by route directory and wraps matched pages,
-actions, and fragments in generated dispatch. Inherited middleware runs
-root-to-leaf. Layouts are rendered inside the already wrapped request and do
-not receive separate middleware execution.
+actions, and fragments in generated endpoint dispatch. Inherited middleware
+runs root-to-leaf. Layouts are rendered inside the already wrapped request and
+do not receive separate middleware execution.
 
-Use route-tree middleware for route-owned concerns such as root CSRF token
-issuance or admin-subtree principal context. Goldr still does not provide
-CSRF validation policy, auth, roles, rate limits, or session policy through
-this convention.
+Use route-tree middleware for matched endpoint concerns such as root CSRF token
+issuance or admin-subtree principal context. Use mux-level middleware for
+concerns that must also run on generated 404 and 405 responses. Goldr still
+does not provide CSRF validation policy, auth, roles, rate limits, or session
+policy through this convention.
 
 Middleware must live in the live `app/routes` tree. Mounted reusable route
 subtrees under `app/mounts` cannot declare middleware; policy belongs to the

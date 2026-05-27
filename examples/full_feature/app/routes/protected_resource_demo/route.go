@@ -11,10 +11,10 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(Page),
-	Actions: goldr.FuncActions{
-		goldr.FuncPostHandler("sign-out", PostSignOut),
-		goldr.FuncPost("reveal-secret", PostRevealSecret),
+	Page: Page,
+	Actions: goldr.Actions{
+		goldr.HTTPAction(http.MethodPost, "/sign-out", PostSignOut),
+		goldr.Action(http.MethodPost, "/reveal-secret", PostRevealSecret),
 	},
 }
 

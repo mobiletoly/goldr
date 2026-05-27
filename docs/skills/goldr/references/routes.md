@@ -43,7 +43,7 @@ Go-special directories such as `internal`, `testdata`, and `vendor`.
 
 ```go
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
+	Page: page,
 }
 
 func page(r *http.Request) goldr.RouteResponse {
@@ -111,9 +111,9 @@ import sharedreports "myapp/app/reports"
 var Route = goldr.KitRouteDef[sharedreports.Kit]{
 	Title: "Admin Reports",
 	New:   newReportKit,
-	Page:  goldr.KitPage(sharedreports.Kit.Page),
+	Page:  sharedreports.Kit.Page,
 	Fragments: goldr.KitFragments[sharedreports.Kit]{
-		goldr.KitFragment("table", sharedreports.Kit.Table),
+		goldr.KitFragmentRoute("/table", sharedreports.Kit.Table),
 	},
 }
 
@@ -272,14 +272,14 @@ Use an index fragment for a body-only HTMX endpoint at the route directory path:
 
 ```go
 var Route = goldr.RouteDef{
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragmentIndex(statusOptions),
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/", statusOptions),
 	},
 }
 ```
 
 ```text
-goldr.FuncFragmentIndex(statusOptions) -> GET,HEAD /users/status-options
+goldr.FragmentRoute("/", statusOptions) -> GET,HEAD /users/status-options
 ```
 
 Index fragments are fragments, not pages. They are not layout-wrapped, cannot be
@@ -293,9 +293,9 @@ Actions are declared in `route.go`. Ordinary action handlers return
 
 ```go
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
-		goldr.FuncPost("create", postCreate),
-		goldr.FuncPostIndex(postIndex),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create", postCreate),
+		goldr.Action(http.MethodPost, "/", postIndex),
 	},
 }
 ```
@@ -304,28 +304,30 @@ Supported method prefixes are `Post`, `Put`, `Patch`, and `Delete`. `Index`
 maps to the current directory path:
 
 ```text
-goldr.FuncPostIndex(postIndex) -> POST /users
-goldr.FuncPost("create", postCreate) -> POST /users/create
-goldr.FuncPost("save-preview", postSavePreview) -> POST /users/save-preview
+goldr.Action(http.MethodPost, "/", postIndex) -> POST /users
+goldr.Action(http.MethodPost, "/create", postCreate) -> POST /users/create
+goldr.Action(http.MethodPost, "/save-preview", postSavePreview) -> POST /users/save-preview
 ```
 
 Actions may return pages, fragments, redirects, text, server errors, or
-`goldr.NoContent{}`. Use the explicit `...Handler` action helpers only when an
-action needs direct `http.ResponseWriter` control.
+`goldr.NoContent{}`. Use `goldr.HTTPAction` only when an action needs direct
+`http.ResponseWriter` control.
 
 ## Route-Tree Middleware
 
-Use `middleware.go` when ordinary `net/http` middleware belongs to a route
-subtree.
+Use `middleware.go` when ordinary `net/http` endpoint middleware belongs to a
+route subtree.
 
 ```go
 func Middleware(next http.Handler) http.Handler
 ```
 
+Use the exact `http.Handler` spelling with an unaliased `net/http` import.
+
 Goldr discovers middleware by route directory and wraps matched pages, actions,
-and fragments in generated dispatch. Inherited middleware runs root-to-leaf.
-Layouts are not standalone middleware targets; they render inside the already
-wrapped page or action request.
+and fragments in generated endpoint dispatch. Inherited middleware runs
+root-to-leaf. Layouts are not standalone middleware targets; they render inside
+the already wrapped page or action request.
 
 Middleware inheritance follows source directory ancestry, not runtime URL
 prefix matching. For example, `app/routes/users/create/middleware.go` does not
@@ -341,6 +343,8 @@ Examples:
 
 Goldr does not own CSRF validation policy, auth, roles, rate limits, sessions,
 or adapters through this convention. Keep those rules in app-owned middleware.
+Use mux-level middleware for concerns that must also run on generated 404 and
+405 responses.
 Generated 404 and 405 responses do not run route-tree middleware.
 
 ## URL Helpers

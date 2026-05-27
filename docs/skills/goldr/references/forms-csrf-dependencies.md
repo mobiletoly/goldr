@@ -12,8 +12,8 @@ Function names are ordinary Go names. `route.go` declares the route surface:
 
 ```go
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
-		goldr.FuncPost("create", postCreate),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create", postCreate),
 	},
 }
 ```
@@ -53,8 +53,8 @@ form, err := bind.ParseMultipartForm(r, 1<<20)
 ```
 
 `maxMemory` is the standard library memory threshold, not a hard request size
-limit. Use `http.MaxBytesReader` from an explicit `...Handler` action when the
-app needs a hard limit.
+limit. Use `http.MaxBytesReader` from an explicit `HTTPAction` when the app
+needs a hard limit.
 
 HTMX multipart forms need both normal HTML encoding and HTMX encoding:
 
@@ -159,8 +159,8 @@ mux.Handle("/", guard.TokenMiddleware(routes.Handler()))
 ```
 
 For apps that store dependencies on the request first, wrap generated routes
-with the app dependency middleware and use route-tree middleware to issue CSRF
-tokens:
+with the app dependency middleware and use route-tree endpoint middleware to
+issue CSRF tokens for matched pages, actions, and fragments:
 
 ```go
 mux.Handle("/", deps.Middleware(appDeps, routes.Handler()))
@@ -173,6 +173,9 @@ func Middleware(next http.Handler) http.Handler {
 	})
 }
 ```
+
+If token issuance must also run on generated 404 and 405 responses, issue the
+token from mux-level middleware instead.
 
 ### Recommended CSRF Shape
 

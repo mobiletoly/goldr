@@ -111,8 +111,8 @@ page directory back to the root, so the root layout is outermost.
 Fragments are standalone partials for HTMX swaps.
 
 ```text
-goldr.FuncFragment("table", table) in app/routes/users/route.go -> /users/table
-goldr.FuncFragmentIndex(statusOptions) in app/routes/users/status_options/route.go -> /users/status-options
+goldr.FragmentRoute("/table", table) in app/routes/users/route.go -> /users/table
+goldr.FragmentRoute("/", statusOptions) in app/routes/users/status_options/route.go -> /users/status-options
 ```
 
 Fragment functions return `goldr.RouteResponse`:
@@ -135,8 +135,8 @@ declared in `route.go`:
 
 ```go
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
-		goldr.FuncPost("create", postCreate),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create", postCreate),
 	},
 }
 

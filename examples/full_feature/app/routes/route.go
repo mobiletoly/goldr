@@ -7,7 +7,7 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(Page),
+	Page: Page,
 }
 
 func Page(_ *http.Request) goldr.RouteResponse {

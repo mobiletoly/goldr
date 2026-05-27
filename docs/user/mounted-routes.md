@@ -78,9 +78,9 @@ import (
 
 var Route = goldr.KitRouteDef[Kit]{
 	Title: "Reports",
-	Page:  goldr.KitPage(Kit.Page),
+	Page:  Kit.Page,
 	Fragments: goldr.KitFragments[Kit]{
-		goldr.KitFragment("table", Kit.Table),
+		goldr.KitFragmentRoute("/table", Kit.Table),
 	},
 }
 ```

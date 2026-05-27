@@ -22,9 +22,9 @@ const (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(Page),
-	Actions: goldr.FuncActions{
-		goldr.FuncPostHandlerIndex(PostIndex),
+	Page: Page,
+	Actions: goldr.Actions{
+		goldr.HTTPAction(http.MethodPost, "/", PostIndex),
 	},
 }
 

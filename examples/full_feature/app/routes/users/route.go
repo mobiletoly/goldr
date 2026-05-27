@@ -23,13 +23,13 @@ const (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(Page),
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragment("table", FragTable),
+	Page: Page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/table", FragTable),
 	},
-	Actions: goldr.FuncActions{
-		goldr.FuncPostHandler("create", PostCreate),
-		goldr.FuncPost("save-preview", PostSavePreview),
+	Actions: goldr.Actions{
+		goldr.HTTPAction(http.MethodPost, "/create", PostCreate),
+		goldr.Action(http.MethodPost, "/save-preview", PostSavePreview),
 	},
 }
 

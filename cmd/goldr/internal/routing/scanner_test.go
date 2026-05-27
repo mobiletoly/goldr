@@ -215,7 +215,7 @@ func TestScanWithMountsExpandsKitRouteDefs(t *testing.T) {
 	writeFile(t, mountsRoot, "reports/layout.go", "package reports\n")
 	writeFile(t, mountsRoot, "reports/layout.templ", "package reports\n")
 	writeFile(t, mountsRoot, "reports/table/route.go", routeGoMountedKitActionsSource("table", "shared.Kit.Table",
-		`goldr.KitPost("refresh", shared.Kit.Refresh)`,
+		`goldr.KitAction(http.MethodPost, "/refresh", shared.Kit.Refresh)`,
 	))
 
 	tree, err := ScanWithMounts(routesRoot, mountsRoot)
@@ -298,7 +298,7 @@ import (
 
 var Route = goldr.KitRouteDef[shared.Kit]{
 	New: newKit,
-	Page: goldr.KitPage(shared.Kit.Page),
+	Page: shared.Kit.Page,
 }
 
 func newKit(r *http.Request) shared.Kit {
@@ -350,7 +350,7 @@ import (
 )
 
 var Route = goldr.KitRouteDef[shared.Kit]{
-	Page: goldr.KitPage(shared.Kit.Page),
+	Page: shared.Kit.Page,
 }
 `)
 
@@ -407,16 +407,16 @@ func TestScanWithMountsRejectsInvalidMountPaths(t *testing.T) {
 func TestScanActions(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "route.go", routeGoActionsSource("routes",
-		"goldr.FuncPostIndex(postIndex)",
-		`goldr.FuncPut("search", putSearch)`,
+		`goldr.Action(http.MethodPost, "/", postIndex)`,
+		`goldr.Action(http.MethodPut, "/search", putSearch)`,
 	))
 	writeFile(t, root, "users/route.go", routeGoActionsSource("users",
-		`goldr.FuncPost("create", postCreate)`,
-		`goldr.FuncPatch("save-preview", patchSavePreview)`,
+		`goldr.Action(http.MethodPost, "/create", postCreate)`,
+		`goldr.Action(http.MethodPatch, "/save-preview", patchSavePreview)`,
 	))
 	writeFile(t, root, "users/by_id/route.go", routeGoActionsSource("by_id",
-		"goldr.FuncDeleteIndex(deleteIndex)",
-		`goldr.FuncPatch("profile", patchProfile)`,
+		`goldr.Action(http.MethodDelete, "/", deleteIndex)`,
+		`goldr.Action(http.MethodPatch, "/profile", patchProfile)`,
 	))
 
 	tree := scanOK(t, root)
@@ -498,7 +498,7 @@ func Middleware(next http.Handler) {}
 		t.Fatalf("Scan() error = %T, want *ScanError", err)
 	}
 
-	want := "Middleware: middleware must use func Middleware(next http.Handler) http.Handler"
+	want := "Middleware: middleware must use exact form func Middleware(next http.Handler) http.Handler with unaliased net/http import"
 	if !hasProblem(scanErr.Problems, "users/middleware.go", want) {
 		t.Fatalf("problems = %#v, want %q", scanErr.Problems, want)
 	}
@@ -629,12 +629,14 @@ func routeGoMountedKitPageSource(packageName string, page string) string {
 	return `package ` + packageName + `
 
 import (
+	"net/http"
+
 	"github.com/mobiletoly/goldr"
 	"example.com/app/shared"
 )
 
 var Route = goldr.KitRouteDef[shared.Kit]{
-	Page: goldr.KitPage(` + page + `),
+	Page: ` + page + `,
 }
 `
 }
@@ -646,14 +648,16 @@ func routeGoMountedKitActionsSource(packageName string, page string, actions ...
 	builder.WriteString(`
 
 import (
+	"net/http"
+
 	"github.com/mobiletoly/goldr"
 	"example.com/app/shared"
 )
 
 var Route = goldr.KitRouteDef[shared.Kit]{
-	Page: goldr.KitPage(`)
+	Page: `)
 	builder.WriteString(page)
-	builder.WriteString(`),
+	builder.WriteString(`,
 	Actions: goldr.KitActions[shared.Kit]{
 `)
 	for _, action := range actions {
@@ -677,7 +681,7 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
+	Page: page,
 }
 
 func page(r *http.Request) goldr.RouteResponse {
@@ -692,10 +696,14 @@ func routeGoActionsSource(packageName string, actions ...string) string {
 	builder.WriteString(packageName)
 	builder.WriteString(`
 
-import "github.com/mobiletoly/goldr"
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
 
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
+	Actions: goldr.Actions{
 `)
 	for _, action := range actions {
 		builder.WriteString("\t\t")

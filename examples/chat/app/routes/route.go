@@ -11,9 +11,9 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(Page),
-	Actions: goldr.FuncActions{
-		goldr.FuncPostHandler("join", PostJoin),
+	Page: Page,
+	Actions: goldr.Actions{
+		goldr.HTTPAction(http.MethodPost, "/join", PostJoin),
 	},
 }
 

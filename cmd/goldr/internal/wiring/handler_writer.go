@@ -372,38 +372,27 @@ func writeRoutePageRendererBody(buffer *bytes.Buffer, layouts []routing.Manifest
 }
 
 func writePageCallComment(buffer *bytes.Buffer, indent string, page routing.ManifestPage) {
-	function := pageFuncName(page)
-	signature := fmt.Sprintf("func %s(*http.Request) goldr.RouteResponse { ... }", function)
-	writeExpectedCallComment(buffer, indent, "page GET,HEAD "+page.Route, page.Unit.GoFile, signature)
+	writeExpectedFileComment(buffer, indent, page.Unit.GoFile)
 }
 
 func writeFragmentCallComment(buffer *bytes.Buffer, indent string, fragment runtimeFragment) {
-	function := manifestFragmentFuncName(fragment.fragment)
-	signature := fmt.Sprintf("func %s(*http.Request) goldr.RouteResponse { ... }", function)
-	writeExpectedCallComment(buffer, indent, "fragment GET,HEAD "+fragment.route, fragment.fragment.Unit.GoFile, signature)
+	writeExpectedFileComment(buffer, indent, fragment.fragment.Unit.GoFile)
 }
 
 func writeLayoutCallComment(buffer *bytes.Buffer, indent string, layout routing.ManifestLayout) {
-	writeExpectedCallComment(buffer, indent, "layout "+layout.RoutePrefix, layout.Unit.GoFile, "func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }")
+	writeExpectedFileComment(buffer, indent, layout.Unit.GoFile)
 }
 
 func writeActionCallComment(buffer *bytes.Buffer, indent string, action routing.ManifestAction) {
-	summary := fmt.Sprintf("action %s %s", action.Method, action.Route)
-	signature := fmt.Sprintf("func %s(*http.Request) goldr.RouteResponse { ... }", action.Function)
-	if action.Writer {
-		signature = fmt.Sprintf("func %s(http.ResponseWriter, *http.Request) { ... }", action.Function)
-	}
-	writeExpectedCallComment(buffer, indent, summary, action.GoFile, signature)
+	writeExpectedFileComment(buffer, indent, action.GoFile)
 }
 
 func writeMiddlewareCallComment(buffer *bytes.Buffer, indent string, middleware routing.ManifestMiddleware) {
-	writeExpectedCallComment(buffer, indent, "middleware "+middleware.RoutePrefix, middleware.GoFile, "func Middleware(http.Handler) http.Handler { ... }")
+	writeExpectedFileComment(buffer, indent, middleware.GoFile)
 }
 
-func writeExpectedCallComment(buffer *bytes.Buffer, indent, summary, goFile, signature string) {
-	fmt.Fprintf(buffer, "%s// %s\n", indent, summary)
+func writeExpectedFileComment(buffer *bytes.Buffer, indent, goFile string) {
 	fmt.Fprintf(buffer, "%s// expected in file: %s\n", indent, appRouteGoFile(goFile))
-	fmt.Fprintf(buffer, "%s// expected function: %s\n", indent, signature)
 }
 
 func appRouteGoFile(goFile string) string {

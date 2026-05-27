@@ -44,12 +44,12 @@ import (
 var Route = goldr.KitRouteDef[sharedreports.Kit]{
 	Title: "Admin Reports",
 	New:   newReportKit,
-	Page:  goldr.KitPage(sharedreports.Kit.Page),
+	Page:  sharedreports.Kit.Page,
 	Fragments: goldr.KitFragments[sharedreports.Kit]{
-		goldr.KitFragment("table", sharedreports.Kit.Table),
+		goldr.KitFragmentRoute("/table", sharedreports.Kit.Table),
 	},
 	Actions: goldr.KitActions[sharedreports.Kit]{
-		goldr.KitPost("refresh", sharedreports.Kit.PostRefresh),
+		goldr.KitAction(http.MethodPost, "/refresh", sharedreports.Kit.PostRefresh),
 	},
 }
 
@@ -72,7 +72,7 @@ A child route can expose a Kit-backed index fragment at its own path:
 var Route = goldr.KitRouteDef[sharedreports.Kit]{
 	New: newReportKit,
 	Fragments: goldr.KitFragments[sharedreports.Kit]{
-		goldr.KitFragmentIndex(sharedreports.Kit.StatusOptions),
+		goldr.KitFragmentRoute("/", sharedreports.Kit.StatusOptions),
 	},
 }
 ```
@@ -119,9 +119,9 @@ The mounted subtree uses `KitRouteDef` without `New`:
 
 ```go
 var Route = goldr.KitRouteDef[Kit]{
-	Page: goldr.KitPage(Kit.Page),
+	Page: Kit.Page,
 	Fragments: goldr.KitFragments[Kit]{
-		goldr.KitFragment("table", Kit.Table),
+		goldr.KitFragmentRoute("/table", Kit.Table),
 	},
 }
 ```
@@ -253,21 +253,16 @@ behavior, not hide HTMX behind proprietary components.
 Kit handlers use the kit value as the first argument:
 
 ```go
-func KitPage[K any](fn func(K, *http.Request) goldr.RouteResponse) goldr.KitPageDef[K]
-func KitFragment[K any](segment string, fn func(K, *http.Request) goldr.RouteResponse) goldr.KitFragmentDef[K]
-func KitFragmentIndex[K any](fn func(K, *http.Request) goldr.RouteResponse) goldr.KitFragmentDef[K]
-func KitPost[K any](segment string, fn func(K, http.ResponseWriter, *http.Request)) goldr.KitActionDef[K]
-func KitPostIndex[K any](fn func(K, http.ResponseWriter, *http.Request)) goldr.KitActionDef[K]
-func KitPut[K any](segment string, fn func(K, http.ResponseWriter, *http.Request)) goldr.KitActionDef[K]
-func KitPutIndex[K any](fn func(K, http.ResponseWriter, *http.Request)) goldr.KitActionDef[K]
-func KitPatch[K any](segment string, fn func(K, http.ResponseWriter, *http.Request)) goldr.KitActionDef[K]
-func KitPatchIndex[K any](fn func(K, http.ResponseWriter, *http.Request)) goldr.KitActionDef[K]
-func KitDelete[K any](segment string, fn func(K, http.ResponseWriter, *http.Request)) goldr.KitActionDef[K]
-func KitDeleteIndex[K any](fn func(K, http.ResponseWriter, *http.Request)) goldr.KitActionDef[K]
+type KitPageHandler[K any] func(K, *http.Request) goldr.RouteResponse
+
+func KitFragmentRoute[K any](path string, fn func(K, *http.Request) goldr.RouteResponse) goldr.KitFragmentRouteDef[K]
+func KitAction[K any](method string, path string, fn func(K, *http.Request) goldr.RouteResponse) goldr.KitActionDef[K]
+func KitHTTPAction[K any](method string, path string, fn func(K, http.ResponseWriter, *http.Request)) goldr.KitActionDef[K]
 ```
 
-Kit pages and fragments return `goldr.RouteResponse`. Kit actions are ordinary
-HTTP handlers with the kit argument added.
+Kit pages, fragments, and normal actions return `goldr.RouteResponse`.
+`KitHTTPAction` handlers are ordinary HTTP handlers with the kit argument
+added.
 
 ## Generated Behavior
 

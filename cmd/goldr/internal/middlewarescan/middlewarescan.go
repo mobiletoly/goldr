@@ -55,7 +55,7 @@ func Scan(path string) error {
 				Path: path,
 				Problems: []Problem{{
 					Function: FunctionName,
-					Message:  "middleware must use func Middleware(next http.Handler) http.Handler",
+					Message:  "middleware must use exact form func Middleware(next http.Handler) http.Handler with unaliased net/http import",
 				}},
 			}
 		}

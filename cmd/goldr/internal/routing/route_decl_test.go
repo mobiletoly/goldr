@@ -29,7 +29,7 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
+	Page: page,
 }
 
 func page(r *http.Request) goldr.RouteResponse {
@@ -66,16 +66,16 @@ import (
 var Route = goldr.RouteDef{
 	Name:  "users.index",
 	Title: "Users",
-	Page:  goldr.FuncPage(page),
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragment("preview", preview),
-		goldr.FuncFragment("save_profile", saveProfile),
+	Page:  page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/preview", preview),
+		goldr.FragmentRoute("/save_profile", saveProfile),
 	},
-	Actions: goldr.FuncActions{
-		goldr.FuncPostIndex(postIndex),
-		goldr.FuncPut("replace", putReplace),
-		goldr.FuncPatch("save-profile", patchSaveProfile),
-		goldr.FuncDelete("archive", deleteArchive),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/", postIndex),
+		goldr.Action(http.MethodPut, "/replace", putReplace),
+		goldr.Action(http.MethodPatch, "/save-profile", patchSaveProfile),
+		goldr.Action(http.MethodDelete, "/archive", deleteArchive),
 	},
 	Meta: goldr.RouteMeta{
 		Labels: map[string]string{
@@ -133,14 +133,14 @@ var Route = goldr.KitRouteDef[cohortexplorer.Kit]{
 	Name:    "admin.analytics.cohort_explorer",
 	Title:   "Cohort Explorer",
 	New:     newKit,
-	Page:    goldr.KitPage(cohortexplorer.Kit.Page),
+	Page:    cohortexplorer.Kit.Page,
 	Fragments: goldr.KitFragments[cohortexplorer.Kit]{
-		goldr.KitFragment("filters", cohortexplorer.Kit.FragFilters),
-		goldr.KitFragment("results", cohortexplorer.Kit.FragResults),
+		goldr.KitFragmentRoute("/filters", cohortexplorer.Kit.FragFilters),
+		goldr.KitFragmentRoute("/results", cohortexplorer.Kit.FragResults),
 	},
 	Actions: goldr.KitActions[cohortexplorer.Kit]{
-		goldr.KitPostIndex(cohortexplorer.Kit.PostIndex),
-		goldr.KitPost("export", cohortexplorer.Kit.PostExport),
+		goldr.KitAction(http.MethodPost, "/", cohortexplorer.Kit.PostIndex),
+		goldr.KitAction(http.MethodPost, "/export", cohortexplorer.Kit.PostExport),
 	},
 }
 
@@ -187,6 +187,60 @@ func portal(r *http.Request) cohortexplorer.Portal {
 	}
 }
 
+func TestScanRouteDeclarationPointerKitMethodExpressions(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "reports/route.go", `package reports
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+func newKit(*http.Request) *Kit { return &Kit{} }
+
+var Route = goldr.KitRouteDef[*Kit]{
+	New:  newKit,
+	Page: (*Kit).Page,
+	Fragments: goldr.KitFragments[*Kit]{
+		goldr.KitFragmentRoute("/panel", (*Kit).Panel),
+	},
+	Actions: goldr.KitActions[*Kit]{
+		goldr.KitAction(http.MethodPost, "/save", (*Kit).PostSave),
+		goldr.KitHTTPAction(http.MethodDelete, "/", (*Kit).DeleteIndex),
+	},
+}
+`)
+
+	tree := scanOK(t, root)
+
+	want := []RouteDeclaration{
+		{
+			Route:   "/reports",
+			GoFile:  "reports/route.go",
+			Imports: routeImports("goldr", "github.com/mobiletoly/goldr", "http", "net/http"),
+			Kind:    routeDeclarationKindKit,
+			Page:    &RouteHandlerDeclaration{Handler: "(*Kit).Page"},
+			Fragments: []RouteFragmentDeclaration{
+				{Name: "panel", Segment: "panel", SymbolName: "Panel", Handler: "(*Kit).Panel"},
+			},
+			Actions: []RouteActionDeclaration{
+				{Method: "POST", Name: "save", Segment: "save", SymbolName: "Save", Handler: "(*Kit).PostSave"},
+				{Method: "DELETE", Index: true, SymbolName: "Index", Writer: true, Handler: "(*Kit).DeleteIndex"},
+			},
+			Kit: &RouteKitDeclaration{
+				KitType: "*Kit",
+				New:     "newKit",
+			},
+		},
+	}
+	if !reflect.DeepEqual(tree.Routes, want) {
+		t.Fatalf("routes = %#v, want %#v", tree.Routes, want)
+	}
+}
+
 func TestScanRouteDeclarationAllActionHelpers(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "local/route.go", `package local
@@ -194,15 +248,15 @@ func TestScanRouteDeclarationAllActionHelpers(t *testing.T) {
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
-		goldr.FuncPostIndex(postIndex),
-		goldr.FuncPost("create", postCreate),
-		goldr.FuncPutIndex(putIndex),
-		goldr.FuncPut("replace", putReplace),
-		goldr.FuncPatchIndex(patchIndex),
-		goldr.FuncPatch("update", patchUpdate),
-		goldr.FuncDeleteIndex(deleteIndex),
-		goldr.FuncDelete("archive", deleteArchive),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/", postIndex),
+		goldr.Action(http.MethodPost, "/create", postCreate),
+		goldr.Action(http.MethodPut, "/", putIndex),
+		goldr.Action(http.MethodPut, "/replace", putReplace),
+		goldr.Action(http.MethodPatch, "/", patchIndex),
+		goldr.Action(http.MethodPatch, "/update", patchUpdate),
+		goldr.Action(http.MethodDelete, "/", deleteIndex),
+		goldr.Action(http.MethodDelete, "/archive", deleteArchive),
 	},
 }
 `)
@@ -221,14 +275,14 @@ func New(*http.Request) Kit { return Kit{} }
 var Route = goldr.KitRouteDef[Kit]{
 	New: New,
 	Actions: goldr.KitActions[Kit]{
-		goldr.KitPostIndex(Kit.PostIndex),
-		goldr.KitPost("create", Kit.PostCreate),
-		goldr.KitPutIndex(Kit.PutIndex),
-		goldr.KitPut("replace", Kit.PutReplace),
-		goldr.KitPatchIndex(Kit.PatchIndex),
-		goldr.KitPatch("update", Kit.PatchUpdate),
-		goldr.KitDeleteIndex(Kit.DeleteIndex),
-		goldr.KitDelete("archive", Kit.DeleteArchive),
+		goldr.KitAction(http.MethodPost, "/", Kit.PostIndex),
+		goldr.KitAction(http.MethodPost, "/create", Kit.PostCreate),
+		goldr.KitAction(http.MethodPut, "/", Kit.PutIndex),
+		goldr.KitAction(http.MethodPut, "/replace", Kit.PutReplace),
+		goldr.KitAction(http.MethodPatch, "/", Kit.PatchIndex),
+		goldr.KitAction(http.MethodPatch, "/update", Kit.PatchUpdate),
+		goldr.KitAction(http.MethodDelete, "/", Kit.DeleteIndex),
+		goldr.KitAction(http.MethodDelete, "/archive", Kit.DeleteArchive),
 	},
 }
 `)
@@ -275,15 +329,15 @@ func TestScanRouteDeclarationAllActionHandlerHelpers(t *testing.T) {
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
-		goldr.FuncPostHandlerIndex(postIndex),
-		goldr.FuncPostHandler("create", postCreate),
-		goldr.FuncPutHandlerIndex(putIndex),
-		goldr.FuncPutHandler("replace", putReplace),
-		goldr.FuncPatchHandlerIndex(patchIndex),
-		goldr.FuncPatchHandler("update", patchUpdate),
-		goldr.FuncDeleteHandlerIndex(deleteIndex),
-		goldr.FuncDeleteHandler("archive", deleteArchive),
+	Actions: goldr.Actions{
+		goldr.HTTPAction(http.MethodPost, "/", postIndex),
+		goldr.HTTPAction(http.MethodPost, "/create", postCreate),
+		goldr.HTTPAction(http.MethodPut, "/", putIndex),
+		goldr.HTTPAction(http.MethodPut, "/replace", putReplace),
+		goldr.HTTPAction(http.MethodPatch, "/", patchIndex),
+		goldr.HTTPAction(http.MethodPatch, "/update", patchUpdate),
+		goldr.HTTPAction(http.MethodDelete, "/", deleteIndex),
+		goldr.HTTPAction(http.MethodDelete, "/archive", deleteArchive),
 	},
 }
 `)
@@ -302,14 +356,14 @@ func New(*http.Request) Kit { return Kit{} }
 var Route = goldr.KitRouteDef[Kit]{
 	New: New,
 	Actions: goldr.KitActions[Kit]{
-		goldr.KitPostHandlerIndex(Kit.PostIndex),
-		goldr.KitPostHandler("create", Kit.PostCreate),
-		goldr.KitPutHandlerIndex(Kit.PutIndex),
-		goldr.KitPutHandler("replace", Kit.PutReplace),
-		goldr.KitPatchHandlerIndex(Kit.PatchIndex),
-		goldr.KitPatchHandler("update", Kit.PatchUpdate),
-		goldr.KitDeleteHandlerIndex(Kit.DeleteIndex),
-		goldr.KitDeleteHandler("archive", Kit.DeleteArchive),
+		goldr.KitHTTPAction(http.MethodPost, "/", Kit.PostIndex),
+		goldr.KitHTTPAction(http.MethodPost, "/create", Kit.PostCreate),
+		goldr.KitHTTPAction(http.MethodPut, "/", Kit.PutIndex),
+		goldr.KitHTTPAction(http.MethodPut, "/replace", Kit.PutReplace),
+		goldr.KitHTTPAction(http.MethodPatch, "/", Kit.PatchIndex),
+		goldr.KitHTTPAction(http.MethodPatch, "/update", Kit.PatchUpdate),
+		goldr.KitHTTPAction(http.MethodDelete, "/", Kit.DeleteIndex),
+		goldr.KitHTTPAction(http.MethodDelete, "/archive", Kit.DeleteArchive),
 	},
 }
 `)
@@ -356,11 +410,11 @@ func TestScanRouteDeclarationIndexFragments(t *testing.T) {
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragmentIndex(options),
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/", options),
 	},
-	Actions: goldr.FuncActions{
-		goldr.FuncPostIndex(postIndex),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/", postIndex),
 	},
 }
 `)
@@ -379,7 +433,7 @@ func New(*http.Request) Kit { return Kit{} }
 var Route = goldr.KitRouteDef[Kit]{
 	New: New,
 	Fragments: goldr.KitFragments[Kit]{
-		goldr.KitFragmentIndex(Kit.Options),
+		goldr.KitFragmentRoute("/", Kit.Options),
 	},
 }
 `)
@@ -407,7 +461,7 @@ func TestScanRouteDeclarationRejectsSameDirectoryOldRouteSurface(t *testing.T) {
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
+	Page: page,
 }
 `)
 	writeFile(t, root, "users/page.go", "package users\n")
@@ -459,7 +513,7 @@ import "github.com/mobiletoly/goldr"
 type Kit struct{}
 
 var Route = goldr.KitRouteDef[Kit]{
-	Page: goldr.KitPage(Kit.Page),
+	Page: Kit.Page,
 }
 `,
 			message: "KitRouteDef requires New under app/routes",
@@ -473,7 +527,7 @@ import "github.com/mobiletoly/goldr"
 type Kit struct{}
 
 var Route = goldr.KitRouteSurface[Kit]{
-	Page: goldr.KitPage(Kit.Page),
+	Page: Kit.Page,
 }
 `,
 			message: "Route must use goldr.RouteDef, goldr.KitRouteDef[K], or goldr.KitRouteMount[K]",
@@ -551,9 +605,9 @@ var Route = goldr.RouteDef{
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragmentIndex(options),
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/", options),
 	},
 }
 `,
@@ -566,12 +620,12 @@ var Route = goldr.RouteDef{
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragmentIndex("index", options),
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/", "index", options),
 	},
 }
 `,
-			message: "index fragment helpers must use one handler argument",
+			message: "fragment route helpers must use path and handler arguments",
 		},
 		{
 			name: "kit index fragment wrong arity",
@@ -590,11 +644,96 @@ func New(*http.Request) Kit { return Kit{} }
 var Route = goldr.KitRouteDef[Kit]{
 	New: New,
 	Fragments: goldr.KitFragments[Kit]{
-		goldr.KitFragmentIndex("index", Kit.Options),
+		goldr.KitFragmentRoute("/", "index", Kit.Options),
 	},
 }
 `,
-			message: "index fragment helpers must use one handler argument",
+			message: "fragment route helpers must use path and handler arguments",
+		},
+		{
+			name: "fragment path without leading slash",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("table", table),
+	},
+}
+`,
+			message: `fragment path must start with "/"`,
+		},
+		{
+			name: "fragment path empty",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("", table),
+	},
+}
+`,
+			message: "fragment path must not be empty",
+		},
+		{
+			name: "fragment path trailing slash",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/table/", table),
+	},
+}
+`,
+			message: "fragment path must not have a trailing slash",
+		},
+		{
+			name: "fragment path nested",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/table/row", row),
+	},
+}
+`,
+			message: "fragment path must be route-local; nested paths belong in nested route directories",
+		},
+		{
+			name: "fragment path uppercase",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/Table", table),
+	},
+}
+`,
+			message: "fragment path segments must use lowercase ASCII letters, digits, underscores, or hyphens and start with a lowercase ASCII letter",
+		},
+		{
+			name: "fragment path digit first",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/1table", table),
+	},
+}
+`,
+			message: "fragment path segments must use lowercase ASCII letters, digits, underscores, or hyphens and start with a lowercase ASCII letter",
 		},
 		{
 			name: "index fragment collides with named index fragment",
@@ -603,9 +742,9 @@ var Route = goldr.KitRouteDef[Kit]{
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragmentIndex(options),
-		goldr.FuncFragment("index", namedOptions),
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/", options),
+		goldr.FragmentRoute("/index", namedOptions),
 	},
 }
 `,
@@ -624,13 +763,100 @@ var Route = goldr.RouteDef{
 			message: "Actions must use a literal goldr action collection",
 		},
 		{
+			name: "action path without leading slash",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "create", postCreate),
+	},
+}
+`,
+			message: `action path must start with "/"`,
+		},
+		{
+			name: "action path empty",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "", postCreate),
+	},
+}
+`,
+			message: "action path must not be empty",
+		},
+		{
+			name: "action path nested",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create/confirm", postCreate),
+	},
+}
+`,
+			message: "action path must be route-local; nested paths belong in nested route directories",
+		},
+		{
+			name: "unsupported action method selector",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodGet, "/search", getSearch),
+	},
+}
+`,
+			message: "action methods must use http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, or matching string literals",
+		},
+		{
+			name: "unsupported action method literal",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Actions: goldr.Actions{
+		goldr.Action("GET", "/search", getSearch),
+	},
+}
+`,
+			message: "action methods must be POST, PUT, PATCH, or DELETE",
+		},
+		{
+			name: "computed action method",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+const methodPost = "POST"
+
+var Route = goldr.RouteDef{
+	Actions: goldr.Actions{
+		goldr.Action(methodPost, "/create", postCreate),
+	},
+}
+`,
+			message: "action methods must use http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, or matching string literals",
+		},
+		{
 			name: "computed metadata",
 			source: `package users
 
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
+	Page: page,
 	Meta: buildMeta(),
 }
 `,
@@ -643,12 +869,30 @@ var Route = goldr.RouteDef{
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
+	Page: page,
 }
 
 func GoldrRoutePage() {}
 `,
 			message: "reserved GoldrRoute* symbol declared: GoldrRoutePage",
+		},
+		{
+			name: "inline page function",
+			source: `package users
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.RouteDef{
+	Page: func(r *http.Request) goldr.RouteResponse {
+		return goldr.Text{Body: "ok"}
+	},
+}
+`,
+			message: "Page must be an identifier, selector, or pointer method expression",
 		},
 		{
 			name: "blank import",
@@ -658,7 +902,7 @@ import _ "example.com/sideeffect"
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
+	Page: page,
 }
 `,
 			message: "route.go must not use blank imports",
@@ -671,7 +915,7 @@ import . "example.com/dot"
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
+	Page: page,
 }
 `,
 			message: "route.go must not use dot imports",
@@ -683,9 +927,9 @@ var Route = goldr.RouteDef{
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
-		goldr.FuncPost("save-profile", postSaveProfile),
-		goldr.FuncPost("save_profile", postSaveProfileAgain),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/save-profile", postSaveProfile),
+		goldr.Action(http.MethodPost, "/save_profile", postSaveProfileAgain),
 	},
 }
 `,
@@ -711,12 +955,12 @@ var Route = goldr.KitRouteDef[Kit, Context]{}
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
+	Actions: goldr.Actions{
 		goldr.FuncGet("search", getSearch),
 	},
 }
 `,
-			message: "unsupported action helper: goldr.FuncGet",
+			message: "Actions entries must use goldr.Action(method, path, handler) or goldr.HTTPAction(method, path, handler)",
 		},
 	}
 

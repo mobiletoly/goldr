@@ -52,7 +52,7 @@ func Middleware(next http.Handler) {}
 	if !errors.As(err, &scanErr) {
 		t.Fatalf("Scan() error = %T, want *ScanError", err)
 	}
-	want := Problem{Function: FunctionName, Message: "middleware must use func Middleware(next http.Handler) http.Handler"}
+	want := Problem{Function: FunctionName, Message: "middleware must use exact form func Middleware(next http.Handler) http.Handler with unaliased net/http import"}
 	if len(scanErr.Problems) != 1 || scanErr.Problems[0] != want {
 		t.Fatalf("problems = %#v, want %#v", scanErr.Problems, []Problem{want})
 	}

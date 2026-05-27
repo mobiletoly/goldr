@@ -9,8 +9,8 @@ import (
 const selectedQuery = "selected"
 
 var Route = goldr.RouteDef{
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragmentIndex(Options),
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/", Options),
 	},
 }
 

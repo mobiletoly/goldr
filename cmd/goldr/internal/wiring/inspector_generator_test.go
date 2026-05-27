@@ -290,7 +290,7 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(view.Page),
+	Page: view.Page,
 }
 `)
 

@@ -9,9 +9,9 @@ import "net/http"
 type RouteDef struct {
 	Name      string
 	Title     string
-	Page      FuncPageDef
-	Fragments FuncFragments
-	Actions   FuncActions
+	Page      PageHandler
+	Fragments Fragments
+	Actions   Actions
 	Meta      RouteMeta
 }
 
@@ -22,7 +22,7 @@ type KitRouteDef[K any] struct {
 	Name      string
 	Title     string
 	New       func(*http.Request) K
-	Page      KitPageDef[K]
+	Page      KitPageHandler[K]
 	Fragments KitFragments[K]
 	Actions   KitActions[K]
 	Meta      RouteMeta
@@ -41,290 +41,78 @@ type RouteMeta struct {
 	Labels map[string]string
 }
 
-// FuncPageDef is a local page handler declaration.
-type FuncPageDef struct {
-	fn func(*http.Request) RouteResponse
+// PageHandler is a local page handler declaration.
+type PageHandler func(*http.Request) RouteResponse
+
+// FragmentRouteDef is a local fragment route declaration.
+type FragmentRouteDef struct {
+	path string
+	fn   func(*http.Request) RouteResponse
 }
 
-// FuncFragmentDef is a local fragment handler declaration.
-type FuncFragmentDef struct {
-	segment string
-	index   bool
-	fn      func(*http.Request) RouteResponse
-}
-
-// FuncActionDef is a local action handler declaration.
-type FuncActionDef struct {
+// ActionDef is a local action route declaration.
+type ActionDef struct {
 	method  string
-	segment string
-	index   bool
+	path    string
 	fn      func(*http.Request) RouteResponse
 	handler func(http.ResponseWriter, *http.Request)
 }
 
-// FuncFragments is a list of local fragment handler declarations.
-type FuncFragments []FuncFragmentDef
+// Fragments is a list of local fragment route declarations.
+type Fragments []FragmentRouteDef
 
-// FuncActions is a list of local action handler declarations.
-type FuncActions []FuncActionDef
+// Actions is a list of local action route declarations.
+type Actions []ActionDef
 
-// FuncPage declares a local page handler.
-func FuncPage(fn func(*http.Request) RouteResponse) FuncPageDef {
-	return FuncPageDef{fn: fn}
+// FragmentRoute declares a local fragment route at path.
+func FragmentRoute(path string, fn func(*http.Request) RouteResponse) FragmentRouteDef {
+	return FragmentRouteDef{path: path, fn: fn}
 }
 
-// FuncFragment declares a local fragment handler.
-func FuncFragment(segment string, fn func(*http.Request) RouteResponse) FuncFragmentDef {
-	return FuncFragmentDef{segment: segment, fn: fn}
+// Action declares a local action route that returns a RouteResponse.
+func Action(method string, path string, fn func(*http.Request) RouteResponse) ActionDef {
+	return ActionDef{method: method, path: path, fn: fn}
 }
 
-// FuncFragmentIndex declares a local fragment handler at the route index path.
-func FuncFragmentIndex(fn func(*http.Request) RouteResponse) FuncFragmentDef {
-	return FuncFragmentDef{index: true, fn: fn}
+// HTTPAction declares a local action route that writes directly to the HTTP response.
+func HTTPAction(method string, path string, fn func(http.ResponseWriter, *http.Request)) ActionDef {
+	return ActionDef{method: method, path: path, handler: fn}
 }
 
-// FuncPost declares a local POST action handler at segment.
-func FuncPost(segment string, fn func(*http.Request) RouteResponse) FuncActionDef {
-	return funcAction("POST", segment, false, fn)
+// KitPageHandler is a kit page handler declaration.
+type KitPageHandler[K any] func(K, *http.Request) RouteResponse
+
+// KitFragmentRouteDef is a kit fragment route declaration.
+type KitFragmentRouteDef[K any] struct {
+	path string
+	fn   func(K, *http.Request) RouteResponse
 }
 
-// FuncPostIndex declares a local POST action handler at the route index path.
-func FuncPostIndex(fn func(*http.Request) RouteResponse) FuncActionDef {
-	return funcAction("POST", "", true, fn)
-}
-
-// FuncPut declares a local PUT action handler at segment.
-func FuncPut(segment string, fn func(*http.Request) RouteResponse) FuncActionDef {
-	return funcAction("PUT", segment, false, fn)
-}
-
-// FuncPutIndex declares a local PUT action handler at the route index path.
-func FuncPutIndex(fn func(*http.Request) RouteResponse) FuncActionDef {
-	return funcAction("PUT", "", true, fn)
-}
-
-// FuncPatch declares a local PATCH action handler at segment.
-func FuncPatch(segment string, fn func(*http.Request) RouteResponse) FuncActionDef {
-	return funcAction("PATCH", segment, false, fn)
-}
-
-// FuncPatchIndex declares a local PATCH action handler at the route index path.
-func FuncPatchIndex(fn func(*http.Request) RouteResponse) FuncActionDef {
-	return funcAction("PATCH", "", true, fn)
-}
-
-// FuncDelete declares a local DELETE action handler at segment.
-func FuncDelete(segment string, fn func(*http.Request) RouteResponse) FuncActionDef {
-	return funcAction("DELETE", segment, false, fn)
-}
-
-// FuncDeleteIndex declares a local DELETE action handler at the route index path.
-func FuncDeleteIndex(fn func(*http.Request) RouteResponse) FuncActionDef {
-	return funcAction("DELETE", "", true, fn)
-}
-
-// FuncPostHandler declares a local writer-based POST action handler at segment.
-func FuncPostHandler(segment string, fn func(http.ResponseWriter, *http.Request)) FuncActionDef {
-	return funcActionHandler("POST", segment, false, fn)
-}
-
-// FuncPostHandlerIndex declares a local writer-based POST action handler at
-// the route index path.
-func FuncPostHandlerIndex(fn func(http.ResponseWriter, *http.Request)) FuncActionDef {
-	return funcActionHandler("POST", "", true, fn)
-}
-
-// FuncPutHandler declares a local writer-based PUT action handler at segment.
-func FuncPutHandler(segment string, fn func(http.ResponseWriter, *http.Request)) FuncActionDef {
-	return funcActionHandler("PUT", segment, false, fn)
-}
-
-// FuncPutHandlerIndex declares a local writer-based PUT action handler at the
-// route index path.
-func FuncPutHandlerIndex(fn func(http.ResponseWriter, *http.Request)) FuncActionDef {
-	return funcActionHandler("PUT", "", true, fn)
-}
-
-// FuncPatchHandler declares a local writer-based PATCH action handler at segment.
-func FuncPatchHandler(segment string, fn func(http.ResponseWriter, *http.Request)) FuncActionDef {
-	return funcActionHandler("PATCH", segment, false, fn)
-}
-
-// FuncPatchHandlerIndex declares a local writer-based PATCH action handler at
-// the route index path.
-func FuncPatchHandlerIndex(fn func(http.ResponseWriter, *http.Request)) FuncActionDef {
-	return funcActionHandler("PATCH", "", true, fn)
-}
-
-// FuncDeleteHandler declares a local writer-based DELETE action handler at segment.
-func FuncDeleteHandler(segment string, fn func(http.ResponseWriter, *http.Request)) FuncActionDef {
-	return funcActionHandler("DELETE", segment, false, fn)
-}
-
-// FuncDeleteHandlerIndex declares a local writer-based DELETE action handler at
-// the route index path.
-func FuncDeleteHandlerIndex(fn func(http.ResponseWriter, *http.Request)) FuncActionDef {
-	return funcActionHandler("DELETE", "", true, fn)
-}
-
-func funcAction(method string, segment string, index bool, fn func(*http.Request) RouteResponse) FuncActionDef {
-	return FuncActionDef{
-		method:  method,
-		segment: segment,
-		index:   index,
-		fn:      fn,
-	}
-}
-
-func funcActionHandler(method string, segment string, index bool, fn func(http.ResponseWriter, *http.Request)) FuncActionDef {
-	return FuncActionDef{
-		method:  method,
-		segment: segment,
-		index:   index,
-		handler: fn,
-	}
-}
-
-// KitPageDef is a kit page handler declaration.
-type KitPageDef[K any] struct {
-	fn func(K, *http.Request) RouteResponse
-}
-
-// KitFragmentDef is a kit fragment handler declaration.
-type KitFragmentDef[K any] struct {
-	segment string
-	index   bool
-	fn      func(K, *http.Request) RouteResponse
-}
-
-// KitActionDef is a kit action handler declaration.
+// KitActionDef is a kit action route declaration.
 type KitActionDef[K any] struct {
 	method  string
-	segment string
-	index   bool
+	path    string
 	fn      func(K, *http.Request) RouteResponse
 	handler func(K, http.ResponseWriter, *http.Request)
 }
 
-// KitFragments is a list of kit fragment handler declarations.
-type KitFragments[K any] []KitFragmentDef[K]
+// KitFragments is a list of kit fragment route declarations.
+type KitFragments[K any] []KitFragmentRouteDef[K]
 
-// KitActions is a list of kit action handler declarations.
+// KitActions is a list of kit action route declarations.
 type KitActions[K any] []KitActionDef[K]
 
-// KitPage declares a kit page handler.
-func KitPage[K any](fn func(K, *http.Request) RouteResponse) KitPageDef[K] {
-	return KitPageDef[K]{fn: fn}
+// KitFragmentRoute declares a kit fragment route at path.
+func KitFragmentRoute[K any](path string, fn func(K, *http.Request) RouteResponse) KitFragmentRouteDef[K] {
+	return KitFragmentRouteDef[K]{path: path, fn: fn}
 }
 
-// KitFragment declares a kit fragment handler.
-func KitFragment[K any](segment string, fn func(K, *http.Request) RouteResponse) KitFragmentDef[K] {
-	return KitFragmentDef[K]{segment: segment, fn: fn}
+// KitAction declares a kit action route that returns a RouteResponse.
+func KitAction[K any](method string, path string, fn func(K, *http.Request) RouteResponse) KitActionDef[K] {
+	return KitActionDef[K]{method: method, path: path, fn: fn}
 }
 
-// KitFragmentIndex declares a kit fragment handler at the route index path.
-func KitFragmentIndex[K any](fn func(K, *http.Request) RouteResponse) KitFragmentDef[K] {
-	return KitFragmentDef[K]{index: true, fn: fn}
-}
-
-// KitPost declares a kit POST action handler at segment.
-func KitPost[K any](segment string, fn func(K, *http.Request) RouteResponse) KitActionDef[K] {
-	return kitAction("POST", segment, false, fn)
-}
-
-// KitPostIndex declares a kit POST action handler at the route index path.
-func KitPostIndex[K any](fn func(K, *http.Request) RouteResponse) KitActionDef[K] {
-	return kitAction("POST", "", true, fn)
-}
-
-// KitPut declares a kit PUT action handler at segment.
-func KitPut[K any](segment string, fn func(K, *http.Request) RouteResponse) KitActionDef[K] {
-	return kitAction("PUT", segment, false, fn)
-}
-
-// KitPutIndex declares a kit PUT action handler at the route index path.
-func KitPutIndex[K any](fn func(K, *http.Request) RouteResponse) KitActionDef[K] {
-	return kitAction("PUT", "", true, fn)
-}
-
-// KitPatch declares a kit PATCH action handler at segment.
-func KitPatch[K any](segment string, fn func(K, *http.Request) RouteResponse) KitActionDef[K] {
-	return kitAction("PATCH", segment, false, fn)
-}
-
-// KitPatchIndex declares a kit PATCH action handler at the route index path.
-func KitPatchIndex[K any](fn func(K, *http.Request) RouteResponse) KitActionDef[K] {
-	return kitAction("PATCH", "", true, fn)
-}
-
-// KitDelete declares a kit DELETE action handler at segment.
-func KitDelete[K any](segment string, fn func(K, *http.Request) RouteResponse) KitActionDef[K] {
-	return kitAction("DELETE", segment, false, fn)
-}
-
-// KitDeleteIndex declares a kit DELETE action handler at the route index path.
-func KitDeleteIndex[K any](fn func(K, *http.Request) RouteResponse) KitActionDef[K] {
-	return kitAction("DELETE", "", true, fn)
-}
-
-// KitPostHandler declares a kit writer-based POST action handler at segment.
-func KitPostHandler[K any](segment string, fn func(K, http.ResponseWriter, *http.Request)) KitActionDef[K] {
-	return kitActionHandler("POST", segment, false, fn)
-}
-
-// KitPostHandlerIndex declares a kit writer-based POST action handler at the
-// route index path.
-func KitPostHandlerIndex[K any](fn func(K, http.ResponseWriter, *http.Request)) KitActionDef[K] {
-	return kitActionHandler("POST", "", true, fn)
-}
-
-// KitPutHandler declares a kit writer-based PUT action handler at segment.
-func KitPutHandler[K any](segment string, fn func(K, http.ResponseWriter, *http.Request)) KitActionDef[K] {
-	return kitActionHandler("PUT", segment, false, fn)
-}
-
-// KitPutHandlerIndex declares a kit writer-based PUT action handler at the
-// route index path.
-func KitPutHandlerIndex[K any](fn func(K, http.ResponseWriter, *http.Request)) KitActionDef[K] {
-	return kitActionHandler("PUT", "", true, fn)
-}
-
-// KitPatchHandler declares a kit writer-based PATCH action handler at segment.
-func KitPatchHandler[K any](segment string, fn func(K, http.ResponseWriter, *http.Request)) KitActionDef[K] {
-	return kitActionHandler("PATCH", segment, false, fn)
-}
-
-// KitPatchHandlerIndex declares a kit writer-based PATCH action handler at the
-// route index path.
-func KitPatchHandlerIndex[K any](fn func(K, http.ResponseWriter, *http.Request)) KitActionDef[K] {
-	return kitActionHandler("PATCH", "", true, fn)
-}
-
-// KitDeleteHandler declares a kit writer-based DELETE action handler at segment.
-func KitDeleteHandler[K any](segment string, fn func(K, http.ResponseWriter, *http.Request)) KitActionDef[K] {
-	return kitActionHandler("DELETE", segment, false, fn)
-}
-
-// KitDeleteHandlerIndex declares a kit writer-based DELETE action handler at
-// the route index path.
-func KitDeleteHandlerIndex[K any](fn func(K, http.ResponseWriter, *http.Request)) KitActionDef[K] {
-	return kitActionHandler("DELETE", "", true, fn)
-}
-
-func kitAction[K any](method string, segment string, index bool, fn func(K, *http.Request) RouteResponse) KitActionDef[K] {
-	return KitActionDef[K]{
-		method:  method,
-		segment: segment,
-		index:   index,
-		fn:      fn,
-	}
-}
-
-func kitActionHandler[K any](method string, segment string, index bool, fn func(K, http.ResponseWriter, *http.Request)) KitActionDef[K] {
-	return KitActionDef[K]{
-		method:  method,
-		segment: segment,
-		index:   index,
-		handler: fn,
-	}
+// KitHTTPAction declares a kit action route that writes directly to the HTTP response.
+func KitHTTPAction[K any](method string, path string, fn func(K, http.ResponseWriter, *http.Request)) KitActionDef[K] {
+	return KitActionDef[K]{method: method, path: path, handler: fn}
 }

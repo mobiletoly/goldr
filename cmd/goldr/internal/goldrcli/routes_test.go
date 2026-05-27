@@ -43,7 +43,7 @@ func writeRouteListFixture(t *testing.T, root string) {
 	writeFile(t, root, "app/routes/users/route.go", routeDeclarationSource("users", "page", routeDeclarationOptions{
 		Page:      true,
 		Fragments: []string{"table"},
-		Actions:   []routeDeclarationAction{{Helper: "FuncPost", Name: "create", Func: "postCreate"}},
+		Actions:   []routeDeclarationAction{{Helper: "Action", Name: "create", Func: "postCreate"}},
 		Name:      "users.index",
 		Title:     "Users",
 		Labels: []routeDeclarationLabel{
@@ -314,7 +314,7 @@ import (
 var Route = goldr.RouteDef{
 	Name:  "home\nroot",
 	Title: "Home\nBad",
-	Page:  goldr.FuncPage(page),
+	Page:  page,
 	Meta: goldr.RouteMeta{
 		Labels: map[string]string{
 			"app\nnav": "home",
@@ -385,12 +385,12 @@ var Route = goldr.KitRouteDef[Kit]{
 	Name:  "reports.index",
 	Title: "Reports",
 	New:   New,
-	Page:  goldr.KitPage(Kit.Page),
+	Page:  Kit.Page,
 	Fragments: goldr.KitFragments[Kit]{
-		goldr.KitFragment("panel", Kit.Panel),
+		goldr.KitFragmentRoute("/panel", Kit.Panel),
 	},
 	Actions: goldr.KitActions[Kit]{
-		goldr.KitPost("export", Kit.PostExport),
+		goldr.KitAction(http.MethodPost, "/export", Kit.PostExport),
 	},
 	Meta: goldr.RouteMeta{
 		Labels: map[string]string{
@@ -685,7 +685,7 @@ func TestRunRoutesReportsInvalidRouteNames(t *testing.T) {
 func TestRunRoutesReportsURLHelperGenerationErrors(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "app/routes/users/route.go", routeDeclarationSource("users", "page", routeDeclarationOptions{
-		Actions: []routeDeclarationAction{{Helper: "FuncPost", Name: "path", Func: "postPath"}},
+		Actions: []routeDeclarationAction{{Helper: "Action", Name: "path", Func: "postPath"}},
 	}))
 
 	requireCommandArgsFailureContains(t, []string{"routes", "list", "--app-root", root}, "goldr routes list:", "ambiguous URL helper", "Path method")

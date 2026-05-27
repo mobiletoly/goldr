@@ -126,9 +126,7 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 0 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			// page GET,HEAD /
 			// expected in file: app/routes/route.go
-			// expected function: func GoldrRoutePage(*http.Request) goldr.RouteResponse { ... }
 			goldrErrorRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
 				component := page.Component
 				if component == nil {
@@ -137,9 +135,7 @@ func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Re
 				metadata := page.Metadata
 				layoutContext := goldr.LayoutContext{Metadata: metadata}
 				layoutContext.Child = component
-				// layout /
 				// expected in file: app/routes/layout.go
-				// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 				component = Layout(r, layoutContext)
 				if component == nil {
 					return nil, goldr.ErrNilComponent
@@ -158,9 +154,7 @@ func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Re
 				component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pageroute_go kind=page route=/ source=app/routes/route.go go=app/routes/route.go-->", EndComment: "<!--goldr:end id=g_pageroute_go-->"})
 				layoutContext := goldr.LayoutContext{Metadata: metadata}
 				layoutContext.Child = component
-				// layout /
 				// expected in file: app/routes/layout.go
-				// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 				component = Layout(r, layoutContext)
 				if component == nil {
 					return nil, goldr.ErrNilComponent
@@ -196,9 +190,7 @@ func goldrDispatchRootStaticChat(options HandlerOptions, w http.ResponseWriter, 
 	}
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			// page GET,HEAD /chat
 			// expected in file: app/routes/chat/route.go
-			// expected function: func GoldrRoutePage(*http.Request) goldr.RouteResponse { ... }
 			goldrErrorRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
 				component := page.Component
 				if component == nil {
@@ -207,9 +199,7 @@ func goldrDispatchRootStaticChat(options HandlerOptions, w http.ResponseWriter, 
 				metadata := page.Metadata
 				layoutContext := goldr.LayoutContext{Metadata: metadata}
 				layoutContext.Child = component
-				// layout /
 				// expected in file: app/routes/layout.go
-				// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 				component = Layout(r, layoutContext)
 				if component == nil {
 					return nil, goldr.ErrNilComponent
@@ -228,9 +218,7 @@ func goldrDispatchRootStaticChat(options HandlerOptions, w http.ResponseWriter, 
 				component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pagechat_route_go kind=page route=/chat source=app/routes/chat/route.go go=app/routes/chat/route.go-->", EndComment: "<!--goldr:end id=g_pagechat_route_go-->"})
 				layoutContext := goldr.LayoutContext{Metadata: metadata}
 				layoutContext.Child = component
-				// layout /
 				// expected in file: app/routes/layout.go
-				// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 				component = Layout(r, layoutContext)
 				if component == nil {
 					return nil, goldr.ErrNilComponent
@@ -266,9 +254,7 @@ func goldrDispatchRootStaticChatStaticMessage(options HandlerOptions, w http.Res
 	}
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
-			// action POST /chat/message
 			// expected in file: app/routes/chat/route.go
-			// expected function: func GoldrRoutePostMessage(http.ResponseWriter, *http.Request) { ... }
 			goldrRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
 				component := page.Component
 				if component == nil {
@@ -277,9 +263,7 @@ func goldrDispatchRootStaticChatStaticMessage(options HandlerOptions, w http.Res
 				metadata := page.Metadata
 				layoutContext := goldr.LayoutContext{Metadata: metadata}
 				layoutContext.Child = component
-				// layout /
 				// expected in file: app/routes/layout.go
-				// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 				component = Layout(r, layoutContext)
 				if component == nil {
 					return nil, goldr.ErrNilComponent
@@ -305,9 +289,7 @@ func goldrDispatchRootStaticChatStaticSignOut(options HandlerOptions, w http.Res
 	}
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
-			// action POST /chat/sign-out
 			// expected in file: app/routes/chat/route.go
-			// expected function: func GoldrRoutePostSignOut(http.ResponseWriter, *http.Request) { ... }
 			goldrRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
 				component := page.Component
 				if component == nil {
@@ -316,9 +298,7 @@ func goldrDispatchRootStaticChatStaticSignOut(options HandlerOptions, w http.Res
 				metadata := page.Metadata
 				layoutContext := goldr.LayoutContext{Metadata: metadata}
 				layoutContext.Child = component
-				// layout /
 				// expected in file: app/routes/layout.go
-				// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 				component = Layout(r, layoutContext)
 				if component == nil {
 					return nil, goldr.ErrNilComponent
@@ -344,9 +324,7 @@ func goldrDispatchRootStaticJoin(options HandlerOptions, w http.ResponseWriter, 
 	}
 	if len(segments) == 1 {
 		if r.Method == http.MethodPost {
-			// action POST /join
 			// expected in file: app/routes/route.go
-			// expected function: func GoldrRoutePostJoin(http.ResponseWriter, *http.Request) { ... }
 			goldrRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
 				component := page.Component
 				if component == nil {
@@ -355,9 +333,7 @@ func goldrDispatchRootStaticJoin(options HandlerOptions, w http.ResponseWriter, 
 				metadata := page.Metadata
 				layoutContext := goldr.LayoutContext{Metadata: metadata}
 				layoutContext.Child = component
-				// layout /
 				// expected in file: app/routes/layout.go
-				// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 				component = Layout(r, layoutContext)
 				if component == nil {
 					return nil, goldr.ErrNilComponent
@@ -431,9 +407,7 @@ func goldrRootErrorRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Co
 	metadata := page.Metadata
 	layoutContext := goldr.LayoutContext{Metadata: metadata}
 	layoutContext.Child = component
-	// layout /
 	// expected in file: app/routes/layout.go
-	// expected function: func Layout(*http.Request, goldr.LayoutContext) templ.Component { ... }
 	component = Layout(r, layoutContext)
 	if component == nil {
 		return nil, goldr.ErrNilComponent

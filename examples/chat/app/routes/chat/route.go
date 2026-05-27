@@ -16,10 +16,10 @@ const maxMessageBody = 64 << 10
 var sendDelay = 3 * time.Second
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(Page),
-	Actions: goldr.FuncActions{
-		goldr.FuncPostHandler("message", PostMessage),
-		goldr.FuncPostHandler("sign-out", PostSignOut),
+	Page: Page,
+	Actions: goldr.Actions{
+		goldr.HTTPAction(http.MethodPost, "/message", PostMessage),
+		goldr.HTTPAction(http.MethodPost, "/sign-out", PostSignOut),
 	},
 }
 

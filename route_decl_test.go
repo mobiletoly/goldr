@@ -36,7 +36,7 @@ func (otherKit) page(*http.Request) goldr.RouteResponse {
 
 var Route = goldr.KitRouteDef[kit]{
 	New:  newKit,
-	Page: goldr.KitPage(otherKit.page),
+	Page: otherKit.page,
 }
 `)
 
@@ -46,7 +46,7 @@ var Route = goldr.KitRouteDef[kit]{
 	if err == nil {
 		t.Fatalf("go test unexpectedly succeeded; output:\n%s", output)
 	}
-	if !strings.Contains(string(output), "cannot use goldr.KitPage(otherKit.page)") {
+	if !strings.Contains(string(output), "cannot use otherKit.page") {
 		t.Fatalf("go test output = %s, want wrong receiver type error", output)
 	}
 }

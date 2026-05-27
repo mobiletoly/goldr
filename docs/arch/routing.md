@@ -165,13 +165,13 @@ Fragment templates are ordinary templ declarations used by handlers selected in
 
 ```go
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(page),
-	Fragments: goldr.FuncFragments{
-		goldr.FuncFragment("table", table),
-		goldr.FuncFragmentIndex(statusOptions),
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/table", table),
+		goldr.FragmentRoute("/", statusOptions),
 	},
-	Actions: goldr.FuncActions{
-		goldr.FuncPost("create", postCreate),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create", postCreate),
 	},
 }
 ```
@@ -212,7 +212,7 @@ The mounted subtree uses `KitRouteDef[K]` without `New`:
 
 ```go
 var Route = goldr.KitRouteDef[reports.Kit]{
-	Page: goldr.KitPage(reports.Kit.Page),
+	Page: reports.Kit.Page,
 }
 ```
 
@@ -260,9 +260,9 @@ Actions are declared in `route.go` with `Route.Actions`.
 
 ```go
 var Route = goldr.RouteDef{
-	Actions: goldr.FuncActions{
-		goldr.FuncPost("create", postCreate),
-		goldr.FuncDelete("archive", deleteArchive),
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create", postCreate),
+		goldr.Action(http.MethodDelete, "/archive", deleteArchive),
 	},
 }
 ```
@@ -296,7 +296,8 @@ It parses only files named:
 middleware.go
 ```
 
-The middleware parser looks for one top-level function declaration:
+The middleware parser looks for one top-level function declaration with an
+unaliased `net/http` import and exact `http.Handler` spelling:
 
 ```go
 func Middleware(next http.Handler) http.Handler
@@ -736,11 +737,9 @@ wiring surface, not standalone routes. URL helper expressions are reserved for
 The comment is for reviewability only; runtime code does not read it.
 
 Generated route dispatch also emits a short contract comment immediately above
-each call into app-owned route code. These call-site comments name the route
-kind and path, the expected `app/routes/...` file, and the expected function
-signature for page, fragment, layout, and action functions. The comments are
-for compiler-error locality and generated-source inspectability only; runtime
-code does not read them.
+each call into app-owned route code. These call-site comments name only the
+expected `app/routes/...` file. The comments are for compiler-error locality
+and generated-source inspectability only; runtime code does not read them.
 
 ## Middleware And Static Assets
 
@@ -758,11 +757,11 @@ Application code owns the outer HTTP composition:
 Static asset handlers should be registered on a more specific path such as
 `/assets/` before generated routes are registered at `/`.
 
-Goldr also supports route-tree middleware through `middleware.go` files under
-`app/routes`. Generated dispatch wraps matched pages, actions, and fragments
-with inherited middleware from root to leaf. This is compile-time filesystem
-composition over ordinary `net/http` middleware, not a runtime registry or URL
-prefix matcher.
+Goldr also supports route-tree endpoint middleware through `middleware.go`
+files under `app/routes`. Generated dispatch wraps matched pages, actions, and
+fragments with inherited middleware from root to leaf. This is compile-time
+filesystem composition over ordinary `net/http` middleware, not a runtime
+registry, global wrapper, or URL prefix matcher.
 
 Layouts are not middleware endpoints. Layout rendering happens inside the
 already wrapped page request or inside an action request when the action
@@ -987,9 +986,8 @@ layout stack still use the same API; the renderer returns the page component
 without adding layouts.
 
 Low-level writer actions are explicit. Route declarations use
-`FuncPostHandler`, `FuncPutHandler`, `FuncPatchHandler`, `FuncDeleteHandler`,
-or their `...HandlerIndex` forms when an action needs direct
-`http.ResponseWriter` control.
+`HTTPAction` or `KitHTTPAction` when an action needs direct `http.ResponseWriter`
+control.
 
 Dynamic route params are attached to the request before action handlers run.
 Application code reads them with `r.PathValue`.
@@ -1102,7 +1100,7 @@ the marker comments and fragment root inside one replacement boundary.
 Calling `@FragTableView(contacts)` directly remains valid and renders the same
 HTML, but no embedded fragment inspector boundary is emitted. Multiple templ
 declarations in one template file are ordinary application implementation
-details; separately inspectable fragments require separate `goldr.FuncFragment`
+details; separately inspectable fragments require separate `goldr.FragmentRoute`
 declarations in `route.go`.
 
 Generated helper names are reserved by convention. Goldr does not preflight

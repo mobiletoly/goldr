@@ -10,7 +10,7 @@ import (
 )
 
 var Route = goldr.RouteDef{
-	Page: goldr.FuncPage(Page),
+	Page: Page,
 }
 
 var errDemoAdminLoad = errors.New("demo admin load failed")
