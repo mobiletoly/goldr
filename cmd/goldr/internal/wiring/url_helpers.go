@@ -365,7 +365,11 @@ func writeURLMountedRoutes(buffer *bytes.Buffer, root *urlHelperNode) {
 }
 
 func writeURLTypes(buffer *bytes.Buffer, root *urlHelperNode) {
-	for _, node := range urlHelperNodes(root) {
+	writeURLTypeSet(buffer, urlHelperNodes(root))
+}
+
+func writeURLTypeSet(buffer *bytes.Buffer, nodes []*urlHelperNode) {
+	for _, node := range nodes {
 		staticChildren := urlStaticFields(node)
 		fmt.Fprintf(buffer, "type %s struct {\n", node.typeName)
 		buffer.WriteString("\tbasePath string\n")
@@ -380,9 +384,15 @@ func writeURLTypes(buffer *bytes.Buffer, root *urlHelperNode) {
 }
 
 func writeURLConstructors(buffer *bytes.Buffer, root *urlHelperNode) {
-	for _, node := range urlHelperNodes(root) {
+	writeURLConstructorSet(buffer, urlHelperNodes(root), func(node *urlHelperNode) string {
+		return "new" + exportedTypeName(node.typeName)
+	})
+}
+
+func writeURLConstructorSet(buffer *bytes.Buffer, nodes []*urlHelperNode, constructorName func(*urlHelperNode) string) {
+	for _, node := range nodes {
 		staticChildren := urlStaticFields(node)
-		fmt.Fprintf(buffer, "func new%s(basePath string", exportedTypeName(node.typeName))
+		fmt.Fprintf(buffer, "func %s(basePath string", constructorName(node))
 		if len(node.params) > 0 {
 			buffer.WriteString(", ")
 		}
@@ -394,7 +404,7 @@ func writeURLConstructors(buffer *bytes.Buffer, root *urlHelperNode) {
 			fmt.Fprintf(buffer, "\t\t%s: %s,\n", param.field, param.field)
 		}
 		for _, child := range staticChildren {
-			fmt.Fprintf(buffer, "\t\t%s: new%s(basePath", child.apiName, exportedTypeName(child.typeName))
+			fmt.Fprintf(buffer, "\t\t%s: %s(basePath", child.apiName, constructorName(child))
 			if len(child.params) > 0 {
 				buffer.WriteString(", ")
 			}
@@ -587,45 +597,13 @@ func writeMountURLSet(buffer *bytes.Buffer, root *urlHelperNode) {
 }
 
 func writeMountURLTypes(buffer *bytes.Buffer, root *urlHelperNode) {
-	for _, node := range mountURLHelperNodes(root) {
-		staticChildren := urlStaticFields(node)
-		fmt.Fprintf(buffer, "type %s struct {\n", node.typeName)
-		buffer.WriteString("\tbasePath string\n")
-		for _, param := range node.params {
-			fmt.Fprintf(buffer, "\t%s string\n", param.field)
-		}
-		for _, child := range staticChildren {
-			fmt.Fprintf(buffer, "\t%s %s\n", child.apiName, child.typeName)
-		}
-		buffer.WriteString("}\n\n")
-	}
+	writeURLTypeSet(buffer, mountURLHelperNodes(root))
 }
 
 func writeMountURLConstructors(buffer *bytes.Buffer, root *urlHelperNode) {
-	for _, node := range mountURLHelperNodes(root) {
-		staticChildren := urlStaticFields(node)
-		fmt.Fprintf(buffer, "func %s(basePath string", mountURLConstructorName(node.typeName))
-		if len(node.params) > 0 {
-			buffer.WriteString(", ")
-		}
-		writeURLConstructorParams(buffer, node.params)
-		fmt.Fprintf(buffer, ") %s {\n", node.typeName)
-		fmt.Fprintf(buffer, "\treturn %s{\n", node.typeName)
-		buffer.WriteString("\t\tbasePath: basePath,\n")
-		for _, param := range node.params {
-			fmt.Fprintf(buffer, "\t\t%s: %s,\n", param.field, param.field)
-		}
-		for _, child := range staticChildren {
-			fmt.Fprintf(buffer, "\t\t%s: %s(basePath", child.apiName, mountURLConstructorName(child.typeName))
-			if len(child.params) > 0 {
-				buffer.WriteString(", ")
-			}
-			writeURLConstructorArgs(buffer, child.params)
-			buffer.WriteString("),\n")
-		}
-		buffer.WriteString("\t}\n")
-		buffer.WriteString("}\n\n")
-	}
+	writeURLConstructorSet(buffer, mountURLHelperNodes(root), func(node *urlHelperNode) string {
+		return mountURLConstructorName(node.typeName)
+	})
 }
 
 func writeMountURLRootDynamicMethods(buffer *bytes.Buffer, root *urlHelperNode) {

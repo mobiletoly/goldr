@@ -26,32 +26,20 @@ func Require(ctx context.Context, root string) error {
 }
 
 func Generate(ctx context.Context, root string) error {
-	if err := Require(ctx, root); err != nil {
-		return err
-	}
-
-	command := exec.CommandContext(ctx, "go", "tool", "templ", "generate", "-path", ".")
-	command.Dir = root
-	output, err := command.CombinedOutput()
-	if err == nil {
-		return nil
-	}
-
-	var message strings.Builder
-	message.WriteString("templ generation failed")
-	if trimmed := strings.TrimSpace(string(output)); trimmed != "" {
-		message.WriteString("\n")
-		message.WriteString(trimmed)
-	}
-	return errors.New(message.String())
+	return runTemplGenerate(ctx, root, "templ generation failed", "generate", "-path", ".")
 }
 
 func GenerateCheck(ctx context.Context, root string) error {
+	return runTemplGenerate(ctx, root, "templ generated files are not up to date; run go tool goldr generate", "generate", "-check", "-path", ".")
+}
+
+func runTemplGenerate(ctx context.Context, root, failureMessage string, args ...string) error {
 	if err := Require(ctx, root); err != nil {
 		return err
 	}
 
-	command := exec.CommandContext(ctx, "go", "tool", "templ", "generate", "-check", "-path", ".")
+	commandArgs := append([]string{"tool", "templ"}, args...)
+	command := exec.CommandContext(ctx, "go", commandArgs...)
 	command.Dir = root
 	output, err := command.CombinedOutput()
 	if err == nil {
@@ -59,7 +47,7 @@ func GenerateCheck(ctx context.Context, root string) error {
 	}
 
 	var message strings.Builder
-	message.WriteString("templ generated files are not up to date; run go tool goldr generate")
+	message.WriteString(failureMessage)
 	if trimmed := strings.TrimSpace(string(output)); trimmed != "" {
 		message.WriteString("\n")
 		message.WriteString(trimmed)
