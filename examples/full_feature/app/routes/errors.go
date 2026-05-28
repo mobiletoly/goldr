@@ -6,7 +6,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func NotFound(r *http.Request) goldr.RouteResponse {
+func RouteNotFound(r *http.Request) goldr.RouteResponse {
 	return goldr.NewPage(
 		NotFoundView(r.URL.EscapedPath()),
 		goldr.PageMetadata{

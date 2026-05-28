@@ -138,13 +138,13 @@ import (
 
 func TestCustomErrorHandlers(t *testing.T) {
 	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
-		NotFound: func(r *http.Request) goldr.RouteResponse {
+		RouteNotFound: func(r *http.Request) goldr.RouteResponse {
 			return goldr.Text{Status: http.StatusNotFound, Body: "custom missing"}
 		},
-		MethodNotAllowed: func(r *http.Request) goldr.RouteResponse {
+		RouteMethodNotAllowed: func(r *http.Request) goldr.RouteResponse {
 			return goldr.Text{Status: http.StatusMethodNotAllowed, Body: "custom method"}
 		},
-		InternalServerError: func(r *http.Request, err error) goldr.RouteResponse {
+		RouteError: func(r *http.Request, err error) goldr.RouteResponse {
 			if !errors.Is(err, goldr.ErrNilComponent) {
 				t.Fatalf("internal error = %v, want ErrNilComponent", err)
 			}
@@ -182,7 +182,7 @@ func TestCustomErrorHandlers(t *testing.T) {
 
 func TestNilErrorHandlersFallBackIndependently(t *testing.T) {
 	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
-		NotFound: func(r *http.Request) goldr.RouteResponse {
+		RouteNotFound: func(r *http.Request) goldr.RouteResponse {
 			return goldr.Text{Status: http.StatusNotFound, Body: "custom missing"}
 		},
 	}})
@@ -293,7 +293,7 @@ import (
 )
 
 func Page(r *http.Request) goldr.PageRouteResponse {
-	return goldr.ServerError{Err: errors.New("users failed")}
+	return goldr.RouteError{Err: errors.New("users failed")}
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/layout.go", `package users
@@ -331,7 +331,7 @@ import (
 )
 
 func FragTable(r *http.Request) goldr.FragmentRouteResponse {
-	return goldr.ServerError{Err: errors.New("table failed")}
+	return goldr.RouteError{Err: errors.New("table failed")}
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/action.go", `package users
@@ -344,7 +344,7 @@ import (
 )
 
 func PostSave(r *http.Request) goldr.RouteResponse {
-	return goldr.ServerError{Err: errors.New("save failed")}
+	return goldr.RouteError{Err: errors.New("save failed")}
 }
 `)
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
@@ -360,15 +360,26 @@ import (
 
 func testHandler() http.Handler {
 	return HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
-		NotFound: func(r *http.Request) goldr.RouteResponse {
+		RouteNotFound: func(r *http.Request) goldr.RouteResponse {
 			return goldr.NewPage(textComponent("missing"), goldr.PageMetadata{
 				Title: "missing",
 			}).WithStatus(http.StatusNotFound)
 		},
-		InternalServerError: func(r *http.Request, err error) goldr.RouteResponse {
+		RouteMethodNotAllowed: func(r *http.Request) goldr.RouteResponse {
+			return goldr.NewPage(textComponent("method"), goldr.PageMetadata{
+				Title: "method",
+			}).WithStatus(http.StatusMethodNotAllowed)
+		},
+		RouteError: func(r *http.Request, err error) goldr.RouteResponse {
 			if hx.IsRequest(r) {
 				return goldr.NewFragment(textComponent("toast")).
+					WithStatus(http.StatusNotFound).
 					WithHeader(hx.HeaderRetarget, "#toast")
+			}
+			if err.Error() == "users failed" {
+				return goldr.NewPage(textComponent("missing product"), goldr.PageMetadata{
+					Title: "not found",
+				}).WithStatus(http.StatusNotFound)
 			}
 			return goldr.NewPage(textComponent("error"), goldr.PageMetadata{
 				Title: "error",
@@ -386,10 +397,30 @@ func TestErrorResponseLayoutContext(t *testing.T) {
 		t.Fatalf("missing = (%d, %q)", missing.Code, missing.Body.String())
 	}
 
+	method := httptest.NewRecorder()
+	handler.ServeHTTP(method, httptest.NewRequest(http.MethodPost, "/users", nil))
+	if method.Code != http.StatusMethodNotAllowed || method.Body.String() != "<root title=\"method\">method</root>" {
+		t.Fatalf("method = (%d, %q)", method.Code, method.Body.String())
+	}
+	if method.Header().Get("Allow") != "GET, HEAD" {
+		t.Fatalf("method Allow = %q", method.Header().Get("Allow"))
+	}
+
 	users := httptest.NewRecorder()
 	handler.ServeHTTP(users, httptest.NewRequest(http.MethodGet, "/users", nil))
-	if users.Code != http.StatusInternalServerError || users.Body.String() != "<root title=\"error\"><users title=\"error\">error</users></root>" {
+	if users.Code != http.StatusNotFound || users.Body.String() != "<root title=\"not found\"><users title=\"not found\">missing product</users></root>" {
 		t.Fatalf("users = (%d, %q)", users.Code, users.Body.String())
+	}
+
+	hxPage := httptest.NewRecorder()
+	hxPageRequest := httptest.NewRequest(http.MethodGet, "/users", nil)
+	hxPageRequest.Header.Set(hx.HeaderRequest, "true")
+	handler.ServeHTTP(hxPage, hxPageRequest)
+	if hxPage.Code != http.StatusNotFound || hxPage.Body.String() != "toast" {
+		t.Fatalf("hx page = (%d, %q)", hxPage.Code, hxPage.Body.String())
+	}
+	if hxPage.Header().Get(hx.HeaderRetarget) != "#toast" {
+		t.Fatalf("HX-Retarget = %q", hxPage.Header().Get(hx.HeaderRetarget))
 	}
 
 	action := httptest.NewRecorder()
@@ -408,7 +439,7 @@ func TestErrorResponseLayoutContext(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/users/table", nil)
 	request.Header.Set(hx.HeaderRequest, "true")
 	handler.ServeHTTP(hxFragment, request)
-	if hxFragment.Code != http.StatusOK || hxFragment.Body.String() != "toast" {
+	if hxFragment.Code != http.StatusNotFound || hxFragment.Body.String() != "toast" {
 		t.Fatalf("hx fragment = (%d, %q)", hxFragment.Code, hxFragment.Body.String())
 	}
 	if hxFragment.Header().Get(hx.HeaderRetarget) != "#toast" {
@@ -515,7 +546,7 @@ import (
 )
 
 func Page(r *http.Request) goldr.PageRouteResponse {
-	return goldr.ServerError{Err: errors.New("load failed")}
+	return goldr.RouteError{Err: errors.New("load failed")}
 }
 `)
 	writeTempFile(t, tempDir, "routes/badredirect/page.go", `package badredirect
@@ -543,7 +574,7 @@ import (
 
 func TestPageResponses(t *testing.T) {
 	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
-		InternalServerError: func(r *http.Request, err error) goldr.RouteResponse {
+		RouteError: func(r *http.Request, err error) goldr.RouteResponse {
 			return goldr.Text{Status: http.StatusInternalServerError, Body: "internal: " + err.Error()}
 		},
 	}})

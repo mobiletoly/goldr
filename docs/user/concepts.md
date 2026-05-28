@@ -66,7 +66,7 @@ The page component renders the body. Page metadata is passed to matching
 layouts.
 
 Normal pages use `goldr.NewPage`. Page handlers may also return `goldr.Redirect`,
-`goldr.Text`, or `goldr.ServerError` when the route needs to respond before
+`goldr.Text`, or `goldr.RouteError` when the route needs to respond before
 normal rendering. Use `page.WithStatus(status)` for rendered page responses
 such as `403` or `404`.
 

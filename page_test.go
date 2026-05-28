@@ -87,7 +87,7 @@ func TestResolveRouteResponseAcceptsPointers(t *testing.T) {
 	redirect := Redirect{Location: "/sign-in", Status: http.StatusSeeOther}
 	text := Text{Status: http.StatusForbidden, Body: "forbidden"}
 	noContent := NoContent{}
-	serverErr := ServerError{Err: appErr}
+	routeErr := RouteError{Err: appErr}
 
 	tests := []struct {
 		name     string
@@ -99,7 +99,7 @@ func TestResolveRouteResponseAcceptsPointers(t *testing.T) {
 		{name: "redirect", response: &redirect, kind: routeResponseRedirect},
 		{name: "text", response: &text, kind: routeResponseText},
 		{name: "no content", response: &noContent, kind: routeResponseNoContent},
-		{name: "server error", response: &serverErr, kind: routeResponseServerError},
+		{name: "route error", response: &routeErr, kind: routeResponseRouteError},
 	}
 
 	for _, test := range tests {
@@ -130,9 +130,9 @@ func TestEndpointResponseInterfaceMembership(_ *testing.T) {
 	var _ PageRouteResponse = Text{}
 	var _ FragmentRouteResponse = Text{}
 
-	var _ RouteResponse = ServerError{}
-	var _ PageRouteResponse = ServerError{}
-	var _ FragmentRouteResponse = ServerError{}
+	var _ RouteResponse = RouteError{}
+	var _ PageRouteResponse = RouteError{}
+	var _ FragmentRouteResponse = RouteError{}
 
 	var _ RouteResponse = NoContent{}
 }
@@ -228,7 +228,7 @@ func TestRouteResponseValidation(t *testing.T) {
 	var nilRedirect *Redirect
 	var nilText *Text
 	var nilNoContent *NoContent
-	var nilServerError *ServerError
+	var nilRouteError *RouteError
 
 	tests := []struct {
 		name     string
@@ -248,14 +248,14 @@ func TestRouteResponseValidation(t *testing.T) {
 		{name: "informational component status", response: NewPage(templ.NopComponent, PageMetadata{}).WithStatus(http.StatusSwitchingProtocols), want: ErrInvalidRouteResponse},
 		{name: "no content component status", response: NewPage(templ.NopComponent, PageMetadata{}).WithStatus(http.StatusNoContent), want: ErrInvalidRouteResponse},
 		{name: "no content fragment status", response: NewFragment(templ.NopComponent).WithStatus(http.StatusNoContent), want: ErrInvalidRouteResponse},
-		{name: "nil server error", response: ServerError{}, want: ErrNilServerError},
+		{name: "nil route error", response: RouteError{}, want: ErrNilRouteError},
 		{name: "nil route response", response: nil, want: ErrInvalidRouteResponse},
 		{name: "nil page pointer", response: nilPage, want: ErrInvalidRouteResponse},
 		{name: "nil fragment pointer", response: nilFragment, want: ErrInvalidRouteResponse},
 		{name: "nil redirect pointer", response: nilRedirect, want: ErrInvalidRouteResponse},
 		{name: "nil text pointer", response: nilText, want: ErrInvalidRouteResponse},
 		{name: "nil no content pointer", response: nilNoContent, want: ErrInvalidRouteResponse},
-		{name: "nil server error pointer", response: nilServerError, want: ErrInvalidRouteResponse},
+		{name: "nil route error pointer", response: nilRouteError, want: ErrInvalidRouteResponse},
 		{name: "zero page", response: Page{}, want: ErrNilComponent},
 	}
 
@@ -269,15 +269,15 @@ func TestRouteResponseValidation(t *testing.T) {
 	}
 }
 
-func TestServerErrorRouteResponseCarriesApplicationError(t *testing.T) {
+func TestRouteErrorResponseCarriesApplicationError(t *testing.T) {
 	appErr := errors.New("load failed")
 
-	response, err := resolveRouteResponse(ServerError{Err: appErr})
+	response, err := resolveRouteResponse(RouteError{Err: appErr})
 	if err != nil {
 		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if response.kind != routeResponseServerError {
-		t.Fatalf("kind = %d, want %d", response.kind, routeResponseServerError)
+	if response.kind != routeResponseRouteError {
+		t.Fatalf("kind = %d, want %d", response.kind, routeResponseRouteError)
 	}
 	if !errors.Is(response.err, appErr) {
 		t.Fatalf("response error = %v, want %v", response.err, appErr)

@@ -7,7 +7,7 @@ for custom error hooks.
 
 ## Route Handler Errors
 
-Use explicit status responses for expected request-shaped failures:
+Use explicit status responses when the route owns the response shape:
 
 ```go
 func page(r *http.Request) goldr.PageRouteResponse {
@@ -22,22 +22,25 @@ func page(r *http.Request) goldr.PageRouteResponse {
 }
 ```
 
-Use `goldr.ServerError` for unexpected application errors that should flow to
-generated internal-server-error handling:
+Use `goldr.RouteError` when a matched route should delegate error
+classification and response shape to the generated route error hook:
 
 ```go
 func page(r *http.Request) goldr.PageRouteResponse {
-	users, err := loadUsers(r.Context())
+	product, err := loadProduct(r.PathValue("id"))
 	if err != nil {
-		return goldr.ServerError{Err: err}
+		return goldr.RouteError{Err: err}
 	}
 
-	return goldr.NewPage(UsersView(users), goldr.PageMetadata{Title: "Users"})
+	return goldr.NewPage(
+		ProductView(product),
+		goldr.PageMetadata{Title: product.Name},
+	)
 }
 ```
 
-`goldr.ServerError{Err: nil}` is invalid. Nil components and invalid route
-responses also flow to internal-server-error handling.
+`goldr.RouteError{Err: nil}` is invalid. Nil components and invalid route
+responses also flow to route error handling.
 
 ## Generated Error Hooks
 
@@ -47,9 +50,9 @@ error responses:
 ```go
 mux.Handle("/", routes.HandlerWithOptions(routes.HandlerOptions{
 	ErrorHandlers: routes.ErrorHandlers{
-		NotFound:            routes.NotFound,
-		MethodNotAllowed:    routes.MethodNotAllowed,
-		InternalServerError: routes.InternalServerError,
+		RouteNotFound:         routes.RouteNotFound,
+		RouteMethodNotAllowed: routes.RouteMethodNotAllowed,
+		RouteError:            routes.RouteError,
 	},
 }))
 ```
@@ -58,9 +61,9 @@ Each hook is optional:
 
 ```go
 type ErrorHandlers struct {
-	NotFound            func(*http.Request) goldr.RouteResponse
-	MethodNotAllowed    func(*http.Request) goldr.RouteResponse
-	InternalServerError func(*http.Request, error) goldr.RouteResponse
+	RouteNotFound         func(*http.Request) goldr.RouteResponse
+	RouteMethodNotAllowed func(*http.Request) goldr.RouteResponse
+	RouteError            func(*http.Request, error) goldr.RouteResponse
 }
 ```
 
@@ -68,73 +71,64 @@ Nil hooks keep Goldr defaults:
 
 - unmatched generated routes return `404`
 - matched generated paths with unsupported methods return `405`
-- nil components, invalid route responses, and render failures return `500`
+- delegated route errors, nil components, invalid route responses, and render
+  failures return `500`
 
-## Full-Page Errors
+## Router Errors
 
-Return pages when the response should replace the whole document. Set the
-status explicitly:
+`RouteNotFound` handles generated router misses. It is not used for business
+not-found errors from matched routes:
 
 ```go
-func NotFound(r *http.Request) goldr.RouteResponse {
+func RouteNotFound(r *http.Request) goldr.RouteResponse {
 	return goldr.NewPage(
-		NotFoundView(r.URL.EscapedPath()),
+		RouteNotFoundView(r.URL.EscapedPath()),
 		goldr.PageMetadata{Title: "Page not found"},
 	).WithStatus(http.StatusNotFound)
 }
-
-func InternalServerError(r *http.Request, err error) goldr.RouteResponse {
-	return goldr.NewPage(
-		ErrorPage(),
-		goldr.PageMetadata{Title: "Something went wrong"},
-	).WithStatus(http.StatusInternalServerError)
-}
 ```
 
-Goldr does not coerce custom hook statuses. This keeps HTMX and non-HTML
-responses app-owned, but it means full-page error hooks should call
-`.WithStatus(...)`.
-
-Full 404 and 405 pages use the root layout when available. Full internal-error
-pages use the matched route layout stack when the error comes from a matched
-generated route.
-
-## HTMX Error Fragments
-
-Goldr passes the original request to error hooks. Apps can use `hx.IsRequest`
-to choose a fragment response for HTMX requests:
+`RouteMethodNotAllowed` handles generated router method mismatches. Generated
+dispatch sets the `Allow` header before calling the hook:
 
 ```go
-func InternalServerError(r *http.Request, err error) goldr.RouteResponse {
-	if hx.IsRequest(r) {
-		return goldr.NewFragment(ErrorToast()).
-			WithHeader(hx.HeaderRetarget, "#toast")
-	}
-
+func RouteMethodNotAllowed(r *http.Request) goldr.RouteResponse {
 	return goldr.NewPage(
-		ErrorPage(),
-		goldr.PageMetadata{Title: "Something went wrong"},
-	).WithStatus(http.StatusInternalServerError)
-}
-```
-
-Goldr does not choose app components such as `ErrorToast`. The app decides
-which component to return from the hook. Fragment, text, redirect, and
-no-content responses are written as returned by the hook.
-
-## Method Not Allowed
-
-Generated `405` responses set the `Allow` header before calling a custom
-`MethodNotAllowed` hook:
-
-```go
-func MethodNotAllowed(r *http.Request) goldr.RouteResponse {
-	return goldr.NewPage(
-		MethodNotAllowedView(),
+		RouteMethodNotAllowedView(),
 		goldr.PageMetadata{Title: "Method not allowed"},
 	).WithStatus(http.StatusMethodNotAllowed)
 }
 ```
+
+Full 404 and 405 pages use the root layout when available.
+
+## Matched Route Errors
+
+`RouteError` handles errors delegated by matched page, fragment, and action
+routes. The app owns classification, status, public message, logging, and
+response shape:
+
+```go
+func RouteError(r *http.Request, err error) goldr.RouteResponse {
+	status, message := classifyRouteError(err)
+	if hx.IsRequest(r) {
+		return goldr.NewFragment(ErrorToast(message)).
+			WithStatus(status).
+			WithHeader(hx.HeaderRetarget, "#toast")
+	}
+
+	return goldr.NewPage(
+		ErrorPage(message),
+		goldr.PageMetadata{Title: http.StatusText(status)},
+	).WithStatus(status)
+}
+```
+
+Matched route error pages use the matched route layout stack. HTMX requests can
+return fragments from the same hook.
+
+Goldr does not coerce custom hook statuses. Fragment, page, text, redirect, and
+no-content responses are written as returned by the hook.
 
 ## App-Owned Error Surfaces
 
@@ -143,6 +137,6 @@ actions, static asset handlers, SSE endpoints, streaming handlers, recovery
 middleware, logging, and panic policy remain application-owned `net/http`
 behavior.
 
-If a custom error hook returns an invalid response, returns `goldr.ServerError`,
+If a custom error hook returns an invalid response, returns `goldr.RouteError`,
 or fails while rendering, generated dispatch writes a plain `500` and does not
 call custom error hooks recursively.

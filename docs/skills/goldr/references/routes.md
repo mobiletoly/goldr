@@ -91,10 +91,11 @@ Pages can return:
 - `goldr.NewPage(component, metadata).WithStatus(status)`
 - `goldr.Redirect{Location: "...", Status: http.StatusSeeOther}`
 - `goldr.Text{Status: http.StatusForbidden, Body: "forbidden"}`
-- `goldr.ServerError{Err: err}`
+- `goldr.RouteError{Err: err}`
 
-Use explicit status pages for request-shaped failures and `goldr.ServerError`
-for unexpected application errors.
+Use explicit status pages when the page owns the error response shape and
+`goldr.RouteError` when generated route error handling should classify the
+error and choose the response shape.
 
 `goldr.Page`, `goldr.Fragment`, `goldr.Redirect`, and `goldr.Text` can carry
 headers with `WithHeader` and `AddHeader`.
@@ -309,7 +310,7 @@ goldr.Action(http.MethodPost, "/create", postCreate) -> POST /users/create
 goldr.Action(http.MethodPost, "/save-preview", postSavePreview) -> POST /users/save-preview
 ```
 
-Actions may return pages, fragments, redirects, text, server errors, or
+Actions may return pages, fragments, redirects, text, route errors, or
 `goldr.NoContent{}`. Use `goldr.HTTPAction` only when an action needs direct
 `http.ResponseWriter` control.
 
@@ -423,9 +424,9 @@ Error hooks are optional:
 
 ```go
 type ErrorHandlers struct {
-	NotFound            func(*http.Request) goldr.RouteResponse
-	MethodNotAllowed    func(*http.Request) goldr.RouteResponse
-	InternalServerError func(*http.Request, error) goldr.RouteResponse
+	RouteNotFound         func(*http.Request) goldr.RouteResponse
+	RouteMethodNotAllowed func(*http.Request) goldr.RouteResponse
+	RouteError            func(*http.Request, error) goldr.RouteResponse
 }
 ```
 
@@ -433,10 +434,30 @@ Hooks return normal `goldr.RouteResponse` values. Use explicit status on full
 error pages:
 
 ```go
-func NotFound(r *http.Request) goldr.RouteResponse {
+func RouteNotFound(r *http.Request) goldr.RouteResponse {
 	return goldr.NewPage(NotFoundView(), goldr.PageMetadata{
 		Title: "Page not found",
 	}).WithStatus(http.StatusNotFound)
+}
+```
+
+Use `goldr.RouteError{Err: err}` from page, fragment, or action handlers when
+the app should classify the error in one generated hook. This is for matched
+route errors, including public request-shaped errors such as validation,
+authorization, not-found, and conflict cases. Router misses use
+`RouteNotFound`, not `RouteError`:
+
+```go
+func RouteError(r *http.Request, err error) goldr.RouteResponse {
+	status, message := classifyRouteError(err)
+	if hx.IsRequest(r) {
+		return goldr.NewFragment(ErrorToast(message)).
+			WithStatus(status).
+			WithHeader(hx.HeaderRetarget, "#toast")
+	}
+	return goldr.NewPage(ErrorPage(message), goldr.PageMetadata{
+		Title: http.StatusText(status),
+	}).WithStatus(status)
 }
 ```
 
@@ -445,7 +466,7 @@ example by returning a toast fragment when `hx.IsRequest(r)` is true. Goldr
 does not choose app components.
 
 Nil hooks keep Goldr defaults. Full 404 and 405 pages use the root layout when
-available; full internal-error pages use the matched route layout stack.
+available; full route-error pages use the matched route layout stack.
 Fragment, text, redirect, and no-content responses are written as returned.
 Direct writer action responses and static asset error responses stay
 application-owned.

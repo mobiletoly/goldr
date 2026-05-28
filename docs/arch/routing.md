@@ -836,11 +836,11 @@ navigation state, and other shell policy remain application-owned.
 An invalid Goldr route response contract includes a zero-value page, a nil
 render component, an empty redirect location, a redirect status outside `301`,
 `302`, `303`, `307`, and `308`, a bodyless page status such as `204` or `205`,
-or `goldr.ServerError{Err: nil}`. Rendered page statuses must be final
+or `goldr.RouteError{Err: nil}`. Rendered page statuses must be final
 body-carrying statuses: `2xx` except `204` and `205`, plus `4xx` and `5xx`.
-`goldr.ServerError{Err: err}` is separate from that validation path: it is a
+`goldr.RouteError{Err: err}` is separate from that validation path: it is a
 valid route response, and `err` is the application error passed to the generated
-internal server error handler.
+route error handler.
 
 When the manifest contains matching layouts, the generated handler wraps the page
 component by calling:
@@ -1021,9 +1021,9 @@ Generated route packages expose:
 
 ```go
 type ErrorHandlers struct {
-	NotFound            func(*http.Request) goldr.RouteResponse
-	MethodNotAllowed    func(*http.Request) goldr.RouteResponse
-	InternalServerError func(*http.Request, error) goldr.RouteResponse
+	RouteNotFound         func(*http.Request) goldr.RouteResponse
+	RouteMethodNotAllowed func(*http.Request) goldr.RouteResponse
+	RouteError            func(*http.Request, error) goldr.RouteResponse
 }
 
 type HandlerOptions struct {

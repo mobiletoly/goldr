@@ -40,7 +40,7 @@ func table(r *http.Request) goldr.FragmentRouteResponse {
 ```
 
 Fragments render for `GET` and `HEAD`; they are not layout-wrapped. A fragment
-route may return a fragment, redirect, text response, or server error.
+route may return a fragment, redirect, text response, or `goldr.RouteError`.
 Returning a page from a fragment route is invalid. Use an index fragment when an
 HTMX partial owns the route directory path itself; do not model that endpoint as
 a page that returns a fragment. `goldr.NewFragment` defaults to
@@ -180,7 +180,7 @@ func postCreate(r *http.Request) goldr.RouteResponse {
 ```
 
 Return `goldr.NewFragment`, `goldr.NewPage`, `goldr.Redirect`, `goldr.Text`,
-`goldr.NoContent`, or `goldr.ServerError` from ordinary action helpers.
+`goldr.NoContent`, or `goldr.RouteError` from ordinary action helpers.
 `goldr.NoContent{}` defaults to `204 No Content`.
 
 For an action that only supports one page workflow, prefer a nested route

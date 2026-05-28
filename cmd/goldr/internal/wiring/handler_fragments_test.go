@@ -36,7 +36,7 @@ func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 		return goldr.Text{Status: http.StatusForbidden, Body: "forbidden"}.
 			WithHeader("X-Robots-Tag", "noindex")
 	case "error":
-		return goldr.ServerError{Err: errors.New("boom")}
+		return goldr.RouteError{Err: errors.New("boom")}
 	case "cacheable":
 		component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 			_, err := io.WriteString(writer, "<tbody>Cacheable fragment</tbody>")
@@ -137,7 +137,7 @@ func TestFragmentRouteResponses(t *testing.T) {
 	var serverErr error
 	errorResponse := httptest.NewRecorder()
 	HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
-		InternalServerError: func(r *http.Request, err error) goldr.RouteResponse {
+		RouteError: func(r *http.Request, err error) goldr.RouteResponse {
 			serverErr = err
 			return goldr.Text{Status: http.StatusInternalServerError, Body: "custom error"}
 		},
@@ -195,7 +195,7 @@ import (
 )
 
 func FragTable(r *http.Request) goldr.FragmentRouteResponse {
-	return goldr.ServerError{Err: errors.New("table failed")}
+	return goldr.RouteError{Err: errors.New("table failed")}
 }
 `)
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
@@ -211,7 +211,7 @@ import (
 
 func TestFragmentOnlyRouteImportsInheritedLayout(t *testing.T) {
 	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
-		InternalServerError: func(r *http.Request, err error) goldr.RouteResponse {
+		RouteError: func(r *http.Request, err error) goldr.RouteResponse {
 			return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{
 				Title: "error",
 			}).WithStatus(http.StatusInternalServerError)
@@ -296,7 +296,7 @@ import (
 
 func TestRouteHeadersAreDelayedUntilRenderSuccess(t *testing.T) {
 	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
-		InternalServerError: func(r *http.Request, err error) goldr.RouteResponse {
+		RouteError: func(r *http.Request, err error) goldr.RouteResponse {
 			return goldr.Text{Status: http.StatusInternalServerError, Body: "custom error"}
 		},
 	}})
@@ -388,7 +388,7 @@ func TestFragmentRenderFailures(t *testing.T) {
 func TestFragmentRenderFailureErrorsReachHandler(t *testing.T) {
 	var internalErr error
 	handler := HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
-		InternalServerError: func(r *http.Request, err error) goldr.RouteResponse {
+		RouteError: func(r *http.Request, err error) goldr.RouteResponse {
 			internalErr = err
 			return goldr.Text{Status: http.StatusInternalServerError}
 		},

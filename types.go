@@ -15,8 +15,8 @@ const fragmentDefaultCacheControl = "no-store"
 var (
 	// ErrInvalidRouteResponse reports a route response that cannot be written.
 	ErrInvalidRouteResponse = errors.New("invalid route response")
-	// ErrNilServerError reports goldr.ServerError{Err: nil}.
-	ErrNilServerError = errors.New("server error route response: nil error")
+	// ErrNilRouteError reports goldr.RouteError{Err: nil}.
+	ErrNilRouteError = errors.New("route error response: nil error")
 )
 
 // RouteResponse is a response value writable by Goldr-aware HTTP handlers.
@@ -88,14 +88,14 @@ type NoContent struct {
 
 func (NoContent) goldrRouteResponse() {}
 
-// ServerError delegates an application error to Goldr error handling.
-type ServerError struct {
+// RouteError delegates a matched route error to generated error handling.
+type RouteError struct {
 	Err error
 }
 
-func (ServerError) goldrRouteResponse()         {}
-func (ServerError) goldrPageRouteResponse()     {}
-func (ServerError) goldrFragmentRouteResponse() {}
+func (RouteError) goldrRouteResponse()         {}
+func (RouteError) goldrPageRouteResponse()     {}
+func (RouteError) goldrFragmentRouteResponse() {}
 
 type routeResponseKind uint8
 
@@ -106,7 +106,7 @@ const (
 	routeResponseRedirect
 	routeResponseText
 	routeResponseNoContent
-	routeResponseServerError
+	routeResponseRouteError
 )
 
 type resolvedRouteResponse struct {
@@ -267,13 +267,13 @@ func resolveRouteResponse(response RouteResponse) (resolvedRouteResponse, error)
 			return resolvedRouteResponse{}, ErrInvalidRouteResponse
 		}
 		return resolveNoContentResponse(*response)
-	case ServerError:
-		return resolveServerErrorResponse(response)
-	case *ServerError:
+	case RouteError:
+		return resolveRouteErrorResponse(response)
+	case *RouteError:
 		if response == nil {
 			return resolvedRouteResponse{}, ErrInvalidRouteResponse
 		}
-		return resolveServerErrorResponse(*response)
+		return resolveRouteErrorResponse(*response)
 	default:
 		return resolvedRouteResponse{}, ErrInvalidRouteResponse
 	}
@@ -360,12 +360,12 @@ func resolveNoContentResponse(response NoContent) (resolvedRouteResponse, error)
 	}, nil
 }
 
-func resolveServerErrorResponse(response ServerError) (resolvedRouteResponse, error) {
+func resolveRouteErrorResponse(response RouteError) (resolvedRouteResponse, error) {
 	if response.Err == nil {
-		return resolvedRouteResponse{}, ErrNilServerError
+		return resolvedRouteResponse{}, ErrNilRouteError
 	}
 	return resolvedRouteResponse{
-		kind: routeResponseServerError,
+		kind: routeResponseRouteError,
 		err:  response.Err,
 	}, nil
 }

@@ -291,7 +291,7 @@ app/routes/users/by_id/route.go         -> /users/{id}
 ```
 
 `page.templ` is optional. Use it for page-owned HTML written in templ. A page
-that always redirects, returns text, or delegates to `goldr.ServerError` does
+that always redirects, returns text, or delegates to `goldr.RouteError` does
 not need a marker-only template file.
 
 Use `goldr.NewPage` for a normal rendered page:
@@ -329,12 +329,13 @@ Page handlers can also return responses before normal rendering:
 return goldr.Redirect{Location: "/sign-in", Status: http.StatusSeeOther}
 return goldr.NewPage(ForbiddenView(), goldr.PageMetadata{Title: "Forbidden"}).WithStatus(http.StatusForbidden)
 return goldr.Text{Status: http.StatusForbidden, Body: "forbidden"}
-return goldr.ServerError{Err: err}
+return goldr.RouteError{Err: err}
 ```
 
-Redirects, text status responses, and errors do not render layouts. Status
-responses with a templ component render through the same layout chain as normal
-pages.
+Redirects and text status responses do not render layouts. Status responses
+with a templ component render through the same layout chain as normal pages.
+`goldr.RouteError` delegates to the generated `RouteError` hook; if that hook
+returns a page, generated dispatch renders it through the matched layout stack.
 
 `goldr.Redirect` accepts only redirect statuses that clients follow: `301`,
 `302`, `303`, `307`, and `308`. Rendered page responses and `goldr.Text` accept
@@ -356,9 +357,10 @@ return goldr.Redirect{
 
 ### Page Error Handling
 
-Use explicit status responses for expected request-shaped failures. Use
-`goldr.ServerError{Err: err}` only for unexpected application or runtime
-failures that should use Goldr's internal server error handling.
+Use explicit status responses when the page owns the error response shape. Use
+`goldr.RouteError{Err: err}` when the matched route should delegate error
+classification and page-versus-fragment response shape to the generated
+`RouteError` hook.
 
 Generated dispatch resolves the returned route response internally. If
 resolution returns an error, the page returned an invalid Goldr contract, such
@@ -366,10 +368,9 @@ as `goldr.Page{}`, `goldr.NewPage(nil, metadata)`,
 `goldr.Redirect{Location: "", Status: http.StatusSeeOther}`,
 `goldr.Redirect{Location: "/sign-in", Status: http.StatusNotModified}`,
 `goldr.NewPage(view, metadata).WithStatus(http.StatusNoContent)`, or
-`goldr.ServerError{Err: nil}`. Those validation errors are routed to internal
-server error handling. `goldr.ServerError{Err: err}` is a valid route response:
-its error is the application error passed to the generated internal server
-error handler.
+`goldr.RouteError{Err: nil}`. Those validation errors are routed to generated
+route error handling. `goldr.RouteError{Err: err}` is a valid route response:
+its error is passed to the generated `RouteError` hook.
 
 See [Error Handling](error-handling.md) for route handler error examples,
 custom generated error hooks, and HTMX error fragments.
@@ -504,7 +505,7 @@ func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 ```
 
 Fragments may also return `goldr.Redirect`, `goldr.Text`, and
-`goldr.ServerError`. Returning `goldr.Page` from a fragment route is an invalid
+`goldr.RouteError`. Returning `goldr.Page` from a fragment route is an invalid
 route-response contract because fragments do not render through layouts.
 
 ## Actions
@@ -730,9 +731,9 @@ Generated route packages expose optional error hooks:
 
 ```go
 type ErrorHandlers struct {
-	NotFound            func(*http.Request) goldr.RouteResponse
-	MethodNotAllowed    func(*http.Request) goldr.RouteResponse
-	InternalServerError func(*http.Request, error) goldr.RouteResponse
+	RouteNotFound         func(*http.Request) goldr.RouteResponse
+	RouteMethodNotAllowed func(*http.Request) goldr.RouteResponse
+	RouteError            func(*http.Request, error) goldr.RouteResponse
 }
 ```
 

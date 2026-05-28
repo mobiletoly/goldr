@@ -20,6 +20,9 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 		"type goldrManifest struct",
 		"type goldrAction struct",
 		"type ErrorHandlers struct",
+		"RouteNotFound         func(*http.Request) goldr.RouteResponse",
+		"RouteMethodNotAllowed func(*http.Request) goldr.RouteResponse",
+		"RouteError            func(*http.Request, error) goldr.RouteResponse",
 		"type HandlerOptions struct",
 		"TemplateInspection goldr.TemplateInspectionMode",
 		"var goldrGeneratedManifest = goldrManifest",
@@ -27,7 +30,9 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 		"func HandlerWithOptions(options HandlerOptions) http.Handler",
 		"Route:  \"/\"",
 		"RoutePrefix: \"/\"",
-		`goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/page.go"), goldrLayoutStack0)`,
+		"func goldrRouteError(options HandlerOptions, w http.ResponseWriter, r *http.Request, err error, render goldr.RoutePageRenderer)",
+		"func goldrWriteRouteErrorResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer)",
+		`goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/page.go"), goldrLayoutStack0, goldrRoutePageRenderer0)`,
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing %q:\n%s", want, source)
@@ -35,6 +40,16 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 	}
 	if strings.Contains(source, "InspectTemplates") {
 		t.Fatalf("generated source contains removed InspectTemplates field:\n%s", source)
+	}
+	for _, reject := range []string{
+		"NotFound            func(*http.Request) goldr.RouteResponse",
+		"MethodNotAllowed    func(*http.Request) goldr.RouteResponse",
+		"Internal" + "Server" + "Error func(*http.Request, error) goldr.RouteResponse",
+		"goldrWriteRouteErrorResponse(w, r, handlers.RouteError(r, err))",
+	} {
+		if strings.Contains(source, reject) {
+			t.Fatalf("generated source contains old error hook field %q:\n%s", reject, source)
+		}
 	}
 }
 
@@ -123,7 +138,7 @@ func TestGenerateManifestHoistsRenderAndMiddlewareHelpers(t *testing.T) {
 		"func goldrNewHandlers(options HandlerOptions) *goldrHandlers",
 		"endpoint0: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {",
 		"handlers.endpoint0.ServeHTTP(w, r)",
-		`goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/page.go"), goldrLayoutStack0)`,
+		`goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/page.go"), goldrLayoutStack0, goldrRoutePageRenderer0)`,
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing hoisted helper shape %q:\n%s", want, source)
@@ -172,9 +187,9 @@ func TestGenerateManifestFoldsEmptyIntermediateDispatchDepth(t *testing.T) {
 		"if len(segments) < 2 {",
 		"if len(segments) < 3 {",
 		"if len(segments) < 4 {",
-		"if len(segments) == 1 {\n\t\tgoldrNotFound(options, w, r)",
-		"if len(segments) == 2 {\n\t\tgoldrNotFound(options, w, r)",
-		"if len(segments) == 3 {\n\t\tgoldrNotFound(options, w, r)",
+		"if len(segments) == 1 {\n\t\tgoldrRouteNotFound(options, w, r)",
+		"if len(segments) == 2 {\n\t\tgoldrRouteNotFound(options, w, r)",
+		"if len(segments) == 3 {\n\t\tgoldrRouteNotFound(options, w, r)",
 	} {
 		if strings.Contains(source, reject) {
 			t.Fatalf("generated source still contains split empty-depth guard %q:\n%s", reject, source)

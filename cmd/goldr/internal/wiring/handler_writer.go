@@ -50,7 +50,7 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 		}
 		segments := goldrPathSegments(routePath)
 		if len(segments) == 0 {
-			goldrNotFound(options, w, r)
+			goldrRouteNotFound(options, w, r)
 			return
 		}
 		goldrDispatchRoot(%s, segments)
@@ -62,7 +62,7 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 			goldrDispatchRoot(%s, nil)
 			return
 		}
-		goldrNotFound(options, w, r)
+		goldrRouteNotFound(options, w, r)
 	})
 }
 `, dispatchArgs)
@@ -79,28 +79,28 @@ func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Compo
 	return component, nil
 }
 
-func goldrNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
+func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
-	if handlers.NotFound != nil {
-		goldrWriteErrorRouteResponse(w, r, handlers.NotFound(r), goldrRootErrorRoutePageRenderer)
+	if handlers.RouteNotFound != nil {
+		goldrWriteRouteFallbackResponse(w, r, handlers.RouteNotFound(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.NotFound(w, r)
 }
 
-func goldrMethodNotAllowed(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
+func goldrRouteMethodNotAllowed(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
-	if handlers.MethodNotAllowed != nil {
-		goldrWriteErrorRouteResponse(w, r, handlers.MethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
+	if handlers.RouteMethodNotAllowed != nil {
+		goldrWriteRouteFallbackResponse(w, r, handlers.RouteMethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 
-func goldrInternalServerError(options HandlerOptions, w http.ResponseWriter, r *http.Request, err error) {
+func goldrRouteError(options HandlerOptions, w http.ResponseWriter, r *http.Request, err error, render goldr.RoutePageRenderer) {
 	handlers := options.ErrorHandlers
-	if handlers.InternalServerError != nil {
-		goldrWriteInternalServerErrorRouteResponse(w, r, handlers.InternalServerError(r, err))
+	if handlers.RouteError != nil {
+		goldrWriteRouteErrorResponse(w, r, handlers.RouteError(r, err), render)
 		return
 	}
 	http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -109,14 +109,15 @@ func goldrInternalServerError(options HandlerOptions, w http.ResponseWriter, r *
 	writeEndpointResponseHelpers(buffer, routes)
 	buffer.WriteString(`
 
-func goldrWriteErrorRouteResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
+func goldrWriteRouteFallbackResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
 	r = goldr.WithRoutePageRenderer(r, render)
 	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }
 
-func goldrWriteInternalServerErrorRouteResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse) {
+func goldrWriteRouteErrorResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
+	r = goldr.WithRoutePageRenderer(r, render)
 	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
@@ -177,12 +178,12 @@ func writeEndpointResponseHelpers(buffer *bytes.Buffer, routes []runtimeRoute) {
 	if needsPage {
 		buffer.WriteString(`
 
-func goldrWritePageEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.PageRouteResponse, marker goldrinspect.Marker, layouts []goldrLayoutStep) {
+func goldrWritePageEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.PageRouteResponse, marker goldrinspect.Marker, layouts []goldrLayoutStep, routeErrorRender goldr.RoutePageRenderer) {
 	render := func(r *http.Request, page goldr.Page) (templ.Component, error) {
 		return goldrRenderPageWithMarker(r, page, marker, layouts)
 	}
 	if err := goldr.WritePageRouteResponse(w, r, response, render); err != nil {
-		goldrInternalServerError(options, w, r, err)
+		goldrRouteError(options, w, r, err, routeErrorRender)
 	}
 }
 `)
@@ -190,9 +191,9 @@ func goldrWritePageEndpointResponse(options HandlerOptions, w http.ResponseWrite
 	if needsFragment {
 		buffer.WriteString(`
 
-func goldrWriteFragmentEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.FragmentRouteResponse) {
+func goldrWriteFragmentEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.FragmentRouteResponse, render goldr.RoutePageRenderer) {
 	if err := goldr.WriteFragmentRouteResponse(w, r, response); err != nil {
-		goldrInternalServerError(options, w, r, err)
+		goldrRouteError(options, w, r, err, render)
 	}
 }
 `)
@@ -200,9 +201,9 @@ func goldrWriteFragmentEndpointResponse(options HandlerOptions, w http.ResponseW
 	if needsAction {
 		buffer.WriteString(`
 
-func goldrWriteEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.RouteResponse) {
+func goldrWriteEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
 	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
-		goldrInternalServerError(options, w, r, err)
+		goldrRouteError(options, w, r, err, render)
 	}
 }
 `)
@@ -345,6 +346,13 @@ func (plan handlerHelperPlan) layoutRendererName(layouts []routing.ManifestLayou
 		return ""
 	}
 	return plan.layoutRendererNames[layoutStackKey(layouts)]
+}
+
+func (plan handlerHelperPlan) routePageRendererName(layouts []routing.ManifestLayout) string {
+	if len(layouts) == 0 {
+		return "goldrDirectRoutePageRenderer"
+	}
+	return plan.layoutRendererName(layouts)
 }
 
 func (plan handlerHelperPlan) middlewareStackName(middlewares []routing.ManifestMiddleware) string {
@@ -555,7 +563,7 @@ func writeDispatchNode(buffer *bytes.Buffer, node *dispatchNode, helpers handler
 	}
 	if node.path == nil {
 		fmt.Fprintf(buffer, "\tif len(segments) <= %d {\n", node.depth)
-		buffer.WriteString("\t\tgoldrNotFound(options, w, r)\n")
+		buffer.WriteString("\t\tgoldrRouteNotFound(options, w, r)\n")
 		buffer.WriteString("\t\treturn\n")
 		buffer.WriteString("\t}\n")
 	}
@@ -589,7 +597,7 @@ func writeDispatchNode(buffer *bytes.Buffer, node *dispatchNode, helpers handler
 		buffer.WriteString("\t\treturn\n")
 		buffer.WriteString("\t}\n")
 	}
-	buffer.WriteString("\tgoldrNotFound(options, w, r)\n")
+	buffer.WriteString("\tgoldrRouteNotFound(options, w, r)\n")
 	buffer.WriteString("}\n")
 }
 
@@ -598,7 +606,7 @@ func writePathDispatch(buffer *bytes.Buffer, routePath runtimePath, helpers hand
 		for index, name := range routePath.params {
 			fmt.Fprintf(buffer, "%sgoldrParam%d, ok := goldrPathParam(segments[%d])\n", indent, index, paramSegmentIndex(routePath.segments, name, index))
 			fmt.Fprintf(buffer, "%sif !ok {\n", indent)
-			fmt.Fprintf(buffer, "%s\tgoldrNotFound(options, w, r)\n", indent)
+			fmt.Fprintf(buffer, "%s\tgoldrRouteNotFound(options, w, r)\n", indent)
 			fmt.Fprintf(buffer, "%s\treturn\n", indent)
 			fmt.Fprintf(buffer, "%s}\n", indent)
 		}
@@ -611,7 +619,7 @@ func writePathDispatch(buffer *bytes.Buffer, routePath runtimePath, helpers hand
 		writeMethodDispatch(buffer, route, helpers, indent)
 	}
 	fmt.Fprintf(buffer, "%sw.Header().Set(\"Allow\", %s)\n", indent, strconv.Quote(allowHeader(routePath.routes)))
-	fmt.Fprintf(buffer, "%sgoldrMethodNotAllowed(options, w, r)\n", indent)
+	fmt.Fprintf(buffer, "%sgoldrRouteMethodNotAllowed(options, w, r)\n", indent)
 	fmt.Fprintf(buffer, "%sreturn\n", indent)
 }
 
@@ -656,7 +664,7 @@ func writeActionRoute(buffer *bytes.Buffer, route runtimeRoute, helpers handlerH
 		return
 	}
 	fmt.Fprintf(buffer, "%srouteResponse := %s(r)\n", indent, actionCall)
-	fmt.Fprintf(buffer, "%sgoldrWriteEndpointResponse(options, w, r, routeResponse)\n", indent)
+	fmt.Fprintf(buffer, "%sgoldrWriteEndpointResponse(options, w, r, routeResponse, %s)\n", indent, helpers.routePageRendererName(route.action.layouts))
 	fmt.Fprintf(buffer, "%sreturn\n", indent)
 }
 
@@ -666,14 +674,14 @@ func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, helpers handlerH
 		writePageCallComment(buffer, indent, route.page.page)
 		writeRoutePageRendererAssignment(buffer, route.page.layouts, helpers, indent)
 		fmt.Fprintf(buffer, "%srouteResponse := %s(r)\n", indent, pageCall)
-		fmt.Fprintf(buffer, "%sgoldrWritePageEndpointResponse(options, w, r, routeResponse, %s, %s)\n", indent, templateMarker("page", route.page.page.Route, route.page.page.Unit), helpers.layoutStackName(route.page.layouts))
+		fmt.Fprintf(buffer, "%sgoldrWritePageEndpointResponse(options, w, r, routeResponse, %s, %s, %s)\n", indent, templateMarker("page", route.page.page.Route, route.page.page.Unit), helpers.layoutStackName(route.page.layouts), helpers.routePageRendererName(route.page.layouts))
 	} else {
 		fragmentCall := routeFunc(route.fragment.fragment.Unit.GoFile, manifestFragmentFuncName(route.fragment.fragment))
 		writeFragmentCallComment(buffer, indent, *route.fragment)
 		writeRoutePageRendererAssignment(buffer, route.fragment.layouts, helpers, indent)
 		fmt.Fprintf(buffer, "%srouteResponse := %s(r)\n", indent, fragmentCall)
 		fmt.Fprintf(buffer, "%srouteResponse = goldrWrapFragmentRouteResponse(routeResponse, %s)\n", indent, templateMarker("fragment", route.fragment.route, route.fragment.fragment.Unit))
-		fmt.Fprintf(buffer, "%sgoldrWriteFragmentEndpointResponse(options, w, r, routeResponse)\n", indent)
+		fmt.Fprintf(buffer, "%sgoldrWriteFragmentEndpointResponse(options, w, r, routeResponse, %s)\n", indent, helpers.routePageRendererName(route.fragment.layouts))
 	}
 	fmt.Fprintf(buffer, "%sreturn\n", indent)
 }

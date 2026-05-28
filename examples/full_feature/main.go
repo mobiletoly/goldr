@@ -78,7 +78,7 @@ func exampleHandler() http.Handler {
 	mux.Handle("/assets/", staticCache(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.FS())))))
 	routesHandler := routes.HandlerWithOptions(routes.HandlerOptions{
 		ErrorHandlers: routes.ErrorHandlers{
-			NotFound: routes.NotFound,
+			RouteNotFound: routes.RouteNotFound,
 		},
 		TemplateInspection: templateInspectionMode(),
 	})

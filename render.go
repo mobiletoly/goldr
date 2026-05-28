@@ -134,7 +134,7 @@ func writeRouteResponse(w http.ResponseWriter, r *http.Request, response RouteRe
 		applyResponseHeaders(w, resolved.noBody.headers)
 		w.WriteHeader(resolved.noBody.Status)
 		return nil
-	case routeResponseServerError:
+	case routeResponseRouteError:
 		return resolved.err
 	default:
 		return ErrInvalidRouteResponse

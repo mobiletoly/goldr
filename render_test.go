@@ -218,6 +218,46 @@ func TestWriteFragmentRouteResponseWritesRedirectAndText(t *testing.T) {
 	}
 }
 
+func TestWriteEndpointResponsesDelegateRouteError(t *testing.T) {
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	appErr := errors.New("product not found")
+
+	page := httptest.NewRecorder()
+	err := WritePageRouteResponse(
+		page,
+		request,
+		RouteError{Err: appErr},
+		func(_ *http.Request, page Page) (templ.Component, error) {
+			t.Fatalf("page renderer called for route error")
+			return page.Component, nil
+		},
+	)
+	if !errors.Is(err, appErr) {
+		t.Fatalf("WritePageRouteResponse(RouteError) error = %v, want %v", err, appErr)
+	}
+	if page.Body.Len() != 0 {
+		t.Fatalf("page body = %q, want empty", page.Body.String())
+	}
+
+	fragment := httptest.NewRecorder()
+	err = WriteFragmentRouteResponse(fragment, request, RouteError{Err: appErr})
+	if !errors.Is(err, appErr) {
+		t.Fatalf("WriteFragmentRouteResponse(RouteError) error = %v, want %v", err, appErr)
+	}
+	if fragment.Body.Len() != 0 {
+		t.Fatalf("fragment body = %q, want empty", fragment.Body.String())
+	}
+
+	route := httptest.NewRecorder()
+	err = WriteRouteResponse(route, request, RouteError{Err: appErr})
+	if !errors.Is(err, appErr) {
+		t.Fatalf("WriteRouteResponse(RouteError) error = %v, want %v", err, appErr)
+	}
+	if route.Body.Len() != 0 {
+		t.Fatalf("route body = %q, want empty", route.Body.String())
+	}
+}
+
 func TestWriteRouteResponseWritesRedirectAndText(t *testing.T) {
 	redirect := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil)

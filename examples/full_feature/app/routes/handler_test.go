@@ -298,7 +298,7 @@ func TestHandlerProtectedPageResponses(t *testing.T) {
 func TestHandlerProtectedPageErrorResponse(t *testing.T) {
 	handler := testHandlerWithOptions(HandlerOptions{
 		ErrorHandlers: ErrorHandlers{
-			InternalServerError: func(r *http.Request, err error) goldr.RouteResponse {
+			RouteError: func(r *http.Request, err error) goldr.RouteResponse {
 				return goldr.Text{Status: http.StatusInternalServerError, Body: err.Error()}
 			},
 		},
@@ -559,7 +559,7 @@ func TestHandlerMissingPath(t *testing.T) {
 func TestHandlerWithOptionsCustomNotFound(t *testing.T) {
 	handler := testHandlerWithOptions(HandlerOptions{
 		ErrorHandlers: ErrorHandlers{
-			NotFound: NotFound,
+			RouteNotFound: RouteNotFound,
 		},
 	})
 	recorder := httptest.NewRecorder()

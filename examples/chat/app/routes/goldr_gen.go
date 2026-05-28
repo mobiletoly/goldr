@@ -73,9 +73,9 @@ type goldrRenderUnit struct {
 }
 
 type ErrorHandlers struct {
-	NotFound            func(*http.Request) goldr.RouteResponse
-	MethodNotAllowed    func(*http.Request) goldr.RouteResponse
-	InternalServerError func(*http.Request, error) goldr.RouteResponse
+	RouteNotFound         func(*http.Request) goldr.RouteResponse
+	RouteMethodNotAllowed func(*http.Request) goldr.RouteResponse
+	RouteError            func(*http.Request, error) goldr.RouteResponse
 }
 
 type HandlerOptions struct {
@@ -116,7 +116,7 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 		}
 		segments := goldrPathSegments(routePath)
 		if len(segments) == 0 {
-			goldrNotFound(options, w, r)
+			goldrRouteNotFound(options, w, r)
 			return
 		}
 		goldrDispatchRoot(options, w, r, segments)
@@ -129,11 +129,11 @@ func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Re
 			// expected in file: app/routes/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageroute_go", "page", "/", "app/routes/route.go", "app/routes/route.go"), goldrLayoutStack0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageroute_go", "page", "/", "app/routes/route.go", "app/routes/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
-		goldrMethodNotAllowed(options, w, r)
+		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
 	switch segments[0] {
@@ -144,7 +144,7 @@ func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Re
 		goldrDispatchRootStaticJoin(options, w, r, segments)
 		return
 	}
-	goldrNotFound(options, w, r)
+	goldrRouteNotFound(options, w, r)
 }
 
 func goldrDispatchRootStaticChat(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
@@ -153,11 +153,11 @@ func goldrDispatchRootStaticChat(options HandlerOptions, w http.ResponseWriter, 
 			// expected in file: app/routes/chat/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_chat.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagechat_route_go", "page", "/chat", "app/routes/chat/route.go", "app/routes/chat/route.go"), goldrLayoutStack0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagechat_route_go", "page", "/chat", "app/routes/chat/route.go", "app/routes/chat/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
-		goldrMethodNotAllowed(options, w, r)
+		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
 	switch segments[1] {
@@ -168,7 +168,7 @@ func goldrDispatchRootStaticChat(options HandlerOptions, w http.ResponseWriter, 
 		goldrDispatchRootStaticChatStaticSignOut(options, w, r, segments)
 		return
 	}
-	goldrNotFound(options, w, r)
+	goldrRouteNotFound(options, w, r)
 }
 
 func goldrDispatchRootStaticChatStaticMessage(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
@@ -180,10 +180,10 @@ func goldrDispatchRootStaticChatStaticMessage(options HandlerOptions, w http.Res
 			return
 		}
 		w.Header().Set("Allow", "POST")
-		goldrMethodNotAllowed(options, w, r)
+		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrNotFound(options, w, r)
+	goldrRouteNotFound(options, w, r)
 }
 
 func goldrDispatchRootStaticChatStaticSignOut(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
@@ -195,10 +195,10 @@ func goldrDispatchRootStaticChatStaticSignOut(options HandlerOptions, w http.Res
 			return
 		}
 		w.Header().Set("Allow", "POST")
-		goldrMethodNotAllowed(options, w, r)
+		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrNotFound(options, w, r)
+	goldrRouteNotFound(options, w, r)
 }
 
 func goldrDispatchRootStaticJoin(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
@@ -210,10 +210,10 @@ func goldrDispatchRootStaticJoin(options HandlerOptions, w http.ResponseWriter, 
 			return
 		}
 		w.Header().Set("Allow", "POST")
-		goldrMethodNotAllowed(options, w, r)
+		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrNotFound(options, w, r)
+	goldrRouteNotFound(options, w, r)
 }
 
 type goldrLayoutFunc func(*http.Request, goldr.LayoutContext) templ.Component
@@ -281,50 +281,51 @@ func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Compo
 	return component, nil
 }
 
-func goldrNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
+func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
-	if handlers.NotFound != nil {
-		goldrWriteErrorRouteResponse(w, r, handlers.NotFound(r), goldrRootErrorRoutePageRenderer)
+	if handlers.RouteNotFound != nil {
+		goldrWriteRouteFallbackResponse(w, r, handlers.RouteNotFound(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.NotFound(w, r)
 }
 
-func goldrMethodNotAllowed(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
+func goldrRouteMethodNotAllowed(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
-	if handlers.MethodNotAllowed != nil {
-		goldrWriteErrorRouteResponse(w, r, handlers.MethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
+	if handlers.RouteMethodNotAllowed != nil {
+		goldrWriteRouteFallbackResponse(w, r, handlers.RouteMethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 
-func goldrInternalServerError(options HandlerOptions, w http.ResponseWriter, r *http.Request, err error) {
+func goldrRouteError(options HandlerOptions, w http.ResponseWriter, r *http.Request, err error, render goldr.RoutePageRenderer) {
 	handlers := options.ErrorHandlers
-	if handlers.InternalServerError != nil {
-		goldrWriteInternalServerErrorRouteResponse(w, r, handlers.InternalServerError(r, err))
+	if handlers.RouteError != nil {
+		goldrWriteRouteErrorResponse(w, r, handlers.RouteError(r, err), render)
 		return
 	}
 	http.Error(w, "internal server error", http.StatusInternalServerError)
 }
 
-func goldrWritePageEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.PageRouteResponse, marker goldrinspect.Marker, layouts []goldrLayoutStep) {
+func goldrWritePageEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.PageRouteResponse, marker goldrinspect.Marker, layouts []goldrLayoutStep, routeErrorRender goldr.RoutePageRenderer) {
 	render := func(r *http.Request, page goldr.Page) (templ.Component, error) {
 		return goldrRenderPageWithMarker(r, page, marker, layouts)
 	}
 	if err := goldr.WritePageRouteResponse(w, r, response, render); err != nil {
-		goldrInternalServerError(options, w, r, err)
+		goldrRouteError(options, w, r, err, routeErrorRender)
 	}
 }
 
-func goldrWriteErrorRouteResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
+func goldrWriteRouteFallbackResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
 	r = goldr.WithRoutePageRenderer(r, render)
 	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }
 
-func goldrWriteInternalServerErrorRouteResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse) {
+func goldrWriteRouteErrorResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
+	r = goldr.WithRoutePageRenderer(r, render)
 	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
