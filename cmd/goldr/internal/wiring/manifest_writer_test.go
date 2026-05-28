@@ -27,7 +27,7 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 		"func HandlerWithOptions(options HandlerOptions) http.Handler",
 		"Route:  \"/\"",
 		"RoutePrefix: \"/\"",
-		"goldr.WritePageRouteResponse(w, r, routeResponse, func(r *http.Request, page goldr.Page) (templ.Component, error)",
+		`goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/page.go"), goldrLayoutStack0)`,
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing %q:\n%s", want, source)
@@ -96,6 +96,88 @@ func TestGenerateManifestWritesCallSiteComments(t *testing.T) {
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing call-site comment block:\n--- want ---\n%s\n--- source ---\n%s", want, source)
+		}
+	}
+}
+
+func TestGenerateManifestHoistsRenderAndMiddlewareHelpers(t *testing.T) {
+	source := generateOK(t, routing.Manifest{
+		Pages: []routing.ManifestPage{
+			{Route: "/", Unit: completeUnit("page.go")},
+			{Route: "/users", Unit: completeUnit("users/page.go")},
+		},
+		Layouts: []routing.ManifestLayout{
+			{RoutePrefix: "/", Unit: completeUnit("layout.go")},
+		},
+		Middlewares: []routing.ManifestMiddleware{
+			{RoutePrefix: "/", GoFile: "middleware.go"},
+		},
+	})
+
+	for _, want := range []string{
+		"var goldrLayoutStack0 = []goldrLayoutStep",
+		"func goldrRoutePageRenderer0(r *http.Request, page goldr.Page) (templ.Component, error)",
+		"func goldrMiddlewareStack0(next http.Handler) http.Handler",
+		"handlers := goldrNewHandlers(options)",
+		"type goldrHandlers struct",
+		"func goldrNewHandlers(options HandlerOptions) *goldrHandlers",
+		"endpoint0: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {",
+		"handlers.endpoint0.ServeHTTP(w, r)",
+		`goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/page.go"), goldrLayoutStack0)`,
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("generated source missing hoisted helper shape %q:\n%s", want, source)
+		}
+	}
+	for _, reject := range []string{
+		"goldrErrorRoutePageRenderer := func",
+		"goldrRoutePageRenderer := func",
+		"func goldrPageRenderer",
+		"goldrServeEndpoint",
+		"goldrMiddlewareStackFunc",
+		"goldrEndpoint := http.HandlerFunc",
+		"goldrHandler :=",
+		"goldrHandler := http.Handler(goldrEndpoint)",
+		"err := goldr.WritePageRouteResponse(w, r, routeResponse",
+		"StartComment:",
+	} {
+		if strings.Contains(source, reject) {
+			t.Fatalf("generated source still contains inline helper shape %q:\n%s", reject, source)
+		}
+	}
+	if count := strings.Count(source, "layoutContext := goldr.LayoutContext{Metadata: metadata}"); count != 1 {
+		t.Fatalf("layout context setup count = %d, want 1:\n%s", count, source)
+	}
+}
+
+func TestGenerateManifestFoldsEmptyIntermediateDispatchDepth(t *testing.T) {
+	source := generateOK(t, routing.Manifest{
+		Pages: []routing.ManifestPage{
+			{Route: "/main/settings/security/confirm", Unit: completeUnit("main/settings/security/confirm/page.go")},
+		},
+	})
+
+	for _, want := range []string{
+		"if len(segments) <= 1 {",
+		"if len(segments) <= 2 {",
+		"if len(segments) <= 3 {",
+		"if len(segments) == 4 {",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("generated source missing folded empty-depth guard %q:\n%s", want, source)
+		}
+	}
+	for _, reject := range []string{
+		"if len(segments) < 1 {",
+		"if len(segments) < 2 {",
+		"if len(segments) < 3 {",
+		"if len(segments) < 4 {",
+		"if len(segments) == 1 {\n\t\tgoldrNotFound(options, w, r)",
+		"if len(segments) == 2 {\n\t\tgoldrNotFound(options, w, r)",
+		"if len(segments) == 3 {\n\t\tgoldrNotFound(options, w, r)",
+	} {
+		if strings.Contains(source, reject) {
+			t.Fatalf("generated source still contains split empty-depth guard %q:\n%s", reject, source)
 		}
 	}
 }
@@ -196,7 +278,7 @@ func TestGenerateManifestAcceptsPageWithoutTempl(t *testing.T) {
 	for _, want := range []string{
 		`GoFile:    "page.go"`,
 		`TemplFile: ""`,
-		`source=app/routes/page.go go=app/routes/page.go`,
+		`goldrinspect.NewMarker("g_pagepage_go", "page", "/", "app/routes/page.go", "app/routes/page.go")`,
 	} {
 		if !strings.Contains(string(source), want) {
 			t.Fatalf("generated source missing %q:\n%s", want, source)

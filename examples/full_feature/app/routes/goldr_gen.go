@@ -136,13 +136,15 @@ func Handler() http.Handler {
 }
 
 func HandlerWithOptions(options HandlerOptions) http.Handler {
+	handlers := goldrNewHandlers(options)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if options.TemplateInspection != goldr.TemplateInspectionOff {
 			r = r.WithContext(goldrinspect.WithMode(r.Context(), options.TemplateInspection))
 		}
 		routePath := r.URL.EscapedPath()
 		if routePath == "/" {
-			goldrDispatchRoot(options, w, r, nil)
+			goldrDispatchRoot(options, handlers, w, r, nil)
 			return
 		}
 		segments := goldrPathSegments(routePath)
@@ -150,60 +152,14 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 			goldrNotFound(options, w, r)
 			return
 		}
-		goldrDispatchRoot(options, w, r, segments)
+		goldrDispatchRoot(options, handlers, w, r, segments)
 	})
 }
 
-func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRoot(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 0 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/route.go
-				goldrErrorRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrErrorRoutePageRenderer)
-				routeResponse := GoldrRoutePage(r)
-				err := goldr.WritePageRouteResponse(w, r, routeResponse, func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pageroute_go kind=page route=/ source=app/routes/route.go go=app/routes/route.go-->", EndComment: "<!--goldr:end id=g_pageroute_go-->"})
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				})
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint0.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -212,78 +168,28 @@ func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Re
 	}
 	switch segments[0] {
 	case "admin":
-		goldrDispatchRootStaticAdmin(options, w, r, segments)
+		goldrDispatchRootStaticAdmin(options, handlers, w, r, segments)
 		return
 	case "protected-resource-demo":
-		goldrDispatchRootStaticProtectedResourceDemo(options, w, r, segments)
+		goldrDispatchRootStaticProtectedResourceDemo(options, handlers, w, r, segments)
 		return
 	case "settings":
-		goldrDispatchRootStaticSettings(options, w, r, segments)
+		goldrDispatchRootStaticSettings(options, handlers, w, r, segments)
 		return
 	case "sign-in":
-		goldrDispatchRootStaticSignIn(options, w, r, segments)
+		goldrDispatchRootStaticSignIn(options, handlers, w, r, segments)
 		return
 	case "users":
-		goldrDispatchRootStaticUsers(options, w, r, segments)
+		goldrDispatchRootStaticUsers(options, handlers, w, r, segments)
 		return
 	}
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticAdmin(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 1 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticAdmin(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/admin/route.go
-				goldrErrorRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrErrorRoutePageRenderer)
-				routeResponse := goldrroute_admin.GoldrRoutePage(r)
-				err := goldr.WritePageRouteResponse(w, r, routeResponse, func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pageadmin_route_go kind=page route=/admin source=app/routes/admin/route.go go=app/routes/admin/route.go-->", EndComment: "<!--goldr:end id=g_pageadmin_route_go-->"})
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				})
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint7.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -293,60 +199,10 @@ func goldrDispatchRootStaticAdmin(options HandlerOptions, w http.ResponseWriter,
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticProtectedResourceDemo(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 1 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticProtectedResourceDemo(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/protected_resource_demo/route.go
-				goldrErrorRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrErrorRoutePageRenderer)
-				routeResponse := goldrroute_protected_resource_demo.GoldrRoutePage(r)
-				err := goldr.WritePageRouteResponse(w, r, routeResponse, func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pageprotected_resource_demo_route_go kind=page route=/protected-resource-demo source=app/routes/protected_resource_demo/route.go go=app/routes/protected_resource_demo/route.go-->", EndComment: "<!--goldr:end id=g_pageprotected_resource_demo_route_go-->"})
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				})
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint8.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -355,53 +211,19 @@ func goldrDispatchRootStaticProtectedResourceDemo(options HandlerOptions, w http
 	}
 	switch segments[1] {
 	case "reveal-secret":
-		goldrDispatchRootStaticProtectedResourceDemoStaticRevealSecret(options, w, r, segments)
+		goldrDispatchRootStaticProtectedResourceDemoStaticRevealSecret(options, handlers, w, r, segments)
 		return
 	case "sign-out":
-		goldrDispatchRootStaticProtectedResourceDemoStaticSignOut(options, w, r, segments)
+		goldrDispatchRootStaticProtectedResourceDemoStaticSignOut(options, handlers, w, r, segments)
 		return
 	}
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticProtectedResourceDemoStaticRevealSecret(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 2 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticProtectedResourceDemoStaticRevealSecret(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/protected_resource_demo/route.go
-				goldrRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer)
-				routeResponse := goldrroute_protected_resource_demo.GoldrRoutePostRevealSecret(r)
-				err := goldr.WriteRouteResponse(w, r, routeResponse)
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint1.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "POST")
@@ -411,39 +233,10 @@ func goldrDispatchRootStaticProtectedResourceDemoStaticRevealSecret(options Hand
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticProtectedResourceDemoStaticSignOut(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 2 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticProtectedResourceDemoStaticSignOut(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/protected_resource_demo/route.go
-				goldrRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer)
-				goldrroute_protected_resource_demo.GoldrRoutePostSignOut(w, r)
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint2.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "POST")
@@ -453,60 +246,10 @@ func goldrDispatchRootStaticProtectedResourceDemoStaticSignOut(options HandlerOp
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticSettings(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 1 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticSettings(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/settings/route.go
-				goldrErrorRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrErrorRoutePageRenderer)
-				routeResponse := goldrroute_settings.GoldrRoutePage(r)
-				err := goldr.WritePageRouteResponse(w, r, routeResponse, func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pagesettings_route_go kind=page route=/settings source=app/routes/settings/route.go go=app/routes/settings/route.go-->", EndComment: "<!--goldr:end id=g_pagesettings_route_go-->"})
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				})
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint9.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -516,89 +259,14 @@ func goldrDispatchRootStaticSettings(options HandlerOptions, w http.ResponseWrit
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticSignIn(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 1 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticSignIn(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/sign_in/route.go
-				goldrErrorRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrErrorRoutePageRenderer)
-				routeResponse := goldrroute_sign_in.GoldrRoutePage(r)
-				err := goldr.WritePageRouteResponse(w, r, routeResponse, func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pagesign_in_route_go kind=page route=/sign-in source=app/routes/sign_in/route.go go=app/routes/sign_in/route.go-->", EndComment: "<!--goldr:end id=g_pagesign_in_route_go-->"})
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				})
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint10.ServeHTTP(w, r)
 			return
 		}
 		if r.Method == http.MethodPost {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/sign_in/route.go
-				goldrRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer)
-				goldrroute_sign_in.GoldrRoutePostIndex(w, r)
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint11.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD, POST")
@@ -608,74 +276,10 @@ func goldrDispatchRootStaticSignIn(options HandlerOptions, w http.ResponseWriter
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticUsers(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 1 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticUsers(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/users/route.go
-				goldrErrorRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/users/layout.go
-					component = goldrroute_users.Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->", EndComment: "<!--goldr:end id=g_layoutusers_layout_templ-->"})
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrErrorRoutePageRenderer)
-				routeResponse := goldrroute_users.GoldrRoutePage(r)
-				err := goldr.WritePageRouteResponse(w, r, routeResponse, func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pageusers_route_go kind=page route=/users source=app/routes/users/route.go go=app/routes/users/route.go-->", EndComment: "<!--goldr:end id=g_pageusers_route_go-->"})
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/users/layout.go
-					component = goldrroute_users.Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->", EndComment: "<!--goldr:end id=g_layoutusers_layout_templ-->"})
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				})
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint12.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -684,65 +288,29 @@ func goldrDispatchRootStaticUsers(options HandlerOptions, w http.ResponseWriter,
 	}
 	switch segments[1] {
 	case "create":
-		goldrDispatchRootStaticUsersStaticCreate(options, w, r, segments)
+		goldrDispatchRootStaticUsersStaticCreate(options, handlers, w, r, segments)
 		return
 	case "save-preview":
-		goldrDispatchRootStaticUsersStaticSavePreview(options, w, r, segments)
+		goldrDispatchRootStaticUsersStaticSavePreview(options, handlers, w, r, segments)
 		return
 	case "status-options":
-		goldrDispatchRootStaticUsersStaticStatusOptions(options, w, r, segments)
+		goldrDispatchRootStaticUsersStaticStatusOptions(options, handlers, w, r, segments)
 		return
 	case "table":
-		goldrDispatchRootStaticUsersStaticTable(options, w, r, segments)
+		goldrDispatchRootStaticUsersStaticTable(options, handlers, w, r, segments)
 		return
 	}
 	if segments[1] != "" {
-		goldrDispatchRootStaticUsersParamID(options, w, r, segments)
+		goldrDispatchRootStaticUsersParamID(options, handlers, w, r, segments)
 		return
 	}
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticUsersStaticCreate(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 2 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticUsersStaticCreate(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/users/route.go
-				goldrRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/users/layout.go
-					component = goldrroute_users.Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->", EndComment: "<!--goldr:end id=g_layoutusers_layout_templ-->"})
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer)
-				goldrroute_users.GoldrRoutePostCreate(w, r)
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint3.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "POST")
@@ -752,51 +320,10 @@ func goldrDispatchRootStaticUsersStaticCreate(options HandlerOptions, w http.Res
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticUsersStaticSavePreview(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 2 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticUsersStaticSavePreview(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/users/route.go
-				goldrRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/users/layout.go
-					component = goldrroute_users.Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->", EndComment: "<!--goldr:end id=g_layoutusers_layout_templ-->"})
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer)
-				routeResponse := goldrroute_users.GoldrRoutePostSavePreview(r)
-				err := goldr.WriteRouteResponse(w, r, routeResponse)
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint4.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "POST")
@@ -806,54 +333,10 @@ func goldrDispatchRootStaticUsersStaticSavePreview(options HandlerOptions, w htt
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticUsersStaticStatusOptions(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 2 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticUsersStaticStatusOptions(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/users/status_options/route.go
-				goldrRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/users/layout.go
-					component = goldrroute_users.Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->", EndComment: "<!--goldr:end id=g_layoutusers_layout_templ-->"})
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer)
-				routeResponse := goldrroute_users_status_options.GoldrRouteFragIndex(r)
-				routeResponse = goldrWrapFragmentRouteResponse(routeResponse, func(component templ.Component) templ.Component {
-					return goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_fragmentusers_status_options_route_go kind=fragment route=/users/status-options source=app/routes/users/status_options/route.go go=app/routes/users/status_options/route.go-->", EndComment: "<!--goldr:end id=g_fragmentusers_status_options_route_go-->"})
-				})
-				err := goldr.WriteFragmentRouteResponse(w, r, routeResponse)
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint5.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -863,54 +346,10 @@ func goldrDispatchRootStaticUsersStaticStatusOptions(options HandlerOptions, w h
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticUsersStaticTable(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 2 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticUsersStaticTable(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/users/route.go
-				goldrRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/users/layout.go
-					component = goldrroute_users.Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->", EndComment: "<!--goldr:end id=g_layoutusers_layout_templ-->"})
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer)
-				routeResponse := goldrroute_users.GoldrRouteFragTable(r)
-				routeResponse = goldrWrapFragmentRouteResponse(routeResponse, func(component templ.Component) templ.Component {
-					return goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_fragmentusers_route_go kind=fragment route=/users/table source=app/routes/users/route.go go=app/routes/users/route.go-->", EndComment: "<!--goldr:end id=g_fragmentusers_route_go-->"})
-				})
-				err := goldr.WriteFragmentRouteResponse(w, r, routeResponse)
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint6.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -920,11 +359,7 @@ func goldrDispatchRootStaticUsersStaticTable(options HandlerOptions, w http.Resp
 	goldrNotFound(options, w, r)
 }
 
-func goldrDispatchRootStaticUsersParamID(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
-	if len(segments) < 2 {
-		goldrNotFound(options, w, r)
-		return
-	}
+func goldrDispatchRootStaticUsersParamID(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 2 {
 		goldrParam0, ok := goldrPathParam(segments[1])
 		if !ok {
@@ -933,67 +368,7 @@ func goldrDispatchRootStaticUsersParamID(options HandlerOptions, w http.Response
 		}
 		r.SetPathValue("id", goldrParam0)
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			goldrEndpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// expected in file: app/routes/users/by_id/route.go
-				goldrErrorRoutePageRenderer := func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/users/layout.go
-					component = goldrroute_users.Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->", EndComment: "<!--goldr:end id=g_layoutusers_layout_templ-->"})
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				}
-				r = goldr.WithRoutePageRenderer(r, goldrErrorRoutePageRenderer)
-				routeResponse := goldrroute_users_by_id.GoldrRoutePage(r)
-				err := goldr.WritePageRouteResponse(w, r, routeResponse, func(r *http.Request, page goldr.Page) (templ.Component, error) {
-					component := page.Component
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					metadata := page.Metadata
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_pageusers_by_id_route_go kind=page route=/users/{id} source=app/routes/users/by_id/route.go go=app/routes/users/by_id/route.go-->", EndComment: "<!--goldr:end id=g_pageusers_by_id_route_go-->"})
-					layoutContext := goldr.LayoutContext{Metadata: metadata}
-					layoutContext.Child = component
-					// expected in file: app/routes/users/layout.go
-					component = goldrroute_users.Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->", EndComment: "<!--goldr:end id=g_layoutusers_layout_templ-->"})
-					layoutContext.Child = component
-					// expected in file: app/routes/layout.go
-					component = Layout(r, layoutContext)
-					if component == nil {
-						return nil, goldr.ErrNilComponent
-					}
-					component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-					return component, nil
-				})
-				if err != nil {
-					goldrInternalServerError(options, w, r, err)
-					return
-				}
-				return
-			})
-			goldrHandler := http.Handler(goldrEndpoint)
-			// expected in file: app/routes/middleware.go
-			goldrHandler = Middleware(goldrHandler)
-			goldrHandler.ServeHTTP(w, r)
+			handlers.endpoint13.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -1001,6 +376,205 @@ func goldrDispatchRootStaticUsersParamID(options HandlerOptions, w http.Response
 		return
 	}
 	goldrNotFound(options, w, r)
+}
+
+type goldrLayoutFunc func(*http.Request, goldr.LayoutContext) templ.Component
+
+type goldrLayoutStep struct {
+	render goldrLayoutFunc
+	marker goldrinspect.Marker
+}
+
+func goldrRenderPageWithMarker(r *http.Request, page goldr.Page, marker goldrinspect.Marker, layouts []goldrLayoutStep) (templ.Component, error) {
+	component, metadata, err := goldrPageComponent(page)
+	if err != nil {
+		return nil, err
+	}
+	component = goldrinspect.Wrap(component, marker)
+	return goldrRenderPageLayouts(r, component, metadata, layouts)
+}
+
+func goldrRenderPage(r *http.Request, page goldr.Page, layouts []goldrLayoutStep) (templ.Component, error) {
+	component, metadata, err := goldrPageComponent(page)
+	if err != nil {
+		return nil, err
+	}
+	return goldrRenderPageLayouts(r, component, metadata, layouts)
+}
+
+func goldrPageComponent(page goldr.Page) (templ.Component, goldr.PageMetadata, error) {
+	component := page.Component
+	if component == nil {
+		return nil, goldr.PageMetadata{}, goldr.ErrNilComponent
+	}
+	return component, page.Metadata, nil
+}
+
+func goldrRenderPageLayouts(r *http.Request, component templ.Component, metadata goldr.PageMetadata, layouts []goldrLayoutStep) (templ.Component, error) {
+	layoutContext := goldr.LayoutContext{Metadata: metadata}
+	for index := len(layouts) - 1; index >= 0; index-- {
+		layoutContext.Child = component
+		component = layouts[index].render(r, layoutContext)
+		if component == nil {
+			return nil, goldr.ErrNilComponent
+		}
+		component = goldrinspect.Wrap(component, layouts[index].marker)
+	}
+	return component, nil
+}
+
+var goldrLayoutStack0 = []goldrLayoutStep{
+	// expected in file: app/routes/layout.go
+	{
+		render: Layout,
+		marker: goldrinspect.NewMarker("g_layoutlayout_templ", "layout", "/", "app/routes/layout.templ", "app/routes/layout.go"),
+	},
+}
+
+var goldrLayoutStack1 = []goldrLayoutStep{
+	// expected in file: app/routes/layout.go
+	{
+		render: Layout,
+		marker: goldrinspect.NewMarker("g_layoutlayout_templ", "layout", "/", "app/routes/layout.templ", "app/routes/layout.go"),
+	},
+	// expected in file: app/routes/users/layout.go
+	{
+		render: goldrroute_users.Layout,
+		marker: goldrinspect.NewMarker("g_layoutusers_layout_templ", "layout", "/users", "app/routes/users/layout.templ", "app/routes/users/layout.go"),
+	},
+}
+
+func goldrRoutePageRenderer0(r *http.Request, page goldr.Page) (templ.Component, error) {
+	return goldrRenderPage(r, page, goldrLayoutStack0)
+}
+
+func goldrRoutePageRenderer1(r *http.Request, page goldr.Page) (templ.Component, error) {
+	return goldrRenderPage(r, page, goldrLayoutStack1)
+}
+
+func goldrMiddlewareStack0(next http.Handler) http.Handler {
+	// expected in file: app/routes/middleware.go
+	next = Middleware(next)
+	return next
+}
+
+type goldrHandlers struct {
+	endpoint0  http.Handler
+	endpoint1  http.Handler
+	endpoint2  http.Handler
+	endpoint3  http.Handler
+	endpoint4  http.Handler
+	endpoint5  http.Handler
+	endpoint6  http.Handler
+	endpoint7  http.Handler
+	endpoint8  http.Handler
+	endpoint9  http.Handler
+	endpoint10 http.Handler
+	endpoint11 http.Handler
+	endpoint12 http.Handler
+	endpoint13 http.Handler
+}
+
+func goldrNewHandlers(options HandlerOptions) *goldrHandlers {
+	return &goldrHandlers{
+		endpoint0: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
+			routeResponse := GoldrRoutePage(r)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageroute_go", "page", "/", "app/routes/route.go", "app/routes/route.go"), goldrLayoutStack0)
+			return
+		})),
+		endpoint1: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/protected_resource_demo/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
+			routeResponse := goldrroute_protected_resource_demo.GoldrRoutePostRevealSecret(r)
+			goldrWriteEndpointResponse(options, w, r, routeResponse)
+			return
+		})),
+		endpoint2: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/protected_resource_demo/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
+			goldrroute_protected_resource_demo.GoldrRoutePostSignOut(w, r)
+			return
+		})),
+		endpoint3: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/users/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
+			goldrroute_users.GoldrRoutePostCreate(w, r)
+			return
+		})),
+		endpoint4: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/users/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
+			routeResponse := goldrroute_users.GoldrRoutePostSavePreview(r)
+			goldrWriteEndpointResponse(options, w, r, routeResponse)
+			return
+		})),
+		endpoint5: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/users/status_options/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
+			routeResponse := goldrroute_users_status_options.GoldrRouteFragIndex(r)
+			routeResponse = goldrWrapFragmentRouteResponse(routeResponse, goldrinspect.NewMarker("g_fragmentusers_status_options_route_go", "fragment", "/users/status-options", "app/routes/users/status_options/route.go", "app/routes/users/status_options/route.go"))
+			goldrWriteFragmentEndpointResponse(options, w, r, routeResponse)
+			return
+		})),
+		endpoint6: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/users/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
+			routeResponse := goldrroute_users.GoldrRouteFragTable(r)
+			routeResponse = goldrWrapFragmentRouteResponse(routeResponse, goldrinspect.NewMarker("g_fragmentusers_route_go", "fragment", "/users/table", "app/routes/users/route.go", "app/routes/users/route.go"))
+			goldrWriteFragmentEndpointResponse(options, w, r, routeResponse)
+			return
+		})),
+		endpoint7: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/admin/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
+			routeResponse := goldrroute_admin.GoldrRoutePage(r)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageadmin_route_go", "page", "/admin", "app/routes/admin/route.go", "app/routes/admin/route.go"), goldrLayoutStack0)
+			return
+		})),
+		endpoint8: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/protected_resource_demo/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
+			routeResponse := goldrroute_protected_resource_demo.GoldrRoutePage(r)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageprotected_resource_demo_route_go", "page", "/protected-resource-demo", "app/routes/protected_resource_demo/route.go", "app/routes/protected_resource_demo/route.go"), goldrLayoutStack0)
+			return
+		})),
+		endpoint9: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/settings/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
+			routeResponse := goldrroute_settings.GoldrRoutePage(r)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagesettings_route_go", "page", "/settings", "app/routes/settings/route.go", "app/routes/settings/route.go"), goldrLayoutStack0)
+			return
+		})),
+		endpoint10: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/sign_in/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
+			routeResponse := goldrroute_sign_in.GoldrRoutePage(r)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagesign_in_route_go", "page", "/sign-in", "app/routes/sign_in/route.go", "app/routes/sign_in/route.go"), goldrLayoutStack0)
+			return
+		})),
+		endpoint11: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/sign_in/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
+			goldrroute_sign_in.GoldrRoutePostIndex(w, r)
+			return
+		})),
+		endpoint12: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/users/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
+			routeResponse := goldrroute_users.GoldrRoutePage(r)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageusers_route_go", "page", "/users", "app/routes/users/route.go", "app/routes/users/route.go"), goldrLayoutStack1)
+			return
+		})),
+		endpoint13: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// expected in file: app/routes/users/by_id/route.go
+			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
+			routeResponse := goldrroute_users_by_id.GoldrRoutePage(r)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageusers_by_id_route_go", "page", "/users/{id}", "app/routes/users/by_id/route.go", "app/routes/users/by_id/route.go"), goldrLayoutStack1)
+			return
+		})),
+	}
 }
 
 func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
@@ -1038,6 +612,27 @@ func goldrInternalServerError(options HandlerOptions, w http.ResponseWriter, r *
 	http.Error(w, "internal server error", http.StatusInternalServerError)
 }
 
+func goldrWritePageEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, marker goldrinspect.Marker, layouts []goldrLayoutStep) {
+	render := func(r *http.Request, page goldr.Page) (templ.Component, error) {
+		return goldrRenderPageWithMarker(r, page, marker, layouts)
+	}
+	if err := goldr.WritePageRouteResponse(w, r, response, render); err != nil {
+		goldrInternalServerError(options, w, r, err)
+	}
+}
+
+func goldrWriteFragmentEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.RouteResponse) {
+	if err := goldr.WriteFragmentRouteResponse(w, r, response); err != nil {
+		goldrInternalServerError(options, w, r, err)
+	}
+}
+
+func goldrWriteEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.RouteResponse) {
+	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
+		goldrInternalServerError(options, w, r, err)
+	}
+}
+
 func goldrWriteErrorRouteResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
 	if err := goldr.WritePageRouteResponse(w, r, response, render); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -1051,20 +646,7 @@ func goldrWriteInternalServerErrorRouteResponse(w http.ResponseWriter, r *http.R
 }
 
 func goldrRootErrorRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
-	component := page.Component
-	if component == nil {
-		return nil, goldr.ErrNilComponent
-	}
-	metadata := page.Metadata
-	layoutContext := goldr.LayoutContext{Metadata: metadata}
-	layoutContext.Child = component
-	// expected in file: app/routes/layout.go
-	component = Layout(r, layoutContext)
-	if component == nil {
-		return nil, goldr.ErrNilComponent
-	}
-	component = goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->", EndComment: "<!--goldr:end id=g_layoutlayout_templ-->"})
-	return component, nil
+	return goldrRoutePageRenderer0(r, page)
 }
 
 func goldrPathSegments(routePath string) []string {
@@ -1082,17 +664,17 @@ func goldrPathParam(segment string) (string, bool) {
 	return value, true
 }
 
-func goldrWrapFragmentRouteResponse(response goldr.RouteResponse, wrap func(templ.Component) templ.Component) goldr.RouteResponse {
+func goldrWrapFragmentRouteResponse(response goldr.RouteResponse, marker goldrinspect.Marker) goldr.RouteResponse {
 	switch response := response.(type) {
 	case goldr.Fragment:
-		response.Component = wrap(response.Component)
+		response.Component = goldrinspect.Wrap(response.Component, marker)
 		return response
 	case *goldr.Fragment:
 		if response == nil {
 			return response
 		}
 		next := *response
-		next.Component = wrap(next.Component)
+		next.Component = goldrinspect.Wrap(next.Component, marker)
 		return next
 	default:
 		return response

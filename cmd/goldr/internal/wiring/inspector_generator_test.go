@@ -56,14 +56,12 @@ func FragRow(r *http.Request) goldr.RouteResponse {
 			"package users",
 			`"example.com/app/internal/goldrinspect"`,
 			"func renderFragTable(component templ.Component) templ.Component",
-			"route=/users/table",
-			"source=app/routes/users/frag_table.templ",
-			"go=app/routes/users/frag_table.go",
+			`goldrinspect.NewMarker("g_fragmentusers_frag_table_templ", "fragment", "/users/table", "app/routes/users/frag_table.templ", "app/routes/users/frag_table.go")`,
 		},
 		"users/by_id": {
 			"package by_id",
 			"func renderFragRow(component templ.Component) templ.Component",
-			"route=/users/{id}/row",
+			`goldrinspect.NewMarker("g_fragmentusers_by_id_frag_row_templ", "fragment", "/users/{id}/row", "app/routes/users/by_id/frag_row.templ", "app/routes/users/by_id/frag_row.go")`,
 		},
 	}
 	for _, file := range files {

@@ -27,14 +27,40 @@ func GenerateInspectorSupport(packageName string) ([]byte, error) {
 	buffer.WriteString(`import (
 	"context"
 	"io"
+	"strings"
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
 )
 
 type Marker struct {
-	StartComment string
-	EndComment   string
+	ID     string
+	Kind   string
+	Route  string
+	Source string
+	GoFile string
+}
+
+func NewMarker(id string, kind string, route string, source string, goFile string) Marker {
+	return Marker{ID: id, Kind: kind, Route: route, Source: source, GoFile: goFile}
+}
+
+func (marker Marker) comments() (string, string) {
+	start := "<!--goldr:start id=" + commentValue(marker.ID) +
+		" kind=" + commentValue(marker.Kind) +
+		" route=" + commentValue(marker.Route) +
+		" source=" + commentValue(marker.Source) +
+		" go=" + commentValue(marker.GoFile) +
+		"-->"
+	end := "<!--goldr:end id=" + commentValue(marker.ID) + "-->"
+	return start, end
+}
+
+func commentValue(value string) string {
+	value = strings.ReplaceAll(value, "--", "- -")
+	value = strings.ReplaceAll(value, ">", "&gt;")
+	value = strings.ReplaceAll(value, " ", "%20")
+	return value
 }
 
 func WithMode(ctx context.Context, mode goldr.TemplateInspectionMode) context.Context {
@@ -49,13 +75,14 @@ func Wrap(component templ.Component, marker Marker) templ.Component {
 		if !enabled(ctx) {
 			return component.Render(ctx, writer)
 		}
-		if _, err := io.WriteString(writer, marker.StartComment); err != nil {
+		start, end := marker.comments()
+		if _, err := io.WriteString(writer, start); err != nil {
 			return err
 		}
 		if err := component.Render(ctx, writer); err != nil {
 			return err
 		}
-		_, err := io.WriteString(writer, marker.EndComment)
+		_, err := io.WriteString(writer, end)
 		return err
 	})
 }

@@ -806,9 +806,20 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"sync/atomic"
 )
 
 type key struct{}
+
+var middlewareConstructCount atomic.Int64
+
+func RecordMiddlewareConstruct() {
+	middlewareConstructCount.Add(1)
+}
+
+func MiddlewareConstructCount() int64 {
+	return middlewareConstructCount.Load()
+}
 
 func Append(r *http.Request, value string) *http.Request {
 	values := append(OrderValues(r), value)
@@ -833,6 +844,7 @@ import (
 )
 
 func Middleware(next http.Handler) http.Handler {
+	routectx.RecordMiddlewareConstruct()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Middleware", "root")
 		next.ServeHTTP(w, routectx.Append(r, "root"))
@@ -848,6 +860,7 @@ import (
 )
 
 func Middleware(next http.Handler) http.Handler {
+	routectx.RecordMiddlewareConstruct()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Middleware", "users")
 		next.ServeHTTP(w, routectx.Append(r, "users"))
@@ -863,6 +876,7 @@ import (
 )
 
 func Middleware(next http.Handler) http.Handler {
+	routectx.RecordMiddlewareConstruct()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Middleware", "admin")
 		r = routectx.Append(r, "admin")
@@ -884,6 +898,7 @@ import (
 )
 
 func Middleware(next http.Handler) http.Handler {
+	routectx.RecordMiddlewareConstruct()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Middleware", "sibling")
 		next.ServeHTTP(w, routectx.Append(r, "sibling"))
@@ -1028,6 +1043,7 @@ func PostCreate(r *http.Request) goldr.RouteResponse {
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
 
 import (
+	"example.com/app/routectx"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -1035,6 +1051,11 @@ import (
 )
 
 func TestMiddlewareRoutes(t *testing.T) {
+	handler := Handler()
+	constructed := routectx.MiddlewareConstructCount()
+	if constructed == 0 {
+		t.Fatal("middleware construction count = 0, want precomposed middleware")
+	}
 	tests := []struct {
 		method string
 		path string
@@ -1050,7 +1071,7 @@ func TestMiddlewareRoutes(t *testing.T) {
 	}
 	for _, test := range tests {
 		recorder := httptest.NewRecorder()
-		Handler().ServeHTTP(recorder, httptest.NewRequest(test.method, test.path, nil))
+		handler.ServeHTTP(recorder, httptest.NewRequest(test.method, test.path, nil))
 		if recorder.Code != http.StatusOK {
 			t.Fatalf("%s %s status = %d, want 200; body = %q", test.method, test.path, recorder.Code, recorder.Body.String())
 		}
@@ -1060,6 +1081,9 @@ func TestMiddlewareRoutes(t *testing.T) {
 		if got := recorder.Header().Values("X-Middleware"); !reflect.DeepEqual(got, test.middleware) {
 			t.Fatalf("%s %s middleware = %#v, want %#v", test.method, test.path, got, test.middleware)
 		}
+	}
+	if got := routectx.MiddlewareConstructCount(); got != constructed {
+		t.Fatalf("middleware construction count after requests = %d, want %d", got, constructed)
 	}
 }
 

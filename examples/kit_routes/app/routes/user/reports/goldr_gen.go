@@ -27,5 +27,5 @@ func GoldrRouteMountReportsFragTable(r *http.Request) goldr.RouteResponse {
 }
 
 func renderFragTable(component templ.Component) templ.Component {
-	return goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_fragmentuser_reports_route_go kind=fragment route=/user/reports/table source=app/routes/user/reports/route.go go=app/routes/user/reports/route.go-->", EndComment: "<!--goldr:end id=g_fragmentuser_reports_route_go-->"})
+	return goldrinspect.Wrap(component, goldrinspect.NewMarker("g_fragmentuser_reports_route_go", "fragment", "/user/reports/table", "app/routes/user/reports/route.go", "app/routes/user/reports/route.go"))
 }

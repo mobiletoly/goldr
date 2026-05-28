@@ -18,5 +18,5 @@ func GoldrRouteFragIndex(r *http.Request) goldr.RouteResponse {
 }
 
 func renderFragIndex(component templ.Component) templ.Component {
-	return goldrinspect.Wrap(component, goldrinspect.Marker{StartComment: "<!--goldr:start id=g_fragmentusers_status_options_route_go kind=fragment route=/users/status-options source=app/routes/users/status_options/route.go go=app/routes/users/status_options/route.go-->", EndComment: "<!--goldr:end id=g_fragmentusers_status_options_route_go-->"})
+	return goldrinspect.Wrap(component, goldrinspect.NewMarker("g_fragmentusers_status_options_route_go", "fragment", "/users/status-options", "app/routes/users/status_options/route.go", "app/routes/users/status_options/route.go"))
 }
