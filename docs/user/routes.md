@@ -38,11 +38,11 @@ var Route = goldr.RouteDef{
 	},
 }
 
-func page(r *http.Request) goldr.RouteResponse {
+func page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(PageView(), goldr.PageMetadata{Title: "Users"})
 }
 
-func table(r *http.Request) goldr.RouteResponse {
+func table(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(TableView())
 }
 
@@ -278,7 +278,7 @@ var Route = goldr.RouteDef{
 	Page: page,
 }
 
-func page(r *http.Request) goldr.RouteResponse {
+func page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(PageView(), goldr.PageMetadata{Title: "Users"})
 }
 ```
@@ -497,7 +497,7 @@ var Route = goldr.KitRouteDef[reports.Kit]{
 Use `goldr.NewFragment` for normal fragment HTML:
 
 ```go
-func FragTable(r *http.Request) goldr.RouteResponse {
+func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(FragTableView(loadRows(r))).
 		WithHeader("Hx-Trigger", "table-loaded")
 }

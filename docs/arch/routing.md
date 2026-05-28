@@ -810,14 +810,14 @@ The generated segment functions are deterministic and route-tree shaped:
 The generated handler calls each matched route package's page function:
 
 ```go
-func Page(r *http.Request) goldr.RouteResponse
+func Page(r *http.Request) goldr.PageRouteResponse
 ```
 
 For route declarations, generated dispatch calls the route package's generated
 `GoldrRoutePage` adapter instead. The adapter calls the handler selected by
 `route.go`.
 
-The returned `goldr.RouteResponse` is written through root-package route
+The returned `goldr.PageRouteResponse` is written through root-package route
 writers. Generated page dispatch calls `goldr.WritePageRouteResponse` with a
 route-local renderer that wraps the page component with inspector markers and
 applies the selected layout stack. Generated fragment dispatch calls
@@ -907,7 +907,7 @@ URL: /users/{id}/row
 The generated handler calls each matched route package's fragment function:
 
 ```go
-func Frag<Name>(r *http.Request) goldr.RouteResponse
+func Frag<Name>(r *http.Request) goldr.FragmentRouteResponse
 ```
 
 For route declarations, generated dispatch calls a generated

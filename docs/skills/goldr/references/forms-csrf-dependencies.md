@@ -223,7 +223,7 @@ templ PageView(csrfToken string) {
 Page handlers pass the request token to templates:
 
 ```go
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
 		PageView(csrf.Token(r)),
 		goldr.PageMetadata{Title: "Users"},
@@ -292,7 +292,7 @@ Route functions read dependencies through the app helper. The handler name is
 ordinary Go; `route.go` decides whether this function is a page:
 
 ```go
-func page(r *http.Request) goldr.RouteResponse {
+func page(r *http.Request) goldr.PageRouteResponse {
 	appDeps := deps.From(r)
 	return goldr.NewPage(PageView(appDeps.BasePath), goldr.PageMetadata{Title: "Home"})
 }

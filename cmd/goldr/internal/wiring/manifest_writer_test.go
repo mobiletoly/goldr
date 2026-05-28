@@ -197,7 +197,7 @@ func TestGenerateManifestReferencesRootRouteDeclaration(t *testing.T) {
 	for _, want := range []string{
 		"// Route is read by goldr tooling; this reference keeps editors from marking it unused.",
 		"var _ = Route",
-		"func GoldrRoutePage(r *http.Request) goldr.RouteResponse",
+		"func GoldrRoutePage(r *http.Request) goldr.PageRouteResponse",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated source missing %q:\n%s", want, source)

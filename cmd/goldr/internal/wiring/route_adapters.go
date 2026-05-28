@@ -186,14 +186,14 @@ func writeRoutePackageImports(buffer *bytes.Buffer, fragments []routing.Manifest
 func writeRouteAdapterFunctions(buffer *bytes.Buffer, root string, routes []routing.ManifestRouteDeclaration, routeRootImportPath string) error {
 	for _, route := range routes {
 		if route.Page != nil {
-			fmt.Fprintf(buffer, "func %s(r *http.Request) goldr.RouteResponse {\n", routePageAdapterName(route))
+			fmt.Fprintf(buffer, "func %s(r *http.Request) goldr.PageRouteResponse {\n", routePageAdapterName(route))
 			if err := writeRouteAdapterCall(buffer, root, routeRootImportPath, route, route.Page.Handler, "r", true); err != nil {
 				return err
 			}
 			buffer.WriteString("}\n\n")
 		}
 		for _, fragment := range route.Fragments {
-			fmt.Fprintf(buffer, "func %s(r *http.Request) goldr.RouteResponse {\n", routeFragmentAdapterName(route, fragment))
+			fmt.Fprintf(buffer, "func %s(r *http.Request) goldr.FragmentRouteResponse {\n", routeFragmentAdapterName(route, fragment))
 			if err := writeRouteAdapterCall(buffer, root, routeRootImportPath, route, fragment.Handler, "r", true); err != nil {
 				return err
 			}

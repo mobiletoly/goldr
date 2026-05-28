@@ -252,7 +252,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "users page")
 		return err
@@ -271,7 +271,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(r *http.Request) goldr.RouteResponse {
+func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "users fragment")
 		return err

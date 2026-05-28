@@ -91,9 +91,9 @@ Page, layout, and fragment render functions do not receive
 `http.ResponseWriter`:
 
 ```go
-func Page(r *http.Request) goldr.RouteResponse
+func Page(r *http.Request) goldr.PageRouteResponse
 func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component
-func FragTable(r *http.Request) goldr.RouteResponse
+func FragTable(r *http.Request) goldr.FragmentRouteResponse
 ```
 
 Use actions when a route-local mutation needs to set headers, parse forms, or

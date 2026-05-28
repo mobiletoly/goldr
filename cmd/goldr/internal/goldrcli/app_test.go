@@ -152,11 +152,11 @@ var Route = goldr.KitRouteDef[Kit]{
 	},
 }
 
-func (kit Kit) Page(_ *http.Request) goldr.RouteResponse {
+func (kit Kit) Page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Body: "ok"}
 }
 
-func (kit Kit) Table(_ *http.Request) goldr.RouteResponse {
+func (kit Kit) Table(_ *http.Request) goldr.FragmentRouteResponse {
 	return goldr.Text{Body: "ok"}
 }
 `)

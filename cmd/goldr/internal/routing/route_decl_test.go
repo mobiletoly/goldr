@@ -32,7 +32,7 @@ var Route = goldr.RouteDef{
 	Page: page,
 }
 
-func page(r *http.Request) goldr.RouteResponse {
+func page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Body: "users"}
 }
 `)

@@ -34,7 +34,7 @@ goldr.FragmentRoute("/", statusOptions) in app/routes/users/status_options/route
 A fragment route provides:
 
 ```go
-func table(r *http.Request) goldr.RouteResponse {
+func table(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(FragTableView(loadRows(r)))
 }
 ```
@@ -91,7 +91,7 @@ goldr.KitFragmentRoute("/summary", reports.Kit.Summary) -> /reports/summary
 The shared kit method receives the request-scoped kit value and the request:
 
 ```go
-func (kit Kit) Table(r *http.Request) goldr.RouteResponse
+func (kit Kit) Table(r *http.Request) goldr.FragmentRouteResponse
 ```
 
 ## Replacement Boundaries

@@ -327,7 +327,7 @@ func (parser *routeDeclarationParser) parseRouteFields(decl *RouteDeclaration, l
 		case "Title":
 			decl.Title = parser.stringLiteral("Title", field.Value)
 		case "Page":
-			decl.Page = parser.parsePage(decl.Kind, field.Value)
+			decl.Page = parser.parsePage(field.Value)
 		case "Fragments":
 			decl.Fragments = parser.parseFragments(decl.Kind, field.Value)
 		case "Actions":
@@ -356,7 +356,7 @@ func (parser *routeDeclarationParser) parseRouteFields(decl *RouteDeclaration, l
 	}
 }
 
-func (parser *routeDeclarationParser) parsePage(kind string, expr ast.Expr) *RouteHandlerDeclaration {
+func (parser *routeDeclarationParser) parsePage(expr ast.Expr) *RouteHandlerDeclaration {
 	handler := parser.handlerExpression("Page", expr)
 	if handler == "" {
 		return nil
@@ -783,17 +783,6 @@ func (parser *routeDeclarationParser) ident(label string, expr ast.Expr) string 
 
 func (parser *routeDeclarationParser) addProblem(message string) {
 	parser.problems = append(parser.problems, routeDeclarationProblem{Message: message})
-}
-
-func goldrCall(expr ast.Expr, name string) ([]ast.Expr, bool) {
-	call, ok := expr.(*ast.CallExpr)
-	if !ok {
-		return nil, false
-	}
-	if !selectorName(call.Fun, "goldr", name) {
-		return nil, false
-	}
-	return call.Args, true
 }
 
 func selectorName(expr ast.Expr, pkg string, name string) bool {

@@ -209,7 +209,7 @@ import (
 	"example.com/app/urls"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	_ = urls.WithBasePath("/webapp").BySlug("x/y").Path()
 	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
@@ -224,7 +224,7 @@ import (
 	"example.com/app/urls"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	_ = urls.Users.Create.Path()
 	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
@@ -239,7 +239,7 @@ import (
 	"example.com/app/urls"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	_ = urls.Users.ByID("42").Profile.Path()
 	_ = urls.WithBasePath("/webapp").Users.ByID("42").Profile.Path()
 	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
@@ -254,7 +254,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
@@ -267,7 +267,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
@@ -280,7 +280,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
 }
 `)
@@ -315,7 +315,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(r *http.Request) goldr.RouteResponse {
+func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(templ.NopComponent)
 }
 `)

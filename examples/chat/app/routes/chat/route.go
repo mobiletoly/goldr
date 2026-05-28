@@ -23,7 +23,7 @@ var Route = goldr.RouteDef{
 	},
 }
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	name := session.Name(r)
 	return goldr.NewPage(
 		PageView(name, bind.Form{}, listMessages()),

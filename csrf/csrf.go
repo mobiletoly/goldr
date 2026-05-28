@@ -46,6 +46,8 @@ const (
 	nonceBytes        = 32
 )
 
+var canonicalHeaderName = http.CanonicalHeaderKey(HeaderName)
+
 var (
 	// ErrWeakSecret reports a CSRF secret shorter than 32 bytes.
 	ErrWeakSecret = errors.New("csrf: secret must be at least 32 bytes")
@@ -203,7 +205,7 @@ func (g *Guard) Validate(r *http.Request, formToken string) error {
 	if safeMethod(r.Method) {
 		return nil
 	}
-	submittedToken := r.Header.Get(HeaderName)
+	submittedToken := r.Header.Get(canonicalHeaderName)
 	if submittedToken == "" {
 		submittedToken = formToken
 	}

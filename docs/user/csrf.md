@@ -36,7 +36,7 @@ request bodies.
 Pass the request token to the template:
 
 ```go
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
     return goldr.NewPage(
         PageView(csrf.Token(r)),
         goldr.PageMetadata{},

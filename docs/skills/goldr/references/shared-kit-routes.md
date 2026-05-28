@@ -206,14 +206,14 @@ func New(data ReportData) Kit {
 	return Kit{data: data}
 }
 
-func (kit Kit) Page(_ *http.Request) goldr.RouteResponse {
+func (kit Kit) Page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
 		PageView(kit.data),
 		goldr.PageMetadata{Title: kit.data.Title},
 	)
 }
 
-func (kit Kit) Table(_ *http.Request) goldr.RouteResponse {
+func (kit Kit) Table(_ *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(TableView(kit.data))
 }
 
@@ -253,14 +253,15 @@ behavior, not hide HTMX behind proprietary components.
 Kit handlers use the kit value as the first argument:
 
 ```go
-type KitPageHandler[K any] func(K, *http.Request) goldr.RouteResponse
+type KitPageHandler[K any] func(K, *http.Request) goldr.PageRouteResponse
 
-func KitFragmentRoute[K any](path string, fn func(K, *http.Request) goldr.RouteResponse) goldr.KitFragmentRouteDef[K]
+func KitFragmentRoute[K any](path string, fn func(K, *http.Request) goldr.FragmentRouteResponse) goldr.KitFragmentRouteDef[K]
 func KitAction[K any](method string, path string, fn func(K, *http.Request) goldr.RouteResponse) goldr.KitActionDef[K]
 func KitHTTPAction[K any](method string, path string, fn func(K, http.ResponseWriter, *http.Request)) goldr.KitActionDef[K]
 ```
 
-Kit pages, fragments, and normal actions return `goldr.RouteResponse`.
+Kit pages return `goldr.PageRouteResponse`, fragments return
+`goldr.FragmentRouteResponse`, and normal actions return `goldr.RouteResponse`.
 `KitHTTPAction` handlers are ordinary HTTP handlers with the kit argument
 added.
 
@@ -271,12 +272,12 @@ adapter constructs a fresh kit value for the request and then calls the selected
 method directly:
 
 ```go
-func GoldrRoutePage(r *http.Request) goldr.RouteResponse {
+func GoldrRoutePage(r *http.Request) goldr.PageRouteResponse {
 	goldrKit := newReportKit(r)
 	return sharedreports.Kit.Page(goldrKit, r)
 }
 
-func GoldrRouteFragTable(r *http.Request) goldr.RouteResponse {
+func GoldrRouteFragTable(r *http.Request) goldr.FragmentRouteResponse {
 	goldrKit := newReportKit(r)
 	return sharedreports.Kit.Table(goldrKit, r)
 }

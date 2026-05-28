@@ -27,7 +27,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(r *http.Request) goldr.RouteResponse {
+func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 	switch r.URL.Query().Get("mode") {
 	case "redirect":
 		return goldr.Redirect{Location: "/sign-in", Status: http.StatusSeeOther}.
@@ -37,8 +37,6 @@ func FragTable(r *http.Request) goldr.RouteResponse {
 			WithHeader("X-Robots-Tag", "noindex")
 	case "error":
 		return goldr.ServerError{Err: errors.New("boom")}
-	case "page":
-		return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{Title: "wrong"})
 	case "cacheable":
 		component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 			_, err := io.WriteString(writer, "<tbody>Cacheable fragment</tbody>")
@@ -64,7 +62,6 @@ templ FragTableView() {}
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -149,16 +146,6 @@ func TestFragmentRouteResponses(t *testing.T) {
 		t.Fatalf("serverErr = %v, want boom", serverErr)
 	}
 
-	invalidPage := httptest.NewRecorder()
-	HandlerWithOptions(HandlerOptions{ErrorHandlers: ErrorHandlers{
-		InternalServerError: func(r *http.Request, err error) goldr.RouteResponse {
-			serverErr = err
-			return goldr.Text{Status: http.StatusInternalServerError, Body: "custom error"}
-		},
-	}}).ServeHTTP(invalidPage, httptest.NewRequest(http.MethodGet, "/users/table?mode=page", nil))
-	if !errors.Is(serverErr, goldr.ErrInvalidRouteResponse) {
-		t.Fatalf("invalid page error = %v, want ErrInvalidRouteResponse", serverErr)
-	}
 }
 `)
 
@@ -207,7 +194,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(r *http.Request) goldr.RouteResponse {
+func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.ServerError{Err: errors.New("table failed")}
 }
 `)
@@ -269,7 +256,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		return errors.New("page render failed")
 	})
@@ -289,7 +276,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragFail(r *http.Request) goldr.RouteResponse {
+func FragFail(r *http.Request) goldr.FragmentRouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		return errors.New("fragment render failed")
 	})
@@ -354,7 +341,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragNil(r *http.Request) goldr.RouteResponse {
+func FragNil(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(nil)
 }
 `)
@@ -370,7 +357,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragFail(r *http.Request) goldr.RouteResponse {
+func FragFail(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		return errors.New("render failed")
 	}))

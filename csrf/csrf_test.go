@@ -134,7 +134,7 @@ func TestValidateAcceptsHeaderTokenBeforeFormToken(t *testing.T) {
 	guard := newTestGuard(t)
 	token := newToken(t, guard, fixedNow)
 	request := unsafeRequest(token)
-	request.Header.Set(HeaderName, token)
+	request.Header.Set("X-Csrf-Token", token)
 
 	if err := guard.Validate(request, "bad-form-token"); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)
@@ -145,7 +145,7 @@ func TestValidateAcceptsCaseInsensitiveHeaderName(t *testing.T) {
 	guard := newTestGuard(t)
 	token := newToken(t, guard, fixedNow)
 	request := unsafeRequest(token)
-	request.Header.Set("x-csrf-token", token)
+	request.Header.Set("x-csrf-token", token) //nolint:canonicalheader // covers case-insensitive input spelling.
 
 	if err := guard.Validate(request, "bad-form-token"); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)

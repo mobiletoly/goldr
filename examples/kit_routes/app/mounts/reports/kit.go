@@ -35,7 +35,7 @@ func New(data ReportData) Kit {
 	return Kit{data: data}
 }
 
-func (kit Kit) Page(_ *http.Request) goldr.RouteResponse {
+func (kit Kit) Page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
 		PageView(kit.data),
 		goldr.PageMetadata{
@@ -45,6 +45,6 @@ func (kit Kit) Page(_ *http.Request) goldr.RouteResponse {
 	)
 }
 
-func (kit Kit) Table(_ *http.Request) goldr.RouteResponse {
+func (kit Kit) Table(_ *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(TableView(kit.data))
 }

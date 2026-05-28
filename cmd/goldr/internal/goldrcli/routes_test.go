@@ -322,7 +322,7 @@ var Route = goldr.RouteDef{
 	},
 }
 
-func page(_ *http.Request) goldr.RouteResponse {
+func page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Body: "ok"}
 }
 `)

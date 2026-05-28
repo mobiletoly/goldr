@@ -65,8 +65,10 @@ client state, and hidden runtime registration.
 ## Install
 
 Goldr applications use Go and [templ](https://github.com/a-h/templ). During v0,
-templ is Goldr's HTML render contract: route functions return
-`goldr.RouteResponse` values, and `.templ` files own HTML rendering. Goldr
+templ is Goldr's HTML render contract: page functions return
+`goldr.PageRouteResponse`, fragment functions return
+`goldr.FragmentRouteResponse`, actions return `goldr.RouteResponse`, and
+`.templ` files own HTML rendering. Goldr
 owns the filesystem route model, generated route wiring, URL helpers, and
 validation around that workflow.
 
@@ -139,7 +141,7 @@ var Route = goldr.RouteDef{
 	Page: page,
 }
 
-func page(_ *http.Request) goldr.RouteResponse {
+func page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
 		PageView(),
 		goldr.PageMetadata{

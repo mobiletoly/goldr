@@ -56,10 +56,10 @@ server errors can omit `page.templ`.
 A page is a route endpoint. `app/routes/users/route.go` maps to `/users` when
 it declares a page:
 
-Page functions return `goldr.RouteResponse`:
+Page functions return `goldr.PageRouteResponse`:
 
 ```go
-func page(r *http.Request) goldr.RouteResponse
+func page(r *http.Request) goldr.PageRouteResponse
 ```
 
 The page component renders the body. Page metadata is passed to matching
@@ -115,10 +115,10 @@ goldr.FragmentRoute("/table", table) in app/routes/users/route.go -> /users/tabl
 goldr.FragmentRoute("/", statusOptions) in app/routes/users/status_options/route.go -> /users/status-options
 ```
 
-Fragment functions return `goldr.RouteResponse`:
+Fragment functions return `goldr.FragmentRouteResponse`:
 
 ```go
-func FragTable(r *http.Request) goldr.RouteResponse
+func FragTable(r *http.Request) goldr.FragmentRouteResponse
 ```
 
 Use `goldr.NewFragment` for normal fragment HTML. Fragments may also return

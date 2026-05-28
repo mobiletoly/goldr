@@ -27,7 +27,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(r *http.Request) goldr.RouteResponse {
+func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(nil)
 }
 `)
@@ -39,7 +39,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragRow(r *http.Request) goldr.RouteResponse {
+func FragRow(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(nil)
 }
 `)
@@ -133,7 +133,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func preview(_ *http.Request) goldr.RouteResponse {
+func preview(_ *http.Request) goldr.FragmentRouteResponse {
 	return goldr.Text{Body: "preview"}
 }
 `)
@@ -172,9 +172,9 @@ func newKit(_ *http.Request) Kit {
 		`"example.com/app/pages/report"`,
 		`// Route is read by goldr tooling; this reference keeps editors from marking it unused.`,
 		`var _ = Route`,
-		`func GoldrRoutePage(r *http.Request) goldr.RouteResponse`,
+		`func GoldrRoutePage(r *http.Request) goldr.PageRouteResponse`,
 		`return report.Page(r)`,
-		`func GoldrRouteFragPreview(r *http.Request) goldr.RouteResponse`,
+		`func GoldrRouteFragPreview(r *http.Request) goldr.FragmentRouteResponse`,
 		`return preview(r)`,
 		`func GoldrRoutePostIndex(r *http.Request) goldr.RouteResponse`,
 		`return report.PostIndex(r)`,
@@ -235,7 +235,7 @@ import (
 
 type Kit struct{}
 
-func (Kit) Page(_ *http.Request) goldr.RouteResponse {
+func (Kit) Page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Body: "ok"}
 }
 `)
@@ -251,7 +251,7 @@ func (Kit) Page(_ *http.Request) goldr.RouteResponse {
 	for _, want := range []string{
 		`goldrmount_reports "example.com/app/mounts/reports"`,
 		`var _ = goldrmount_reports.Route`,
-		`func GoldrRouteMountReportsPage(r *http.Request) goldr.RouteResponse`,
+		`func GoldrRouteMountReportsPage(r *http.Request) goldr.PageRouteResponse`,
 		`return goldrmount_reports.Kit.Page(goldrKit, r)`,
 	} {
 		if !strings.Contains(source, want) {

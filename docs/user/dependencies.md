@@ -4,9 +4,9 @@ goldr generated routes are ordinary `http.Handler` values, and route functions
 keep simple request-facing signatures:
 
 ```go
-func Page(r *http.Request) goldr.RouteResponse
+func Page(r *http.Request) goldr.PageRouteResponse
 func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component
-func FragTable(r *http.Request) goldr.RouteResponse
+func FragTable(r *http.Request) goldr.FragmentRouteResponse
 func PostCreate(r *http.Request) goldr.RouteResponse
 ```
 
@@ -110,7 +110,7 @@ logging, recovery, and other middleware in the order your app needs.
 Read stable dependencies through the app-owned helper:
 
 ```go
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	appDeps := deps.From(r)
 
 	return goldr.NewPage(

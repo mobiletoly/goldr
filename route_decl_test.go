@@ -30,7 +30,7 @@ type kit struct{}
 type otherKit struct{}
 
 func newKit(*http.Request) kit { return kit{} }
-func (otherKit) page(*http.Request) goldr.RouteResponse {
+func (otherKit) page(*http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Body: "wrong"}
 }
 
@@ -48,6 +48,83 @@ var Route = goldr.KitRouteDef[kit]{
 	}
 	if !strings.Contains(string(output), "cannot use otherKit.page") {
 		t.Fatalf("go test output = %s, want wrong receiver type error", output)
+	}
+}
+
+func TestPageRouteDefRejectsFragmentResponseAtCompileTime(t *testing.T) {
+	repoRoot := goldrRepoRoot(t)
+	root := t.TempDir()
+	writeTempFile(t, root, "go.mod", "module page_response_compile_test\n\ngo 1.26\n\nrequire github.com/mobiletoly/goldr v0.0.0\n\nreplace github.com/mobiletoly/goldr => "+filepath.ToSlash(repoRoot)+"\n")
+	writeTempFile(t, root, "route.go", `package page_response_compile_test
+
+import (
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func page(*http.Request) goldr.PageRouteResponse {
+	return goldr.NewFragment(templ.NopComponent)
+}
+
+var Route = goldr.RouteDef{Page: page}
+`)
+
+	cmd := exec.CommandContext(context.Background(), "go", "test", "-mod=mod", ".")
+	cmd.Dir = root
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("go test unexpectedly succeeded; output:\n%s", output)
+	}
+	if !strings.Contains(string(output), "goldr.Fragment does not implement goldr.PageRouteResponse") {
+		t.Fatalf("go test output = %s, want fragment/page response type error", output)
+	}
+}
+
+func TestFragmentRouteDefRejectsPageAndNoContentAtCompileTime(t *testing.T) {
+	repoRoot := goldrRepoRoot(t)
+	root := t.TempDir()
+	writeTempFile(t, root, "go.mod", "module fragment_response_compile_test\n\ngo 1.26\n\nrequire github.com/mobiletoly/goldr v0.0.0\n\nreplace github.com/mobiletoly/goldr => "+filepath.ToSlash(repoRoot)+"\n")
+	writeTempFile(t, root, "route.go", `package fragment_response_compile_test
+
+import (
+	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
+
+func pageFragment(*http.Request) goldr.FragmentRouteResponse {
+	return goldr.NewPage(templ.NopComponent, goldr.PageMetadata{})
+}
+
+func noContentFragment(*http.Request) goldr.FragmentRouteResponse {
+	return goldr.NoContent{}
+}
+
+var Route = goldr.RouteDef{
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/page", pageFragment),
+		goldr.FragmentRoute("/empty", noContentFragment),
+	},
+}
+`)
+
+	cmd := exec.CommandContext(context.Background(), "go", "test", "-mod=mod", ".")
+	cmd.Dir = root
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("go test unexpectedly succeeded; output:\n%s", output)
+	}
+	text := string(output)
+	for _, want := range []string{
+		"goldr.Page does not implement goldr.FragmentRouteResponse",
+		"goldr.NoContent does not implement goldr.FragmentRouteResponse",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("go test output = %s, want %q", output, want)
+		}
 	}
 }
 

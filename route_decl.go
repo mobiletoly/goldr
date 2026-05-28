@@ -42,12 +42,12 @@ type RouteMeta struct {
 }
 
 // PageHandler is a local page handler declaration.
-type PageHandler func(*http.Request) RouteResponse
+type PageHandler func(*http.Request) PageRouteResponse
 
 // FragmentRouteDef is a local fragment route declaration.
 type FragmentRouteDef struct {
 	path string
-	fn   func(*http.Request) RouteResponse
+	fn   func(*http.Request) FragmentRouteResponse
 }
 
 // ActionDef is a local action route declaration.
@@ -65,7 +65,7 @@ type Fragments []FragmentRouteDef
 type Actions []ActionDef
 
 // FragmentRoute declares a local fragment route at path.
-func FragmentRoute(path string, fn func(*http.Request) RouteResponse) FragmentRouteDef {
+func FragmentRoute(path string, fn func(*http.Request) FragmentRouteResponse) FragmentRouteDef {
 	return FragmentRouteDef{path: path, fn: fn}
 }
 
@@ -80,12 +80,12 @@ func HTTPAction(method string, path string, fn func(http.ResponseWriter, *http.R
 }
 
 // KitPageHandler is a kit page handler declaration.
-type KitPageHandler[K any] func(K, *http.Request) RouteResponse
+type KitPageHandler[K any] func(K, *http.Request) PageRouteResponse
 
 // KitFragmentRouteDef is a kit fragment route declaration.
 type KitFragmentRouteDef[K any] struct {
 	path string
-	fn   func(K, *http.Request) RouteResponse
+	fn   func(K, *http.Request) FragmentRouteResponse
 }
 
 // KitActionDef is a kit action route declaration.
@@ -103,7 +103,7 @@ type KitFragments[K any] []KitFragmentRouteDef[K]
 type KitActions[K any] []KitActionDef[K]
 
 // KitFragmentRoute declares a kit fragment route at path.
-func KitFragmentRoute[K any](path string, fn func(K, *http.Request) RouteResponse) KitFragmentRouteDef[K] {
+func KitFragmentRoute[K any](path string, fn func(K, *http.Request) FragmentRouteResponse) KitFragmentRouteDef[K] {
 	return KitFragmentRouteDef[K]{path: path, fn: fn}
 }
 

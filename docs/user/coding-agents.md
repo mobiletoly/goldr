@@ -41,7 +41,7 @@ Goldr is server-first, HTML-first, HTMX-native, and Go-native.
 - `route.go` declares route pages, fragments, and actions with
   `goldr.RouteDef`, `goldr.KitRouteDef`, or `goldr.KitRouteMount`.
 - `layout.go` defines a layout and accepts `goldr.LayoutContext`.
-- Fragment declarations return `goldr.RouteResponse`.
+- Fragment declarations return `goldr.FragmentRouteResponse`.
 - Action declarations use ordinary HTTP mutation handlers.
 - Do not put `page.go`, `frag_<name>.go`, or `actions.go` under `app/routes`.
 - Use `by_<name>/` directories for path parameters.

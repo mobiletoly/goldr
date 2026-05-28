@@ -10,7 +10,7 @@ var Route = goldr.RouteDef{
 	Page: Page,
 }
 
-func Page(_ *http.Request) goldr.RouteResponse {
+func Page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
 		PageView(),
 		goldr.PageMetadata{

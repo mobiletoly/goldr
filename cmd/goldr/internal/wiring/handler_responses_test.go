@@ -29,7 +29,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "root")
 		return err
@@ -105,7 +105,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "root")
 		return err
@@ -121,7 +121,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragNil(r *http.Request) goldr.RouteResponse {
+func FragNil(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(nil)
 }
 `)
@@ -254,7 +254,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(textComponent("home"), goldr.PageMetadata{Title: "home"})
 }
 `)
@@ -292,7 +292,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.ServerError{Err: errors.New("users failed")}
 }
 `)
@@ -330,7 +330,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func FragTable(r *http.Request) goldr.RouteResponse {
+func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.ServerError{Err: errors.New("table failed")}
 }
 `)
@@ -468,7 +468,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.Redirect{Location: "/sign-in", Status: http.StatusSeeOther}.WithHeader("Cache-Control", "no-store")
 }
 `)
@@ -483,7 +483,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	component := templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		_, err := io.WriteString(writer, "<p>forbidden</p>")
 		return err
@@ -501,7 +501,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Status: http.StatusForbidden, Body: "plain forbidden"}.WithHeader("Cache-Control", "private")
 }
 `)
@@ -514,7 +514,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.ServerError{Err: errors.New("load failed")}
 }
 `)
@@ -526,7 +526,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.Redirect{Location: "", Status: http.StatusSeeOther}
 }
 `)

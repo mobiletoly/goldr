@@ -1,7 +1,8 @@
 # Error Handling
 
-Goldr route handlers return `goldr.RouteResponse` values for normal pages,
-fragments, and actions. Generated route dispatch uses the same response model
+Goldr page handlers return `goldr.PageRouteResponse`, fragment handlers return
+`goldr.FragmentRouteResponse`, and action handlers return broad
+`goldr.RouteResponse`. Generated route dispatch uses the broad response model
 for custom error hooks.
 
 ## Route Handler Errors
@@ -9,7 +10,7 @@ for custom error hooks.
 Use explicit status responses for expected request-shaped failures:
 
 ```go
-func page(r *http.Request) goldr.RouteResponse {
+func page(r *http.Request) goldr.PageRouteResponse {
 	if !allowed(r) {
 		return goldr.NewPage(
 			ForbiddenView(),
@@ -25,7 +26,7 @@ Use `goldr.ServerError` for unexpected application errors that should flow to
 generated internal-server-error handling:
 
 ```go
-func page(r *http.Request) goldr.RouteResponse {
+func page(r *http.Request) goldr.PageRouteResponse {
 	users, err := loadUsers(r.Context())
 	if err != nil {
 		return goldr.ServerError{Err: err}

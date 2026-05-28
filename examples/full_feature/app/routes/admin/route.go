@@ -15,7 +15,7 @@ var Route = goldr.RouteDef{
 
 var errDemoAdminLoad = errors.New("demo admin load failed")
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	if r.URL.Query().Get("demo_error") == "1" {
 		return goldr.ServerError{Err: errDemoAdminLoad}
 	}

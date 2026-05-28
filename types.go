@@ -19,10 +19,22 @@ var (
 	ErrNilServerError = errors.New("server error route response: nil error")
 )
 
-// RouteResponse is a response value returned by Goldr page functions and
-// writable by Goldr-aware HTTP handlers.
+// RouteResponse is a response value writable by Goldr-aware HTTP handlers.
 type RouteResponse interface {
 	goldrRouteResponse()
+}
+
+// PageRouteResponse is a response value returned by Goldr page functions.
+type PageRouteResponse interface {
+	goldrRouteResponse()
+	goldrPageRouteResponse()
+}
+
+// FragmentRouteResponse is a response value returned by Goldr fragment
+// functions.
+type FragmentRouteResponse interface {
+	goldrRouteResponse()
+	goldrFragmentRouteResponse()
 }
 
 // Page is a rendered page response.
@@ -33,7 +45,8 @@ type Page struct {
 	headers   http.Header
 }
 
-func (Page) goldrRouteResponse() {}
+func (Page) goldrRouteResponse()     {}
+func (Page) goldrPageRouteResponse() {}
 
 // Fragment is a standalone rendered fragment response.
 type Fragment struct {
@@ -42,7 +55,8 @@ type Fragment struct {
 	headers   http.Header
 }
 
-func (Fragment) goldrRouteResponse() {}
+func (Fragment) goldrRouteResponse()         {}
+func (Fragment) goldrFragmentRouteResponse() {}
 
 // Redirect is a route response that redirects without rendering.
 type Redirect struct {
@@ -51,7 +65,9 @@ type Redirect struct {
 	headers  http.Header
 }
 
-func (Redirect) goldrRouteResponse() {}
+func (Redirect) goldrRouteResponse()         {}
+func (Redirect) goldrPageRouteResponse()     {}
+func (Redirect) goldrFragmentRouteResponse() {}
 
 // Text is a plain text route response.
 type Text struct {
@@ -60,7 +76,9 @@ type Text struct {
 	headers http.Header
 }
 
-func (Text) goldrRouteResponse() {}
+func (Text) goldrRouteResponse()         {}
+func (Text) goldrPageRouteResponse()     {}
+func (Text) goldrFragmentRouteResponse() {}
 
 // NoContent is a response that writes headers and status without a body.
 type NoContent struct {
@@ -75,7 +93,9 @@ type ServerError struct {
 	Err error
 }
 
-func (ServerError) goldrRouteResponse() {}
+func (ServerError) goldrRouteResponse()         {}
+func (ServerError) goldrPageRouteResponse()     {}
+func (ServerError) goldrFragmentRouteResponse() {}
 
 type routeResponseKind uint8
 

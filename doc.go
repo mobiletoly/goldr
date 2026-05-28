@@ -25,9 +25,9 @@
 //	}
 //
 // Page functions can live in route.go or ordinary helper files beside their
-// templ views. They return RouteResponse:
+// templ views. They return PageRouteResponse:
 //
-//	func Page(r *http.Request) goldr.RouteResponse {
+//	func Page(r *http.Request) goldr.PageRouteResponse {
 //	    return goldr.NewPage(
 //	        PageView(),
 //	        goldr.PageMetadata{Title: "Home"},
@@ -59,8 +59,8 @@
 // paths such as goldr.FragmentRoute("/table", FragTable), which maps to /table
 // under that route directory. goldr.FragmentRoute("/", FragIndex) declares a
 // fragment at the route directory path itself. Fragment functions return
-// RouteResponse values and use NewFragment for normal fragment HTML. Fragment
-// responses default to
+// FragmentRouteResponse values and use NewFragment for normal fragment HTML.
+// Fragment responses default to
 // Cache-Control: no-store unless the application sets Cache-Control itself.
 // Actions are mutation endpoints declared in route.go with helpers such as
 // goldr.Action(http.MethodPost, "/create", PostCreate) or goldr.Action(http.MethodPost, "/", PostIndex).

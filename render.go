@@ -82,13 +82,13 @@ func WriteRouteResponse(w http.ResponseWriter, r *http.Request, response RouteRe
 
 // WritePageRouteResponse writes a page route response from generated route
 // dispatch.
-func WritePageRouteResponse(w http.ResponseWriter, r *http.Request, response RouteResponse, render RoutePageRenderer) error {
-	return writeRouteResponse(w, r, response, render, true, true)
+func WritePageRouteResponse(w http.ResponseWriter, r *http.Request, response PageRouteResponse, render RoutePageRenderer) error {
+	return writeRouteResponse(w, r, response, render, true, false)
 }
 
 // WriteFragmentRouteResponse writes a fragment route response from generated
 // route dispatch.
-func WriteFragmentRouteResponse(w http.ResponseWriter, r *http.Request, response RouteResponse) error {
+func WriteFragmentRouteResponse(w http.ResponseWriter, r *http.Request, response FragmentRouteResponse) error {
 	return writeRouteResponse(w, r, response, nil, false, true)
 }
 

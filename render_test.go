@@ -138,47 +138,83 @@ func TestWriteRouteResponseUsesRoutePageRendererForPage(t *testing.T) {
 	}
 }
 
-func TestWritePageRouteResponseWritesFragments(t *testing.T) {
+func TestWritePageRouteResponseWritesRedirectAndText(t *testing.T) {
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
-	recorder := httptest.NewRecorder()
 
-	err := WritePageRouteResponse(
-		recorder,
+	redirect := httptest.NewRecorder()
+	if err := WritePageRouteResponse(
+		redirect,
 		request,
-		NewFragment(stringComponent("<tbody>Users</tbody>")).
-			WithStatus(http.StatusAccepted).
-			WithHeader("Hx-Trigger", "fragment-loaded"),
+		Redirect{Location: "/sign-in", Status: http.StatusSeeOther}.
+			WithHeader("Cache-Control", "no-store"),
 		func(_ *http.Request, page Page) (templ.Component, error) {
-			t.Fatalf("page renderer called for fragment response")
+			t.Fatalf("page renderer called for redirect response")
 			return page.Component, nil
 		},
-	)
+	); err != nil {
+		t.Fatalf("WritePageRouteResponse(redirect) error = %v, want nil", err)
+	}
+	if redirect.Code != http.StatusSeeOther || redirect.Header().Get("Location") != "/sign-in" {
+		t.Fatalf("redirect = (%d, %q), want 303 /sign-in", redirect.Code, redirect.Header().Get("Location"))
+	}
+	if got := redirect.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("redirect Cache-Control = %q, want no-store", got)
+	}
 
-	if err != nil {
-		t.Fatalf("WritePageRouteResponse(fragment) error = %v, want nil", err)
+	text := httptest.NewRecorder()
+	if err := WritePageRouteResponse(
+		text,
+		request,
+		Text{Status: http.StatusForbidden, Body: "forbidden"}.
+			WithHeader("X-Robots-Tag", "noindex"),
+		func(_ *http.Request, page Page) (templ.Component, error) {
+			t.Fatalf("page renderer called for text response")
+			return page.Component, nil
+		},
+	); err != nil {
+		t.Fatalf("WritePageRouteResponse(text) error = %v, want nil", err)
 	}
-	if recorder.Code != http.StatusAccepted {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusAccepted)
+	if text.Code != http.StatusForbidden || text.Body.String() != "forbidden" {
+		t.Fatalf("text = (%d, %q), want 403 forbidden", text.Code, text.Body.String())
 	}
-	if recorder.Body.String() != "<tbody>Users</tbody>" {
-		t.Fatalf("body = %q, want fragment body", recorder.Body.String())
-	}
-	if got := recorder.Header().Get("Hx-Trigger"); got != "fragment-loaded" {
-		t.Fatalf("Hx-Trigger = %q, want fragment-loaded", got)
-	}
-	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
-		t.Fatalf("Cache-Control = %q, want no-store", got)
+	if got := text.Header().Get("X-Robots-Tag"); got != "noindex" {
+		t.Fatalf("text X-Robots-Tag = %q, want noindex", got)
 	}
 }
 
-func TestWriteFragmentRouteResponseRejectsPages(t *testing.T) {
+func TestWriteFragmentRouteResponseWritesRedirectAndText(t *testing.T) {
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
-	recorder := httptest.NewRecorder()
 
-	err := WriteFragmentRouteResponse(recorder, request, NewPage(templ.NopComponent, PageMetadata{}))
+	redirect := httptest.NewRecorder()
+	if err := WriteFragmentRouteResponse(
+		redirect,
+		request,
+		Redirect{Location: "/sign-in", Status: http.StatusSeeOther}.
+			WithHeader("Cache-Control", "no-store"),
+	); err != nil {
+		t.Fatalf("WriteFragmentRouteResponse(redirect) error = %v, want nil", err)
+	}
+	if redirect.Code != http.StatusSeeOther || redirect.Header().Get("Location") != "/sign-in" {
+		t.Fatalf("redirect = (%d, %q), want 303 /sign-in", redirect.Code, redirect.Header().Get("Location"))
+	}
+	if got := redirect.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("redirect Cache-Control = %q, want no-store", got)
+	}
 
-	if !errors.Is(err, ErrInvalidRouteResponse) {
-		t.Fatalf("WriteFragmentRouteResponse(page) error = %v, want ErrInvalidRouteResponse", err)
+	text := httptest.NewRecorder()
+	if err := WriteFragmentRouteResponse(
+		text,
+		request,
+		Text{Status: http.StatusForbidden, Body: "forbidden"}.
+			WithHeader("X-Robots-Tag", "noindex"),
+	); err != nil {
+		t.Fatalf("WriteFragmentRouteResponse(text) error = %v, want nil", err)
+	}
+	if text.Code != http.StatusForbidden || text.Body.String() != "forbidden" {
+		t.Fatalf("text = (%d, %q), want 403 forbidden", text.Code, text.Body.String())
+	}
+	if got := text.Header().Get("X-Robots-Tag"); got != "noindex" {
+		t.Fatalf("text X-Robots-Tag = %q, want noindex", got)
 	}
 }
 

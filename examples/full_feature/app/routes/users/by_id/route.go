@@ -11,7 +11,7 @@ var Route = goldr.RouteDef{
 	Page: Page,
 }
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	id := r.PathValue("id")
 	contact, ok := users.ContactByID(id)
 	metadata := goldr.PageMetadata{

@@ -13,7 +13,7 @@ import (
 // Route is read by goldr tooling; this reference keeps editors from marking it unused.
 var _ = Route
 
-func GoldrRouteFragIndex(r *http.Request) goldr.RouteResponse {
+func GoldrRouteFragIndex(r *http.Request) goldr.FragmentRouteResponse {
 	return Options(r)
 }
 

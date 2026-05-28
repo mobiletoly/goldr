@@ -612,7 +612,7 @@ func goldrInternalServerError(options HandlerOptions, w http.ResponseWriter, r *
 	http.Error(w, "internal server error", http.StatusInternalServerError)
 }
 
-func goldrWritePageEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, marker goldrinspect.Marker, layouts []goldrLayoutStep) {
+func goldrWritePageEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.PageRouteResponse, marker goldrinspect.Marker, layouts []goldrLayoutStep) {
 	render := func(r *http.Request, page goldr.Page) (templ.Component, error) {
 		return goldrRenderPageWithMarker(r, page, marker, layouts)
 	}
@@ -621,7 +621,7 @@ func goldrWritePageEndpointResponse(options HandlerOptions, w http.ResponseWrite
 	}
 }
 
-func goldrWriteFragmentEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.RouteResponse) {
+func goldrWriteFragmentEndpointResponse(options HandlerOptions, w http.ResponseWriter, r *http.Request, response goldr.FragmentRouteResponse) {
 	if err := goldr.WriteFragmentRouteResponse(w, r, response); err != nil {
 		goldrInternalServerError(options, w, r, err)
 	}
@@ -634,7 +634,8 @@ func goldrWriteEndpointResponse(options HandlerOptions, w http.ResponseWriter, r
 }
 
 func goldrWriteErrorRouteResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
-	if err := goldr.WritePageRouteResponse(w, r, response, render); err != nil {
+	r = goldr.WithRoutePageRenderer(r, render)
+	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }
@@ -664,7 +665,7 @@ func goldrPathParam(segment string) (string, bool) {
 	return value, true
 }
 
-func goldrWrapFragmentRouteResponse(response goldr.RouteResponse, marker goldrinspect.Marker) goldr.RouteResponse {
+func goldrWrapFragmentRouteResponse(response goldr.FragmentRouteResponse, marker goldrinspect.Marker) goldr.FragmentRouteResponse {
 	switch response := response.(type) {
 	case goldr.Fragment:
 		response.Component = goldrinspect.Wrap(response.Component, marker)
@@ -684,6 +685,6 @@ func goldrWrapFragmentRouteResponse(response goldr.RouteResponse, marker goldrin
 // Route is read by goldr tooling; this reference keeps editors from marking it unused.
 var _ = Route
 
-func GoldrRoutePage(r *http.Request) goldr.RouteResponse {
+func GoldrRoutePage(r *http.Request) goldr.PageRouteResponse {
 	return Page(r)
 }

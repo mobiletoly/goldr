@@ -11,6 +11,6 @@ import (
 // Route is read by goldr tooling; this reference keeps editors from marking it unused.
 var _ = Route
 
-func GoldrRoutePage(r *http.Request) goldr.RouteResponse {
+func GoldrRoutePage(r *http.Request) goldr.PageRouteResponse {
 	return Page(r)
 }

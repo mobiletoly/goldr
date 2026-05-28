@@ -115,6 +115,28 @@ func TestResolveRouteResponseAcceptsPointers(t *testing.T) {
 	}
 }
 
+func TestEndpointResponseInterfaceMembership(_ *testing.T) {
+	var _ RouteResponse = Page{}
+	var _ PageRouteResponse = Page{}
+
+	var _ RouteResponse = Fragment{}
+	var _ FragmentRouteResponse = Fragment{}
+
+	var _ RouteResponse = Redirect{}
+	var _ PageRouteResponse = Redirect{}
+	var _ FragmentRouteResponse = Redirect{}
+
+	var _ RouteResponse = Text{}
+	var _ PageRouteResponse = Text{}
+	var _ FragmentRouteResponse = Text{}
+
+	var _ RouteResponse = ServerError{}
+	var _ PageRouteResponse = ServerError{}
+	var _ FragmentRouteResponse = ServerError{}
+
+	var _ RouteResponse = NoContent{}
+}
+
 func TestRouteResponseWithHeader(t *testing.T) {
 	response, err := resolveRouteResponse(
 		NewPage(templ.NopComponent, PageMetadata{}).WithHeader("Cache-Control", "no-store"),

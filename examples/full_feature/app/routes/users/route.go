@@ -33,7 +33,7 @@ var Route = goldr.RouteDef{
 	},
 }
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
 		PageView(bind.Form{}, ListContacts(), csrf.Token(r)),
 		goldr.PageMetadata{
@@ -43,7 +43,7 @@ func Page(r *http.Request) goldr.RouteResponse {
 	)
 }
 
-func FragTable(r *http.Request) goldr.RouteResponse {
+func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(FragTableView(filteredContacts(r.URL.Query().Get(statusFilterQuery))))
 }
 

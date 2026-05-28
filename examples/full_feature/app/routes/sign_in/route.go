@@ -28,7 +28,7 @@ var Route = goldr.RouteDef{
 	},
 }
 
-func Page(r *http.Request) goldr.RouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	next := signInReturnPath(r)
 	notice := ""
 	if next == adminReturnPath {

@@ -14,6 +14,6 @@ var Route = goldr.RouteDef{
 	},
 }
 
-func Options(r *http.Request) goldr.RouteResponse {
+func Options(r *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(OptionsView(r.URL.Query().Get(selectedQuery)))
 }

@@ -17,7 +17,7 @@ var Route = goldr.RouteDef{
 	},
 }
 
-func Page(_ *http.Request) goldr.RouteResponse {
+func Page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
 		PageView(bind.Form{}),
 		goldr.PageMetadata{
