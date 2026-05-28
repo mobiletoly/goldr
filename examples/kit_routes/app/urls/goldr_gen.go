@@ -6,6 +6,12 @@ var Root = newRootRoute("")
 var Admin = newAdminRoute("")
 var User = newUserRoute("")
 
+type goldrURLPath string
+
+func (p goldrURLPath) Path() string {
+	return string(p)
+}
+
 type MountedRoutes struct {
 	basePath string
 	Root     rootRoute
@@ -24,7 +30,7 @@ func WithBasePath(basePath string) MountedRoutes {
 }
 
 type rootRoute struct {
-	basePath string
+	goldrURLPath
 }
 
 type adminRoute struct {
@@ -33,18 +39,14 @@ type adminRoute struct {
 }
 
 type adminReportsRoute struct {
-	basePath string
-	Audit    adminReportsAuditRoute
-	Table    adminReportsTableRoute
+	goldrURLPath
+	Audit adminReportsAuditRoute
+	Table adminReportsTableRoute
 }
 
-type adminReportsAuditRoute struct {
-	basePath string
-}
+type adminReportsAuditRoute = goldrURLPath
 
-type adminReportsTableRoute struct {
-	basePath string
-}
+type adminReportsTableRoute = goldrURLPath
 
 type userRoute struct {
 	basePath string
@@ -52,89 +54,50 @@ type userRoute struct {
 }
 
 type userReportsRoute struct {
-	basePath string
-	Table    userReportsTableRoute
+	goldrURLPath
+	Table userReportsTableRoute
 }
 
-type userReportsTableRoute struct {
-	basePath string
-}
+type userReportsTableRoute = goldrURLPath
 
 func newRootRoute(basePath string) rootRoute {
+	path := basePath + "/"
 	return rootRoute{
-		basePath: basePath,
+		goldrURLPath: goldrURLPath(path),
 	}
 }
 
 func newAdminRoute(basePath string) adminRoute {
+	path := basePath + "/admin"
 	return adminRoute{
-		basePath: basePath,
-		Reports:  newAdminReportsRoute(basePath),
+		basePath: path,
+		Reports:  newAdminReportsRoute(path),
 	}
 }
 
 func newAdminReportsRoute(basePath string) adminReportsRoute {
+	path := basePath + "/reports"
 	return adminReportsRoute{
-		basePath: basePath,
-		Audit:    newAdminReportsAuditRoute(basePath),
-		Table:    newAdminReportsTableRoute(basePath),
-	}
-}
-
-func newAdminReportsAuditRoute(basePath string) adminReportsAuditRoute {
-	return adminReportsAuditRoute{
-		basePath: basePath,
-	}
-}
-
-func newAdminReportsTableRoute(basePath string) adminReportsTableRoute {
-	return adminReportsTableRoute{
-		basePath: basePath,
+		goldrURLPath: goldrURLPath(path),
+		Audit:        adminReportsAuditRoute(path + "/audit"),
+		Table:        adminReportsTableRoute(path + "/table"),
 	}
 }
 
 func newUserRoute(basePath string) userRoute {
+	path := basePath + "/user"
 	return userRoute{
-		basePath: basePath,
-		Reports:  newUserReportsRoute(basePath),
+		basePath: path,
+		Reports:  newUserReportsRoute(path),
 	}
 }
 
 func newUserReportsRoute(basePath string) userReportsRoute {
+	path := basePath + "/reports"
 	return userReportsRoute{
-		basePath: basePath,
-		Table:    newUserReportsTableRoute(basePath),
+		goldrURLPath: goldrURLPath(path),
+		Table:        userReportsTableRoute(path + "/table"),
 	}
-}
-
-func newUserReportsTableRoute(basePath string) userReportsTableRoute {
-	return userReportsTableRoute{
-		basePath: basePath,
-	}
-}
-
-func (r rootRoute) Path() string {
-	return r.basePath + "/"
-}
-
-func (r adminReportsRoute) Path() string {
-	return r.basePath + "/" + "admin" + "/" + "reports"
-}
-
-func (r adminReportsAuditRoute) Path() string {
-	return r.basePath + "/" + "admin" + "/" + "reports" + "/" + "audit"
-}
-
-func (r adminReportsTableRoute) Path() string {
-	return r.basePath + "/" + "admin" + "/" + "reports" + "/" + "table"
-}
-
-func (r userReportsRoute) Path() string {
-	return r.basePath + "/" + "user" + "/" + "reports"
-}
-
-func (r userReportsTableRoute) Path() string {
-	return r.basePath + "/" + "user" + "/" + "reports" + "/" + "table"
 }
 
 func normalizeBasePath(basePath string) string {

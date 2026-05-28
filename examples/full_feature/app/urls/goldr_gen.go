@@ -5,11 +5,17 @@ package urls
 import "net/url"
 
 var Root = newRootRoute("")
-var Admin = newAdminRoute("")
+var Admin = adminRoute("/admin")
 var ProtectedResourceDemo = newProtectedResourceDemoRoute("")
-var Settings = newSettingsRoute("")
-var SignIn = newSignInRoute("")
+var Settings = settingsRoute("/settings")
+var SignIn = signInRoute("/sign-in")
 var Users = newUsersRoute("")
+
+type goldrURLPath string
+
+func (p goldrURLPath) Path() string {
+	return string(p)
+}
 
 type MountedRoutes struct {
 	basePath              string
@@ -26,213 +32,93 @@ func WithBasePath(basePath string) MountedRoutes {
 	return MountedRoutes{
 		basePath:              normalizedBasePath,
 		Root:                  newRootRoute(normalizedBasePath),
-		Admin:                 newAdminRoute(normalizedBasePath),
+		Admin:                 adminRoute(normalizedBasePath + "/admin"),
 		ProtectedResourceDemo: newProtectedResourceDemoRoute(normalizedBasePath),
-		Settings:              newSettingsRoute(normalizedBasePath),
-		SignIn:                newSignInRoute(normalizedBasePath),
+		Settings:              settingsRoute(normalizedBasePath + "/settings"),
+		SignIn:                signInRoute(normalizedBasePath + "/sign-in"),
 		Users:                 newUsersRoute(normalizedBasePath),
 	}
 }
 
 type rootRoute struct {
-	basePath string
+	goldrURLPath
 }
 
-type adminRoute struct {
-	basePath string
-}
+type adminRoute = goldrURLPath
 
 type protectedResourceDemoRoute struct {
-	basePath     string
+	goldrURLPath
 	RevealSecret protectedResourceDemoRevealSecretRoute
 	SignOut      protectedResourceDemoSignOutRoute
 }
 
-type protectedResourceDemoRevealSecretRoute struct {
-	basePath string
-}
+type protectedResourceDemoRevealSecretRoute = goldrURLPath
 
-type protectedResourceDemoSignOutRoute struct {
-	basePath string
-}
+type protectedResourceDemoSignOutRoute = goldrURLPath
 
-type settingsRoute struct {
-	basePath string
-}
+type settingsRoute = goldrURLPath
 
-type signInRoute struct {
-	basePath string
-}
+type signInRoute = goldrURLPath
 
 type usersRoute struct {
-	basePath      string
+	goldrURLPath
 	Create        usersCreateRoute
 	SavePreview   usersSavePreviewRoute
 	StatusOptions usersStatusOptionsRoute
 	Table         usersTableRoute
 }
 
-type usersCreateRoute struct {
-	basePath string
-}
+type usersCreateRoute = goldrURLPath
 
-type usersSavePreviewRoute struct {
-	basePath string
-}
+type usersSavePreviewRoute = goldrURLPath
 
-type usersStatusOptionsRoute struct {
-	basePath string
-}
+type usersStatusOptionsRoute = goldrURLPath
 
-type usersTableRoute struct {
-	basePath string
-}
+type usersTableRoute = goldrURLPath
 
 type usersByIDRoute struct {
-	basePath string
-	id       string
+	goldrURLPath
+	id string
 }
 
 func newRootRoute(basePath string) rootRoute {
+	path := basePath + "/"
 	return rootRoute{
-		basePath: basePath,
-	}
-}
-
-func newAdminRoute(basePath string) adminRoute {
-	return adminRoute{
-		basePath: basePath,
+		goldrURLPath: goldrURLPath(path),
 	}
 }
 
 func newProtectedResourceDemoRoute(basePath string) protectedResourceDemoRoute {
+	path := basePath + "/protected-resource-demo"
 	return protectedResourceDemoRoute{
-		basePath:     basePath,
-		RevealSecret: newProtectedResourceDemoRevealSecretRoute(basePath),
-		SignOut:      newProtectedResourceDemoSignOutRoute(basePath),
-	}
-}
-
-func newProtectedResourceDemoRevealSecretRoute(basePath string) protectedResourceDemoRevealSecretRoute {
-	return protectedResourceDemoRevealSecretRoute{
-		basePath: basePath,
-	}
-}
-
-func newProtectedResourceDemoSignOutRoute(basePath string) protectedResourceDemoSignOutRoute {
-	return protectedResourceDemoSignOutRoute{
-		basePath: basePath,
-	}
-}
-
-func newSettingsRoute(basePath string) settingsRoute {
-	return settingsRoute{
-		basePath: basePath,
-	}
-}
-
-func newSignInRoute(basePath string) signInRoute {
-	return signInRoute{
-		basePath: basePath,
+		goldrURLPath: goldrURLPath(path),
+		RevealSecret: protectedResourceDemoRevealSecretRoute(path + "/reveal-secret"),
+		SignOut:      protectedResourceDemoSignOutRoute(path + "/sign-out"),
 	}
 }
 
 func newUsersRoute(basePath string) usersRoute {
+	path := basePath + "/users"
 	return usersRoute{
-		basePath:      basePath,
-		Create:        newUsersCreateRoute(basePath),
-		SavePreview:   newUsersSavePreviewRoute(basePath),
-		StatusOptions: newUsersStatusOptionsRoute(basePath),
-		Table:         newUsersTableRoute(basePath),
-	}
-}
-
-func newUsersCreateRoute(basePath string) usersCreateRoute {
-	return usersCreateRoute{
-		basePath: basePath,
-	}
-}
-
-func newUsersSavePreviewRoute(basePath string) usersSavePreviewRoute {
-	return usersSavePreviewRoute{
-		basePath: basePath,
-	}
-}
-
-func newUsersStatusOptionsRoute(basePath string) usersStatusOptionsRoute {
-	return usersStatusOptionsRoute{
-		basePath: basePath,
-	}
-}
-
-func newUsersTableRoute(basePath string) usersTableRoute {
-	return usersTableRoute{
-		basePath: basePath,
+		goldrURLPath:  goldrURLPath(path),
+		Create:        usersCreateRoute(path + "/create"),
+		SavePreview:   usersSavePreviewRoute(path + "/save-preview"),
+		StatusOptions: usersStatusOptionsRoute(path + "/status-options"),
+		Table:         usersTableRoute(path + "/table"),
 	}
 }
 
 func newUsersByIDRoute(basePath string, id string) usersByIDRoute {
+	path := basePath + "/" + id
 	return usersByIDRoute{
-		basePath: basePath,
-		id:       id,
+		goldrURLPath: goldrURLPath(path),
+		id:           id,
 	}
 }
 
 func (r usersRoute) ByID(id string) usersByIDRoute {
 	escapedID := url.PathEscape(id)
-	return newUsersByIDRoute(r.basePath, escapedID)
-}
-
-func (r rootRoute) Path() string {
-	return r.basePath + "/"
-}
-
-func (r adminRoute) Path() string {
-	return r.basePath + "/" + "admin"
-}
-
-func (r protectedResourceDemoRoute) Path() string {
-	return r.basePath + "/" + "protected-resource-demo"
-}
-
-func (r protectedResourceDemoRevealSecretRoute) Path() string {
-	return r.basePath + "/" + "protected-resource-demo" + "/" + "reveal-secret"
-}
-
-func (r protectedResourceDemoSignOutRoute) Path() string {
-	return r.basePath + "/" + "protected-resource-demo" + "/" + "sign-out"
-}
-
-func (r settingsRoute) Path() string {
-	return r.basePath + "/" + "settings"
-}
-
-func (r signInRoute) Path() string {
-	return r.basePath + "/" + "sign-in"
-}
-
-func (r usersRoute) Path() string {
-	return r.basePath + "/" + "users"
-}
-
-func (r usersCreateRoute) Path() string {
-	return r.basePath + "/" + "users" + "/" + "create"
-}
-
-func (r usersSavePreviewRoute) Path() string {
-	return r.basePath + "/" + "users" + "/" + "save-preview"
-}
-
-func (r usersStatusOptionsRoute) Path() string {
-	return r.basePath + "/" + "users" + "/" + "status-options"
-}
-
-func (r usersTableRoute) Path() string {
-	return r.basePath + "/" + "users" + "/" + "table"
-}
-
-func (r usersByIDRoute) Path() string {
-	return r.basePath + "/" + "users" + "/" + r.id
+	return newUsersByIDRoute(string(r.goldrURLPath), escapedID)
 }
 
 func normalizeBasePath(basePath string) string {

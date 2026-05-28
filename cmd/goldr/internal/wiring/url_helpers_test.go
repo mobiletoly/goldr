@@ -25,12 +25,14 @@ func TestGenerateURLHelpersWritesRouteNodes(t *testing.T) {
 		"func WithBasePath(basePath string) MountedRoutes",
 		"func BySlug(slug string) bySlugRoute",
 		"func (r MountedRoutes) BySlug(slug string) bySlugRoute",
-		"func (r rootRoute) Path() string",
-		"func (r usersRoute) Path() string",
+		"type goldrURLPath string",
+		"func (p goldrURLPath) Path() string",
+		"type usersRoute struct {\n\tgoldrURLPath",
+		"type usersCreateRoute = goldrURLPath",
+		"type usersTableRoute = goldrURLPath",
+		"type usersByIDRoute struct {\n\tgoldrURLPath",
 		"func (r usersRoute) ByID(id string) usersByIDRoute",
-		"func (r usersByIDProfileRoute) Path() string",
-		"func (r orgsByOrgIDUsersByUserIDRoute) Path() string",
-		"Table:       newUsersTableRoute(basePath)",
+		`Table:        usersTableRoute(path + "/table")`,
 		"BuildInfo settingsBuildInfoRoute",
 		"SavePreview usersSavePreviewRoute",
 		"url.PathEscape(id)",
@@ -40,8 +42,20 @@ func TestGenerateURLHelpersWritesRouteNodes(t *testing.T) {
 			t.Fatalf("generated URL helper source missing %q:\n%s", want, source)
 		}
 	}
-	if got := strings.Count(source, "func (r usersByIDProfileRoute) Path() string"); got != 1 {
-		t.Fatalf("profile Path method count = %d, want 1\n%s", got, source)
+	if got := strings.Count(source, "func (p goldrURLPath) Path() string"); got != 1 {
+		t.Fatalf("goldrURLPath Path method count = %d, want 1\n%s", got, source)
+	}
+	if strings.Contains(source, "func (r usersByIDProfileRoute) Path() string") {
+		t.Fatalf("generated URL helper source emits per-route Path method:\n%s", source)
+	}
+	if strings.Contains(source, "func (r orgsRoute) Path() string") {
+		t.Fatalf("namespace-only helper exposes Path method:\n%s", source)
+	}
+	if strings.Contains(source, "type usersCreateRoute struct") {
+		t.Fatalf("leaf path-only helper emits struct instead of alias:\n%s", source)
+	}
+	if strings.Contains(source, "func newUsersCreateRoute(") {
+		t.Fatalf("leaf path-only helper emits constructor instead of inline alias construction:\n%s", source)
 	}
 	if _, err := parser.ParseFile(token.NewFileSet(), URLGeneratedFileName, source, parser.SkipObjectResolution); err != nil {
 		t.Fatalf("ParseFile() error = %v\n%s", err, source)
@@ -75,12 +89,16 @@ func TestGenerateURLHelpersUsesRoutePathForIndexFragments(t *testing.T) {
 	for _, want := range []string{
 		"var Users = newUsersRoute(\"\")",
 		"StatusOptions usersStatusOptionsRoute",
-		"func (r usersStatusOptionsRoute) Path() string",
-		`return r.basePath + "/" + "users" + "/" + "status-options"`,
+		`path := basePath + "/users"`,
+		"type usersStatusOptionsRoute = goldrURLPath",
+		`StatusOptions: usersStatusOptionsRoute(path + "/status-options")`,
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated URL helper source missing %q:\n%s", want, source)
 		}
+	}
+	if strings.Contains(source, `"/" + "users"`) {
+		t.Fatalf("generated URL helper source uses segment-by-segment static concatenation:\n%s", source)
 	}
 	if strings.Contains(source, "Index") {
 		t.Fatalf("generated URL helper source uses fragment kind/name:\n%s", source)
@@ -96,8 +114,11 @@ func TestGenerateMountURLHelpersWritesMountRelativeRouteNodes(t *testing.T) {
 		"func NewGoldrMountURLs(route interface{ Path() string }) GoldrMountURLs",
 		"func newGoldrMountURLs(mountPath string) GoldrMountURLs",
 		"func (r GoldrMountURLs) Path() string",
+		"type goldrURLPath string",
+		"func (p goldrURLPath) Path() string",
 		"ByID(id string) goldrMountByIDURL",
 		"Table    goldrMountTableURL",
+		"type goldrMountTableURL = goldrURLPath",
 		"Export   goldrMountExportURL",
 		"url.PathEscape(id)",
 		"normalizeGoldrMountPath(mountPath)",
@@ -115,6 +136,8 @@ func TestGenerateMountURLHelpersWritesMountRelativeRouteNodes(t *testing.T) {
 		"type MountedRoutes",
 		`"/" + "admin"`,
 		`"/" + "user"`,
+		"func (r goldrMountTableURL) Path() string",
+		"func newGoldrMountTableURL(",
 	} {
 		if strings.Contains(source, unwanted) {
 			t.Fatalf("generated mounted URL helper source contains %q:\n%s", unwanted, source)
@@ -140,7 +163,8 @@ func TestGenerateMountURLHelpersIncludesMountedSourceRoutesSelectedByOneOwner(t 
 		"Audit    goldrMountAuditURL",
 		"ByID(id string) goldrMountByIDURL",
 		"Table    goldrMountTableURL",
-		"return r.basePath + \"/\" + \"audit\"",
+		"type goldrMountAuditURL = goldrURLPath",
+		`Audit:    goldrMountAuditURL(normalizedMountPath + "/audit")`,
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated mounted URL helper source missing %q:\n%s", want, source)

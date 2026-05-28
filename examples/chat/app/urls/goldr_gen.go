@@ -4,7 +4,13 @@ package urls
 
 var Root = newRootRoute("")
 var Chat = newChatRoute("")
-var Join = newJoinRoute("")
+var Join = joinRoute("/join")
+
+type goldrURLPath string
+
+func (p goldrURLPath) Path() string {
+	return string(p)
+}
 
 type MountedRoutes struct {
 	basePath string
@@ -19,82 +25,40 @@ func WithBasePath(basePath string) MountedRoutes {
 		basePath: normalizedBasePath,
 		Root:     newRootRoute(normalizedBasePath),
 		Chat:     newChatRoute(normalizedBasePath),
-		Join:     newJoinRoute(normalizedBasePath),
+		Join:     joinRoute(normalizedBasePath + "/join"),
 	}
 }
 
 type rootRoute struct {
-	basePath string
+	goldrURLPath
 }
 
 type chatRoute struct {
-	basePath string
-	Message  chatMessageRoute
-	SignOut  chatSignOutRoute
+	goldrURLPath
+	Message chatMessageRoute
+	SignOut chatSignOutRoute
 }
 
-type chatMessageRoute struct {
-	basePath string
-}
+type chatMessageRoute = goldrURLPath
 
-type chatSignOutRoute struct {
-	basePath string
-}
+type chatSignOutRoute = goldrURLPath
 
-type joinRoute struct {
-	basePath string
-}
+type joinRoute = goldrURLPath
 
 func newRootRoute(basePath string) rootRoute {
+	path := basePath + "/"
 	return rootRoute{
-		basePath: basePath,
+		goldrURLPath: goldrURLPath(path),
 	}
 }
 
 func newChatRoute(basePath string) chatRoute {
+	path := basePath + "/chat"
 	return chatRoute{
-		basePath: basePath,
-		Message:  newChatMessageRoute(basePath),
-		SignOut:  newChatSignOutRoute(basePath),
+		goldrURLPath: goldrURLPath(path),
+		Message:      chatMessageRoute(path + "/message"),
+		SignOut:      chatSignOutRoute(path + "/sign-out"),
 	}
-}
-
-func newChatMessageRoute(basePath string) chatMessageRoute {
-	return chatMessageRoute{
-		basePath: basePath,
-	}
-}
-
-func newChatSignOutRoute(basePath string) chatSignOutRoute {
-	return chatSignOutRoute{
-		basePath: basePath,
-	}
-}
-
-func newJoinRoute(basePath string) joinRoute {
-	return joinRoute{
-		basePath: basePath,
-	}
-}
-
-func (r rootRoute) Path() string {
-	return r.basePath + "/"
-}
-
-func (r chatRoute) Path() string {
-	return r.basePath + "/" + "chat"
-}
-
-func (r chatMessageRoute) Path() string {
-	return r.basePath + "/" + "chat" + "/" + "message"
-}
-
-func (r chatSignOutRoute) Path() string {
-	return r.basePath + "/" + "chat" + "/" + "sign-out"
-}
-
-func (r joinRoute) Path() string {
-	return r.basePath + "/" + "join"
 }
 
 func normalizeBasePath(basePath string) string {

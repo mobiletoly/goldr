@@ -16,8 +16,8 @@ func newGoldrMountURLs(mountPath string) GoldrMountURLs {
 	normalizedMountPath := normalizeGoldrMountPath(mountPath)
 	return GoldrMountURLs{
 		basePath: normalizedMountPath,
-		Audit:    newGoldrMountAuditURL(normalizedMountPath),
-		Table:    newGoldrMountTableURL(normalizedMountPath),
+		Audit:    goldrMountAuditURL(normalizedMountPath + "/audit"),
+		Table:    goldrMountTableURL(normalizedMountPath + "/table"),
 	}
 }
 
@@ -25,33 +25,15 @@ func (r GoldrMountURLs) Path() string {
 	return goldrMountRootPath(r.basePath)
 }
 
-type goldrMountAuditURL struct {
-	basePath string
+type goldrURLPath string
+
+func (p goldrURLPath) Path() string {
+	return string(p)
 }
 
-type goldrMountTableURL struct {
-	basePath string
-}
+type goldrMountAuditURL = goldrURLPath
 
-func newGoldrMountAuditURL(basePath string) goldrMountAuditURL {
-	return goldrMountAuditURL{
-		basePath: basePath,
-	}
-}
-
-func newGoldrMountTableURL(basePath string) goldrMountTableURL {
-	return goldrMountTableURL{
-		basePath: basePath,
-	}
-}
-
-func (r goldrMountAuditURL) Path() string {
-	return r.basePath + "/" + "audit"
-}
-
-func (r goldrMountTableURL) Path() string {
-	return r.basePath + "/" + "table"
-}
+type goldrMountTableURL = goldrURLPath
 
 func normalizeGoldrMountPath(mountPath string) string {
 	if mountPath == "" || mountPath == "/" {
