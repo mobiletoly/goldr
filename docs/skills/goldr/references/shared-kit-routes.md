@@ -143,9 +143,14 @@ Rules:
 - Referenced mount roots also get `app/mounts/<mount>/goldr_gen.go` with
   `NewGoldrMountURLs(route interface{ Path() string })` for links within the
   mounted subtree.
-- Put only routes valid for every live owner in `app/mounts`. Owner-only child
-  routes stay under the live owner route tree, and owner-only URLs are passed
-  through app-owned kit or page data when shared mounted templates need them.
+- Use `KitRouteMount.Routes` when one live owner exposes only part of a
+  mounted subtree. Excluded children are absent from that owner's dispatch,
+  route list, URL helpers, and middleware composition. Child-only selections
+  still get the owner mount-base URL helper for binding `NewGoldrMountURLs`;
+  the mount root does not dispatch unless `/` is selected.
+- Mount-relative helpers include mounted source routes, including children
+  exposed by only some owners. They are subtree path helpers, not selected live
+  route inventory.
 - Mounted subtrees may define layouts, but middleware in `app/mounts` is
   rejected.
 - `RouteDef` is invalid in `app/mounts`.
@@ -171,6 +176,9 @@ reportURLs := reports.NewGoldrMountURLs(urls.Admin.Reports)
 
 Mounted templates can then use `reportURLs.Path()` for the mount root and
 `reportURLs.Table.Path()` for child routes without hard-coding the owner path.
+Use app-owned state before rendering links to owner-specific mounted children.
+A child-only owner still has the mount-base helper needed for this binding, but
+that helper does not make the root URL live.
 
 ## Shared Package Shape
 
@@ -310,9 +318,9 @@ reportURLs := reports.NewGoldrMountURLs(urls.Admin.Reports)
 reportURLs.Table.Path()
 ```
 
-Do not bind mounted helpers from a raw path string. Do not add owner-only
-children or owner-only links to the shared mounted helper set; pass those URLs
-through app-owned kit or page data.
+Do not bind mounted helpers from a raw path string. Mount helpers include only
+mounted source routes; `app/urls` remains the selected live route helper
+surface for each owner.
 
 For mounted apps, bind helpers once:
 

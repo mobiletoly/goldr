@@ -5,8 +5,8 @@ templ PageView(report ReportData) {
 		<p class="eyebrow">{ report.Audience }</p>
 		<h1>{ report.Heading }</h1>
 		<p>{ report.Description }</p>
-		if report.OwnerToolsURL != "" {
-			<p><a href={ report.OwnerToolsURL }>Admin report tools</a></p>
+		if report.ShowAudit {
+			<p><a href={ report.URLs.Audit.Path() }>Admin report tools</a></p>
 		}
 		<div class="report-actions">
 			<label for="report-period">Period</label>

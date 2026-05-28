@@ -187,6 +187,39 @@ func portal(r *http.Request) cohortexplorer.Portal {
 	}
 }
 
+func TestScanRouteDeclarationKitRouteMountRoutes(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "admin/reports/route.go", `package reports
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+	shared "example.com/app/shared"
+)
+
+var Route = goldr.KitRouteMount[shared.Kit]{
+	New: newKit,
+	Mount: "reports",
+	Routes: goldr.MountRoutes{
+		"/",
+		"/table",
+		"/orgs/{org_id}",
+	},
+}
+
+func newKit(r *http.Request) shared.Kit {
+	return shared.New()
+}
+`)
+
+	tree := scanOK(t, root)
+
+	if got := tree.Routes[0].Mount; got == nil || got.Path != "reports" || !got.RoutesSet || !reflect.DeepEqual(got.Routes, []string{"/", "/table", "/orgs/{org_id}"}) {
+		t.Fatalf("mount = %#v, want parsed Routes", got)
+	}
+}
+
 func TestScanRouteDeclarationPointerKitMethodExpressions(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "reports/route.go", `package reports
@@ -574,7 +607,95 @@ var Route = goldr.KitRouteMount[Kit]{
 	Name: "reports",
 }
 `,
-			message: "KitRouteMount supports only New and Mount route surface fields",
+			message: "KitRouteMount supports only New, Mount, and Routes route surface fields",
+		},
+		{
+			name: "kit route mount computed routes",
+			source: `package users
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+func New(*http.Request) Kit { return Kit{} }
+
+var Route = goldr.KitRouteMount[Kit]{
+	New: New,
+	Mount: "reports",
+	Routes: reportRoutes(),
+}
+`,
+			message: "KitRouteMount.Routes must use a literal goldr.MountRoutes value",
+		},
+		{
+			name: "kit route mount empty routes",
+			source: `package users
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+func New(*http.Request) Kit { return Kit{} }
+
+var Route = goldr.KitRouteMount[Kit]{
+	New: New,
+	Mount: "reports",
+	Routes: goldr.MountRoutes{},
+}
+`,
+			message: "KitRouteMount.Routes must not be empty",
+		},
+		{
+			name: "kit route mount invalid route selector",
+			source: `package users
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+func New(*http.Request) Kit { return Kit{} }
+
+var Route = goldr.KitRouteMount[Kit]{
+	New: New,
+	Mount: "reports",
+	Routes: goldr.MountRoutes{"/bad_name"},
+}
+`,
+			message: "KitRouteMount.Routes entries must be mount-relative browser route patterns like \"/\", \"/table\", or \"/{id}\"",
+		},
+		{
+			name: "kit route mount duplicate route selector",
+			source: `package users
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+func New(*http.Request) Kit { return Kit{} }
+
+var Route = goldr.KitRouteMount[Kit]{
+	New: New,
+	Mount: "reports",
+	Routes: goldr.MountRoutes{"/table", "/table"},
+}
+`,
+			message: "KitRouteMount.Routes contains duplicate route pattern: /table",
 		},
 		{
 			name: "empty route surface",

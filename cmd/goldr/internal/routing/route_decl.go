@@ -23,7 +23,10 @@ const (
 	routeDeclarationKindKitMount = "mounted-kit"
 )
 
-var routeDeclarationNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+var (
+	routeDeclarationNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+	mountRouteStaticPattern     = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+)
 
 type RouteDeclaration struct {
 	Route            string
@@ -79,6 +82,8 @@ type RouteKitDeclaration struct {
 
 type RouteMountDeclaration struct {
 	Path            string
+	Routes          []string
+	RoutesSet       bool
 	Owner           string
 	OwnerRoute      string
 	OwnerParamCount int
@@ -316,8 +321,8 @@ func (parser *routeDeclarationParser) parseRouteFields(decl *RouteDeclaration, l
 			continue
 		}
 
-		if decl.Kind == routeDeclarationKindKitMount && key.Name != "New" && key.Name != "Mount" {
-			parser.addProblem("KitRouteMount supports only New and Mount route surface fields")
+		if decl.Kind == routeDeclarationKindKitMount && key.Name != "New" && key.Name != "Mount" && key.Name != "Routes" {
+			parser.addProblem("KitRouteMount supports only New, Mount, and Routes route surface fields")
 			continue
 		}
 
@@ -349,11 +354,56 @@ func (parser *routeDeclarationParser) parseRouteFields(decl *RouteDeclaration, l
 				parser.addProblem("Mount is only supported on goldr.KitRouteMount")
 				continue
 			}
-			decl.Mount = &RouteMountDeclaration{Path: parser.stringLiteral("Mount", field.Value)}
+			if decl.Mount == nil {
+				decl.Mount = &RouteMountDeclaration{}
+			}
+			decl.Mount.Path = parser.stringLiteral("Mount", field.Value)
+		case "Routes":
+			if decl.Kind != routeDeclarationKindKitMount {
+				parser.addProblem("Routes is only supported on goldr.KitRouteMount")
+				continue
+			}
+			routes := parser.parseMountRoutes(field.Value)
+			if decl.Mount == nil {
+				decl.Mount = &RouteMountDeclaration{}
+			}
+			decl.Mount.RoutesSet = true
+			decl.Mount.Routes = routes
 		default:
 			parser.addProblem("unsupported Route field: " + key.Name)
 		}
 	}
+}
+
+func (parser *routeDeclarationParser) parseMountRoutes(expr ast.Expr) []string {
+	literal, ok := expr.(*ast.CompositeLit)
+	if !ok || !selectorName(literal.Type, "goldr", "MountRoutes") {
+		parser.addProblem("KitRouteMount.Routes must use a literal goldr.MountRoutes value")
+		return nil
+	}
+	if len(literal.Elts) == 0 {
+		parser.addProblem("KitRouteMount.Routes must not be empty")
+		return nil
+	}
+	routes := make([]string, 0, len(literal.Elts))
+	seen := make(map[string]bool, len(literal.Elts))
+	for _, item := range literal.Elts {
+		route := parser.stringLiteral("KitRouteMount.Routes entry", item)
+		if route == "" {
+			continue
+		}
+		if !validMountRouteSelector(route) {
+			parser.addProblem("KitRouteMount.Routes entries must be mount-relative browser route patterns like \"/\", \"/table\", or \"/{id}\"")
+			continue
+		}
+		if seen[route] {
+			parser.addProblem("KitRouteMount.Routes contains duplicate route pattern: " + route)
+			continue
+		}
+		seen[route] = true
+		routes = append(routes, route)
+	}
+	return routes
 }
 
 func (parser *routeDeclarationParser) parsePage(expr ast.Expr) *RouteHandlerDeclaration {
@@ -838,6 +888,34 @@ func isPointerMethodExpression(expr ast.Expr) bool {
 
 func validRouteDeclarationName(value string) bool {
 	return routeDeclarationNamePattern.MatchString(value)
+}
+
+func validMountRouteSelector(value string) bool {
+	if value == "/" {
+		return true
+	}
+	if value == "" || !strings.HasPrefix(value, "/") || strings.HasSuffix(value, "/") || strings.Contains(value, "//") {
+		return false
+	}
+	for segment := range strings.SplitSeq(strings.TrimPrefix(value, "/"), "/") {
+		if segment == "" {
+			return false
+		}
+		if strings.HasPrefix(segment, "{") || strings.HasSuffix(segment, "}") {
+			if !strings.HasPrefix(segment, "{") || !strings.HasSuffix(segment, "}") {
+				return false
+			}
+			param := strings.TrimSuffix(strings.TrimPrefix(segment, "{"), "}")
+			if !isRouteIdent(param) {
+				return false
+			}
+			continue
+		}
+		if !mountRouteStaticPattern.MatchString(segment) {
+			return false
+		}
+	}
+	return true
 }
 
 func exportedDeclarationName(value string) string {

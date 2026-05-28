@@ -34,8 +34,9 @@ Goldr is server-first, HTML-first, HTMX-native, and Go-native.
 - Routes live under `app/routes`.
 - Non-live reusable Kit route subtrees live under `app/mounts` and must be
   mounted by real `app/routes` owners.
-- Owner-only child routes stay under the live `app/routes` owner, not under
-  `app/mounts`.
+- Use `KitRouteMount.Routes` when one live owner exposes only part of a
+  mounted subtree. A child-only selection keeps the owner mount-base URL helper
+  for binding mounted helpers, but does not make the root URL live.
 - Static assets should not live under `app/routes`.
 - A render unit is normally a `.go` file beside a matching `.templ` file.
 - `route.go` declares route pages, fragments, and actions with

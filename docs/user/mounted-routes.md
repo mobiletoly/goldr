@@ -23,6 +23,8 @@ app/mounts/reports/
   route.go
   page.templ
   fragments.templ
+  audit/
+    route.go
 ```
 
 Goldr never treats `app/mounts` as a live route tree. A mount subtree becomes
@@ -45,6 +47,10 @@ import (
 var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	New:   newReportKit,
 	Mount: "reports",
+	Routes: goldr.MountRoutes{
+		"/",
+		"/audit",
+	},
 }
 
 func newReportKit(r *http.Request) sharedreports.Kit {
@@ -64,6 +70,11 @@ fresh kit value to the mounted page, fragment, or action handler.
 Do not use an inline function literal for `New`. Goldr parses `route.go`
 statically for route inspection and generated adapters; a named local
 constructor keeps the mounted route declaration readable and supported.
+
+`Routes` is optional. When omitted, the owner exposes every route declaration
+in the mounted subtree. When present, it is an explicit allowlist of
+mount-relative browser route patterns such as `/`, `/audit`, or `/{id}`.
+Missing, duplicate, or malformed entries fail generation and checking.
 
 ## Mount Surface
 
@@ -89,11 +100,14 @@ The mounted package can also own the kit type, handlers, and templ components
 used by that reusable subtree. Child mount routes use the same `KitRouteDef`
 shape when the shared subtree has real child URLs.
 
-Keep only routes that are valid for every mount owner under `app/mounts`. If an
-admin owner needs an extra child such as `/admin/reports/audit`, put that child
-under the live `app/routes/admin/reports` owner. If shared mounted templates
-need to link to that owner-only child, pass the URL through the owner-created
-kit or page data.
+Mounted subtrees may contain children that are exposed by only some live
+owners. Put those choices on the live owner with `KitRouteMount.Routes`; do not
+hide a mounted child with middleware when the route should not exist for that
+owner. Excluded children are absent from generated dispatch, route inventory,
+URL helpers, and middleware composition for that owner. When an owner selects a
+child without selecting `/`, Goldr still generates the owner mount-base
+`Path()` helper so `NewGoldrMountURLs` can be bound from that owner. The mount
+root still does not dispatch unless `/` is selected.
 
 `RouteDef` is invalid under `app/mounts`. `KitRouteDef.New` is also invalid
 there because the live `KitRouteMount` owner supplies the request-scoped kit
@@ -154,6 +168,16 @@ it. `Path()` returns the mount path itself, while child helpers append their
 route segments. These helpers do not make `app/mounts` live; the final URL owner
 is still the real `app/routes` mount owner.
 
+Mount-relative helpers include every route declaration from the mounted source
+subtree, including children that only some live owners expose. They are subtree
+path helpers, not proof that a particular owner exposes the child route. Live
+app helpers in `app/urls` remain the selected route surface: an excluded child
+does not appear under that owner, does not dispatch, and does not appear in
+normal live route inventory. A child-only owner still has the mount-base helper
+needed to bind `NewGoldrMountURLs`, but that helper is not proof that the root
+URL dispatches. Shared mounted code should render owner-specific links only
+when app-owned state says the current owner selected that child.
+
 ## Layouts And Middleware
 
 Mounted pages inherit real route ancestry layouts from the mount location.
@@ -177,8 +201,9 @@ go tool goldr routes explain /admin/reports/table
 ```
 
 Text output shows the mounted final path, helper, declaration kind
-`mounted-kit`, mounted source file, and mount owner. JSON output includes the
-same owner as structured mount evidence:
+`mounted-kit`, mounted source file, and mount owner. With `--mount`, the
+`STATUS` column marks included and excluded mounted children. JSON output
+includes `status` when present and the same owner as structured mount evidence:
 
 ```json
 "mount": {

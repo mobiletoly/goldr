@@ -89,8 +89,11 @@ Shared implementation packages can live outside `app/routes`, for example
 directories still own route surface through `route.go`.
 
 Reusable non-live Kit route subtrees can live under `app/mounts` and be mounted
-by real route owners with `goldr.KitRouteMount[K]`. Do not put live URL
-ownership, owner-only child routes, or middleware policy in `app/mounts`.
+by real route owners with `goldr.KitRouteMount[K]`. Use
+`KitRouteMount.Routes` when one owner exposes only part of the subtree. Do not
+put middleware policy in `app/mounts`. Child-only selections still get an owner
+mount-base URL helper for binding mounted helpers; the root URL does not
+dispatch unless `/` is selected.
 
 ## HTTP Server
 

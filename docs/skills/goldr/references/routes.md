@@ -145,6 +145,10 @@ The live owner declares:
 var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	New:   newReportKit,
 	Mount: "reports",
+	Routes: goldr.MountRoutes{
+		"/",
+		"/audit",
+	},
 }
 ```
 
@@ -161,10 +165,12 @@ remain owned by the final mounted path, such as
 Do not use an inline function literal there, even though the Go field type is
 `func(*http.Request) K`.
 
-Only routes valid for every live owner belong in `app/mounts`. Owner-only child
-routes stay under the live `app/routes` owner. Pass owner-only URLs through
-app-owned kit or page data when shared mounted templates need to render those
-links.
+Use `KitRouteMount.Routes` when a live owner exposes only part of a mounted
+subtree. Omit it to expose the full mounted subtree. Entries are
+mount-relative browser route patterns such as `/`, `/audit`, or `/{id}`.
+Excluded children are not live endpoints for that owner. If an owner selects a
+child without `/`, the owner still gets a mount-base `Path()` helper for
+binding `NewGoldrMountURLs`; the mount root still does not dispatch.
 
 `RouteDef.Name`, `RouteDef.Title`, `KitRouteDef.Name`, `KitRouteDef.Title`,
 and `RouteMeta.Labels` are optional display metadata for route inspection.
@@ -399,14 +405,21 @@ Do not pass `urls.Admin.Reports.Path()` to `NewGoldrMountURLs`; the constructor
 expects a route helper object so child helper paths stay relative to the same
 live owner.
 
-Keep owner-only URLs outside generated mounted helpers. When a shared mounted
-template needs an owner-only link, pass that URL through app-owned kit or page
-data:
+Generated mounted helpers include every route declaration from the mounted
+source subtree, including owner-specific children. They are subtree path
+helpers, not live route inventory. Use app-owned state before rendering links
+to children that only some owners select:
 
 ```go
 reportURLs := reports.NewGoldrMountURLs(urls.Admin.Reports)
-ownerToolsURL := urls.Admin.Reports.Audit.Path()
+if report.ShowAudit {
+	link := reportURLs.Audit.Path()
+}
 ```
+
+A child-only owner still exposes the mount-base helper in `app/urls` for the
+`NewGoldrMountURLs` binding pattern. That helper does not make the mount root a
+live route.
 
 ## Generated Handler
 

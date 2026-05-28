@@ -63,7 +63,7 @@ func GenerateURLHelpers(manifest routing.Manifest, options GenerateURLOptions) (
 	if err != nil {
 		return nil, err
 	}
-	root, err := buildURLHelperTree(runtimePaths(routes))
+	root, err := buildURLHelperTree(urlHelperPaths(manifest, routes))
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +86,31 @@ func GenerateURLHelpers(manifest routing.Manifest, options GenerateURLOptions) (
 		return nil, fmt.Errorf("format generated URL helpers: %w", err)
 	}
 	return source, nil
+}
+
+func urlHelperPaths(manifest routing.Manifest, routes []runtimeRoute) []runtimePath {
+	paths := runtimePaths(routes)
+	seen := make(map[string]bool, len(paths))
+	for _, routePath := range paths {
+		seen[routePath.route] = true
+	}
+	for _, route := range manifest.Routes {
+		if route.Mount == nil || route.Mount.OwnerRoute == "" || seen[route.Mount.OwnerRoute] {
+			continue
+		}
+		ownerParamCount := route.Mount.OwnerParamCount
+		if ownerParamCount > len(route.Params) {
+			ownerParamCount = len(route.Params)
+		}
+		paths = append(paths, runtimePath{
+			route:    route.Mount.OwnerRoute,
+			params:   slices.Clone(route.Params[:ownerParamCount]),
+			segments: routeSegments(route.Mount.OwnerRoute),
+		})
+		seen[route.Mount.OwnerRoute] = true
+	}
+	sortRuntimePaths(paths)
+	return paths
 }
 
 func GenerateMountURLHelpers(manifest routing.Manifest, options GenerateMountURLOptions) ([]byte, error) {
@@ -128,56 +153,29 @@ func GenerateMountURLHelpers(manifest routing.Manifest, options GenerateMountURL
 func mountURLHelperRoutes(manifest routing.Manifest, mountPath string) ([]runtimeRoute, error) {
 	relative := routing.Manifest{Routes: make([]routing.ManifestRouteDeclaration, 0)}
 	seen := make(map[string]bool)
-	for _, route := range manifest.Routes {
-		if route.Mount == nil || route.Mount.Path != mountPath {
+	for _, route := range manifest.MountSource {
+		if route.MountPath != mountPath {
 			continue
 		}
-		if route.Mount.OwnerRoute == "" {
-			return nil, fmt.Errorf("mounted route %s is missing owner route metadata", route.Source)
-		}
-		relativeRoute, ok := trimMountOwnerRoute(route.Route, route.Mount.OwnerRoute)
-		if !ok {
-			return nil, fmt.Errorf("mounted route %s is not under mount owner route %s", route.Route, route.Mount.OwnerRoute)
-		}
-		if route.Mount.OwnerParamCount > len(route.Params) {
-			return nil, fmt.Errorf("mounted route %s has fewer params than its mount owner", route.Source)
-		}
-
-		next := route
-		next.Route = relativeRoute
-		next.Params = slices.Clone(route.Params[route.Mount.OwnerParamCount:])
-		next.GoFile = route.Source
-		next.MiddlewareGoFile = ""
-		next.Mount = nil
-		next.Source = ""
-		next.Adapter = ""
-
-		key := next.GoFile
+		key := route.Source
 		if key == "" {
-			key = next.Route
+			key = route.Route
 		}
 		if seen[key] {
 			continue
 		}
 		seen[key] = true
-		relative.Routes = append(relative.Routes, next)
+		relative.Routes = append(relative.Routes, routing.ManifestRouteDeclaration{
+			Route:     route.Route,
+			Params:    slices.Clone(route.Params),
+			GoFile:    route.Source,
+			Page:      route.Page,
+			Fragments: slices.Clone(route.Fragments),
+			Actions:   slices.Clone(route.Actions),
+		})
 	}
 
 	return runtimeRoutes(relative)
-}
-
-func trimMountOwnerRoute(route string, ownerRoute string) (string, bool) {
-	if ownerRoute == "/" {
-		return route, true
-	}
-	if route == ownerRoute {
-		return "/", true
-	}
-	prefix := ownerRoute + "/"
-	if relativeRoute, ok := strings.CutPrefix(route, prefix); ok {
-		return "/" + relativeRoute, true
-	}
-	return "", false
 }
 
 func buildURLHelperTree(paths []runtimePath) (*urlHelperNode, error) {

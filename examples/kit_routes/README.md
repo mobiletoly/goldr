@@ -19,9 +19,10 @@ ordinary Go methods, and templ components.
 
 The mounted subtree owns the page and the shared `table` fragment. Each mount
 supplies request-scoped data and binds the mounted package's generated
-`GoldrMountURLs` from its real route owner. The admin-only audit child stays
-under `app/routes/admin/reports`, and the shared page receives its URL through
-admin-owned report data.
+`GoldrMountURLs` from its real route owner. The admin-only audit child lives in
+the shared mounted subtree, but only the admin owner includes it with
+`KitRouteMount.Routes`. The user owner does not expose it, so
+`/user/reports/audit` is absent.
 
 Run it with:
 

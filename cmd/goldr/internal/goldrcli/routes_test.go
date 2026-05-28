@@ -249,9 +249,9 @@ func TestRunRoutesListFiltersMountedRoutes(t *testing.T) {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
 	requireRouteTableRows(t, stdout, [][]string{
-		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER"},
-		{"fragment", "GET,HEAD", "/admin/reports/table", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "urls.Admin.Reports.Table.Path()"},
-		{"page", "GET,HEAD", "/admin/reports", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "urls.Admin.Reports.Path()"},
+		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER", "STATUS"},
+		{"fragment", "GET,HEAD", "/admin/reports/table", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "urls.Admin.Reports.Table.Path()", "included"},
+		{"page", "GET,HEAD", "/admin/reports", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "urls.Admin.Reports.Path()", "included"},
 	})
 }
 
@@ -268,6 +268,24 @@ func TestRunRoutesListMountFilterPrintsEmptyInventory(t *testing.T) {
 	}
 	requireRouteTableRows(t, stdout, [][]string{
 		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER"},
+	})
+}
+
+func TestRunRoutesListMountFilterShowsExcludedMountedRoutes(t *testing.T) {
+	root := tempSelectiveMountedRouteApp(t)
+
+	code, stdout, stderr := runGoldr(t, "routes", "list", "--app-root", root, "--mount", "reports")
+
+	if code != 0 {
+		t.Fatalf("Run(routes list --mount selective) exit code = %d, want 0; stderr = %q", code, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+	requireRouteTableRows(t, stdout, [][]string{
+		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER", "STATUS"},
+		{"route", "-", "/admin/reports/audit", "-", "../mounts/reports/audit/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "-", "excluded"},
+		{"page", "GET,HEAD", "/admin/reports", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "urls.Admin.Reports.Path()", "included"},
 	})
 }
 
@@ -290,6 +308,7 @@ func TestRunRoutesListMountFilterJSON(t *testing.T) {
 		Params:  []string{},
 		Source:  "../mounts/reports/route.go",
 		Helper:  "urls.Admin.Reports.Path()",
+		Status:  "included",
 		Declaration: &routeSurfaceJSONDeclaration{
 			Source: "../mounts/reports/route.go",
 			Kind:   "mounted-kit",
@@ -757,6 +776,7 @@ type routeSurfaceJSONRow struct {
 	Params      []string                     `json:"params"`
 	Source      string                       `json:"source"`
 	Helper      string                       `json:"helper"`
+	Status      string                       `json:"status,omitempty"`
 	Declaration *routeSurfaceJSONDeclaration `json:"declaration,omitempty"`
 }
 
@@ -820,6 +840,7 @@ func requireRouteJSONContainsRow(t *testing.T, rows []routeSurfaceJSONRow, want 
 			strings.Join(row.Params, "\x00") == strings.Join(want.Params, "\x00") &&
 			row.Source == want.Source &&
 			row.Helper == want.Helper &&
+			(want.Status == "" || row.Status == want.Status) &&
 			(want.Declaration == nil || reflect.DeepEqual(row.Declaration, want.Declaration)) {
 			return
 		}

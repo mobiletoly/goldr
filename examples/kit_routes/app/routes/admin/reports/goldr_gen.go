@@ -9,12 +9,15 @@ import (
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/examples/kit_routes/app/internal/goldrinspect"
 	goldrmount_reports "github.com/mobiletoly/goldr/examples/kit_routes/app/mounts/reports"
+	goldrmount_reports_audit "github.com/mobiletoly/goldr/examples/kit_routes/app/mounts/reports/audit"
 )
 
 // Route is read by goldr tooling; this reference keeps editors from marking it unused.
 var _ = Route
 
 var _ = goldrmount_reports.Route
+
+var _ = goldrmount_reports_audit.Route
 
 func GoldrRouteMountReportsPage(r *http.Request) goldr.PageRouteResponse {
 	goldrKit := newReportKit(r)
@@ -24,6 +27,11 @@ func GoldrRouteMountReportsPage(r *http.Request) goldr.PageRouteResponse {
 func GoldrRouteMountReportsFragTable(r *http.Request) goldr.FragmentRouteResponse {
 	goldrKit := newReportKit(r)
 	return goldrmount_reports.Kit.Table(goldrKit, r)
+}
+
+func GoldrRouteMountReportsAuditPage(r *http.Request) goldr.PageRouteResponse {
+	goldrKit := newReportKit(r)
+	return goldrmount_reports.Kit.Audit(goldrKit, r)
 }
 
 func renderFragTable(component templ.Component) templ.Component {

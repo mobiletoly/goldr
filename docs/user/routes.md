@@ -150,6 +150,10 @@ A live owner mounts the subtree:
 var Route = goldr.KitRouteMount[reports.Kit]{
 	New:   newReportKit,
 	Mount: "reports",
+	Routes: goldr.MountRoutes{
+		"/",
+		"/audit",
+	},
 }
 ```
 
@@ -163,10 +167,14 @@ still becoming hyphens in final URL paths.
 package. Do not use an inline function literal there, even though the Go field
 type is `func(*http.Request) K`.
 
-Keep only routes that are valid for every live owner in the mounted subtree.
-Owner-only children stay under the owner in `app/routes`. Shared mounted pages
-can still render links to owner-only children when the owner passes those URLs
-through kit or page data.
+`KitRouteMount.Routes` is optional. Omit it to expose the full mounted
+subtree. Set it to a `goldr.MountRoutes` allowlist when one live owner should
+expose only part of the mounted subtree. Entries are mount-relative browser
+route patterns such as `/`, `/audit`, or `/{id}`. Excluded children are not
+routable for that owner and do not receive live URL helpers. If a child is
+selected without `/`, the live owner still gets a mount-base `Path()` helper so
+mounted helpers can be bound from the owner route. That helper does not make the
+mount root dispatchable.
 
 ```go
 var Route = goldr.KitRouteDef[reports.Kit]{
@@ -194,6 +202,14 @@ reportURLs := reports.NewGoldrMountURLs(urls.Admin.Reports)
 The mounted package can use helpers such as `reportURLs.Path()` and
 `reportURLs.Table.Path()` without knowing whether the live owner is
 `/admin/reports`, `/user/reports`, or another mount point.
+
+Mount-relative helpers include every route declaration from the mounted source
+subtree, including owner-specific children. They are subtree path helpers, not
+live route inventory. Excluded children are still absent from `app/urls`,
+dispatch, and normal route lists for owners that did not select them.
+When an owner selects only child routes, `app/urls` still includes the mount
+base helper used to bind `NewGoldrMountURLs`; the mount root is not registered
+unless `/` is selected.
 
 The mounted package can own the reusable kit type and templ components for the
 mounted subtree.
@@ -638,7 +654,13 @@ reportURLs := reports.NewGoldrMountURLs(urls.Admin.Reports)
 ```
 
 Those helpers are for shared mounted code to link within its own subtree. They
-do not replace the final route inventory in `app/urls`.
+include every route declaration from the mounted source subtree, including
+children selected by only some live owners. They do not replace the final route
+inventory in `app/urls`; an excluded child is absent from that owner's app URL
+helper surface and dispatch. Render owner-specific mounted links only when
+app-owned state says the current owner selected that child.
+If the owner selected a child without `/`, the mount-base helper remains in
+`app/urls` for `NewGoldrMountURLs`, but the root URL still does not dispatch.
 
 Generated dispatch matches escaped request paths and exposes decoded values
 through `r.PathValue`.

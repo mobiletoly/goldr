@@ -108,9 +108,11 @@ Load only the references needed for the current request:
   belongs to a filesystem route directory with its own `route.go`.
 - Use `app/mounts` only for non-live Kit route subtrees mounted by real
   `app/routes` owners. Do not put app policy middleware in `app/mounts`.
-- Put only routes valid for every mount owner in `app/mounts`. Owner-only child
-  routes stay under the live owner in `app/routes`; pass owner-only URLs through
-  app-owned kit or page data when shared mounted templates need those links.
+- Use `KitRouteMount.Routes` when a live owner exposes only part of a mounted
+  subtree. Excluded children must be absent routes, not middleware-only
+  rejections. A child-only selection still has an owner mount-base URL helper
+  for binding `NewGoldrMountURLs`; the mount root does not dispatch unless `/`
+  is selected.
 - Do not assume a local checkout of the Goldr framework exists in the target
   project.
 - Use generated URL helpers instead of hard-coded app route paths when helpers
@@ -120,7 +122,8 @@ Load only the references needed for the current request:
   helpers instead of rebuilding prefixed strings.
 - Bind mounted subtree helpers from the live owner helper object, for example
   `reports.NewGoldrMountURLs(urls.Admin.Reports)`. Do not pass a raw path
-  string and do not add owner-only links to generated mount helpers.
+  string. Mount helpers include mounted source routes; check app-owned owner
+  state before rendering links to children that only some owners select.
 - Prefer generated helper paths for HTMX response headers too, such as
   `hx.PushURL(w, urls.Users.Path())`, unless the target is intentionally
   external or not represented by Goldr routes.

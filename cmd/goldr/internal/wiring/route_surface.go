@@ -13,9 +13,13 @@ import (
 
 const (
 	RouteSurfaceKindLayout   = "layout"
+	RouteSurfaceKindRoute    = "route"
 	RouteSurfaceKindPage     = "page"
 	RouteSurfaceKindFragment = "fragment"
 	RouteSurfaceKindAction   = "action"
+
+	RouteSurfaceSelectionIncluded = "included"
+	RouteSurfaceSelectionExcluded = "excluded"
 )
 
 type RouteSurfaceRow struct {
@@ -25,6 +29,7 @@ type RouteSurfaceRow struct {
 	Params      []string
 	Source      string
 	Helper      string
+	Selection   string
 	Declaration *RouteDeclarationInfo
 }
 
@@ -97,6 +102,50 @@ func RouteSurface(manifest routing.Manifest) ([]RouteSurfaceRow, error) {
 	}
 
 	return routeSurfaceRows(manifest, routes), nil
+}
+
+func RouteSurfaceWithMountSelections(manifest routing.Manifest) ([]RouteSurfaceRow, error) {
+	routes, err := runtimeRoutes(manifest)
+	if err != nil {
+		return nil, err
+	}
+	paths := runtimePaths(routes)
+	if _, err := buildURLHelperTree(paths); err != nil {
+		return nil, err
+	}
+
+	rows := routeSurfaceRows(manifest, routes)
+	for index := range rows {
+		if rows[index].Declaration != nil && rows[index].Declaration.Mount != nil {
+			rows[index].Selection = RouteSurfaceSelectionIncluded
+		}
+	}
+	for _, selection := range manifest.MountRoutes {
+		if selection.Included {
+			continue
+		}
+		rows = append(rows, routeSurfaceMountSelectionRow(selection))
+	}
+	slices.SortFunc(rows, compareRouteSurfaceRows)
+	return rows, nil
+}
+
+func routeSurfaceMountSelectionRow(selection routing.ManifestMountRouteSelection) RouteSurfaceRow {
+	return RouteSurfaceRow{
+		Kind:      RouteSurfaceKindRoute,
+		Path:      selection.Route,
+		Params:    slices.Clone(selection.Params),
+		Source:    selection.Source,
+		Selection: RouteSurfaceSelectionExcluded,
+		Declaration: &RouteDeclarationInfo{
+			Source: selection.Source,
+			Kind:   "mounted-kit",
+			Mount: &RouteDeclarationMount{
+				Path:  selection.MountPath,
+				Owner: selection.Owner,
+			},
+		},
+	}
 }
 
 func routeSurfaceRows(manifest routing.Manifest, routes []runtimeRoute) []RouteSurfaceRow {

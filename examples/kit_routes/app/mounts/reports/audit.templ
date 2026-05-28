@@ -1,0 +1,10 @@
+package reports
+
+templ AuditView(report ReportData) {
+	<section class="report-page">
+		<p class="eyebrow">Admin</p>
+		<h1>Admin Report Tools</h1>
+		<p>Owner-only report operations selected only by the admin mount owner.</p>
+		<p><a href={ report.URLs.Path() }>Shared reports</a></p>
+	</section>
+}

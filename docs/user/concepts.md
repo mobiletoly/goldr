@@ -184,7 +184,8 @@ route tree.
 
 Referenced Kit mount subtrees also get mount-relative helpers in their own
 `app/mounts/<mount>/goldr_gen.go` file. Bind those helpers from the live route
-helper and keep owner-only child links in app-owned kit or page data.
+helper. These helpers include mounted source routes, while `app/urls` remains
+the selected live route helper surface for each owner.
 
 ## Application Ownership
 

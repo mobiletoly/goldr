@@ -4,7 +4,7 @@
 //   KIND      METHODS   PATH                  SOURCE
 //   layout    -         /                     layout.go
 //   page      GET,HEAD  /                     route.go
-//   page      GET,HEAD  /admin/reports/audit  admin/reports/audit/route.go
+//   page      GET,HEAD  /admin/reports/audit  ../mounts/reports/audit/route.go
 //   fragment  GET,HEAD  /admin/reports/table  ../mounts/reports/route.go
 //   fragment  GET,HEAD  /user/reports/table   ../mounts/reports/route.go
 //   page      GET,HEAD  /admin/reports        ../mounts/reports/route.go
@@ -20,7 +20,6 @@ import (
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/examples/kit_routes/app/internal/goldrinspect"
 	goldrroute_admin_reports "github.com/mobiletoly/goldr/examples/kit_routes/app/routes/admin/reports"
-	goldrroute_admin_reports_audit "github.com/mobiletoly/goldr/examples/kit_routes/app/routes/admin/reports/audit"
 	goldrroute_user_reports "github.com/mobiletoly/goldr/examples/kit_routes/app/routes/user/reports"
 )
 
@@ -190,10 +189,10 @@ func goldrDispatchRootStaticAdminStaticReports(options HandlerOptions, w http.Re
 func goldrDispatchRootStaticAdminStaticReportsStaticAudit(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
 	if len(segments) == 3 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			// expected in file: app/routes/admin/reports/audit/route.go
+			// expected in file: app/routes/admin/reports/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
-			routeResponse := goldrroute_admin_reports_audit.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageadmin_reports_audit_route_go", "page", "/admin/reports/audit", "app/routes/admin/reports/audit/route.go", "app/routes/admin/reports/audit/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			routeResponse := goldrroute_admin_reports.GoldrRouteMountReportsAuditPage(r)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_reports_audit_route_go", "page", "/admin/reports/audit", "app/mounts/reports/audit/route.go", "app/routes/admin/reports/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")

@@ -49,6 +49,8 @@ type Tree struct {
 	Actions     []Action
 	Middlewares []Middleware
 	Routes      []RouteDeclaration
+	MountRoutes []MountRouteSelection
+	MountSource []MountSourceRoute
 }
 
 type Page struct {
@@ -92,6 +94,25 @@ type Middleware struct {
 	RoutePrefix string
 	Params      []string
 	GoFile      string
+}
+
+type MountRouteSelection struct {
+	MountPath string
+	Owner     string
+	Source    string
+	Route     string
+	Params    []string
+	Included  bool
+}
+
+type MountSourceRoute struct {
+	MountPath string
+	Source    string
+	Route     string
+	Params    []string
+	Page      *RouteHandlerDeclaration
+	Fragments []RouteFragmentDeclaration
+	Actions   []RouteActionDeclaration
 }
 
 type Problem struct {
@@ -370,13 +391,15 @@ func (scanner *scanner) addProblem(relPath, message string) {
 }
 
 type mountExpander struct {
-	root      string
-	mountRoot string
-	tree      *Tree
-	problems  []Problem
+	root            string
+	mountRoot       string
+	tree            *Tree
+	problems        []Problem
+	sourceRouteSeen map[string]bool
 }
 
 func (expander *mountExpander) expand() {
+	expander.sourceRouteSeen = make(map[string]bool)
 	originalRoutes := slices.Clone(expander.tree.Routes)
 	nextRoutes := make([]RouteDeclaration, 0, len(originalRoutes))
 	for _, route := range originalRoutes {
@@ -416,7 +439,17 @@ func (expander *mountExpander) expandMount(owner RouteDeclaration) []RouteDeclar
 		return nil
 	}
 
+	expander.recordMountSourceRoutes(mountPath, mountedTree.Routes)
+
+	selectedRoutes, ok := expander.selectedMountRoutes(owner, mountPath, mountedTree.Routes)
+	if !ok {
+		return nil
+	}
+
 	for _, layout := range mountedTree.Layouts {
+		if !layoutAppliesToAnyRoute(layout, selectedRoutes) {
+			continue
+		}
 		rebased, ok := expander.rebaseLayout(owner, mountPath, layout)
 		if ok {
 			expander.tree.Layouts = append(expander.tree.Layouts, rebased)
@@ -424,13 +457,89 @@ func (expander *mountExpander) expandMount(owner RouteDeclaration) []RouteDeclar
 	}
 
 	var routes []RouteDeclaration
-	for _, route := range mountedTree.Routes {
+	for _, route := range selectedRoutes {
 		rebased, ok := expander.rebaseRoute(owner, mountPath, route)
 		if ok {
 			routes = append(routes, rebased)
 		}
 	}
 	return routes
+}
+
+func (expander *mountExpander) recordMountSourceRoutes(mountPath string, routes []RouteDeclaration) {
+	for _, route := range routes {
+		source := prefixedMountPath(mountPath, route.GoFile)
+		key := mountPath + "\x00" + source
+		if expander.sourceRouteSeen[key] {
+			continue
+		}
+		expander.sourceRouteSeen[key] = true
+		expander.tree.MountSource = append(expander.tree.MountSource, MountSourceRoute{
+			MountPath: mountPath,
+			Source:    source,
+			Route:     route.Route,
+			Params:    slices.Clone(route.Params),
+			Page:      cloneRouteHandlerDeclaration(route.Page),
+			Fragments: slices.Clone(route.Fragments),
+			Actions:   slices.Clone(route.Actions),
+		})
+	}
+}
+
+func (expander *mountExpander) selectedMountRoutes(owner RouteDeclaration, mountPath string, routes []RouteDeclaration) ([]RouteDeclaration, bool) {
+	selected := make(map[string]bool, len(routes))
+	if owner.Mount != nil && owner.Mount.RoutesSet {
+		for _, route := range owner.Mount.Routes {
+			if selected[route] {
+				expander.addProblem(owner.GoFile, "KitRouteMount.Routes contains duplicate route pattern: "+route)
+				continue
+			}
+			selected[route] = true
+		}
+		for route := range selected {
+			if !slices.ContainsFunc(routes, func(candidate RouteDeclaration) bool {
+				return candidate.Route == route
+			}) {
+				expander.addProblem(owner.GoFile, "KitRouteMount.Routes references missing mounted route: "+route)
+			}
+		}
+		if len(expander.problems) > 0 {
+			return nil, false
+		}
+	}
+
+	result := make([]RouteDeclaration, 0, len(routes))
+	for _, route := range routes {
+		included := owner.Mount == nil || !owner.Mount.RoutesSet || selected[route.Route]
+		expander.tree.MountRoutes = append(expander.tree.MountRoutes, MountRouteSelection{
+			MountPath: mountPath,
+			Owner:     owner.GoFile,
+			Source:    prefixedMountPath(mountPath, route.GoFile),
+			Route:     joinRoute(owner.Route, route.Route),
+			Params:    append(slices.Clone(owner.Params), route.Params...),
+			Included:  included,
+		})
+		if included {
+			result = append(result, route)
+		}
+	}
+	return result, true
+}
+
+func layoutAppliesToAnyRoute(layout Layout, routes []RouteDeclaration) bool {
+	for _, route := range routes {
+		if routeHasPrefix(route.Route, layout.RoutePrefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func routeHasPrefix(route string, prefix string) bool {
+	if prefix == "/" {
+		return true
+	}
+	return route == prefix || strings.HasPrefix(route, prefix+"/")
 }
 
 func (expander *mountExpander) rebaseLayout(owner RouteDeclaration, mountPath string, layout Layout) (Layout, bool) {

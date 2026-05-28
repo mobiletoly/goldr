@@ -76,7 +76,7 @@ func TestKitRoutesRenderSharedReportPages(t *testing.T) {
 	}
 }
 
-func TestKitRoutesKeepOwnerOnlyChildUnderAdmin(t *testing.T) {
+func TestKitRoutesSelectAdminOnlyMountedChild(t *testing.T) {
 	response := serveExample(t, http.MethodGet, "/admin/reports/audit")
 	defer closeBody(t, response)
 	if response.StatusCode != http.StatusOK {

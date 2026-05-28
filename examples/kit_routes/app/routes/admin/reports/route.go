@@ -11,6 +11,10 @@ import (
 var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	New:   newReportKit,
 	Mount: "reports",
+	Routes: goldr.MountRoutes{
+		"/",
+		"/audit",
+	},
 }
 
 func newReportKit(r *http.Request) sharedreports.Kit {
@@ -19,11 +23,11 @@ func newReportKit(r *http.Request) sharedreports.Kit {
 
 func reportData(_ *http.Request) sharedreports.ReportData {
 	return sharedreports.ReportData{
-		Audience:      "Admin",
-		Heading:       "Admin Reports",
-		Description:   "Operational view across all teams.",
-		URLs:          sharedreports.NewGoldrMountURLs(urls.Admin.Reports),
-		OwnerToolsURL: urls.Admin.Reports.Audit.Path(),
+		Audience:    "Admin",
+		Heading:     "Admin Reports",
+		Description: "Operational view across all teams.",
+		URLs:        sharedreports.NewGoldrMountURLs(urls.Admin.Reports),
+		ShowAudit:   true,
 		Periods: []sharedreports.PeriodOption{
 			{Value: "7d", Label: "Last 7 days"},
 			{Value: "30d", Label: "Last 30 days"},

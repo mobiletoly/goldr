@@ -32,9 +32,14 @@ type KitRouteDef[K any] struct {
 // surface from app/mounts. Mount is a clean relative slash path under
 // app/mounts using lowercase Go-safe route directory names.
 type KitRouteMount[K any] struct {
-	New   func(*http.Request) K
-	Mount string
+	New    func(*http.Request) K
+	Mount  string
+	Routes MountRoutes
 }
+
+// MountRoutes declares the mount-relative route declarations exposed by one
+// KitRouteMount owner. Omit Routes to expose the full mounted subtree.
+type MountRoutes []string
 
 // RouteMeta carries app-owned opaque route metadata.
 type RouteMeta struct {

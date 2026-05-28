@@ -257,6 +257,9 @@ Columns:
 KIND    METHOD    PATH    PARAMS    SOURCE    OWNER    DECL    NAME    TITLE    LABELS    HELPER
 ```
 
+When `--mount` is used and mounted-route selection status is available, the
+table also includes `STATUS` with `included` or `excluded`.
+
 Rows include pages, layouts, fragments, and actions. Pages and fragments show
 `GET,HEAD`. Actions show their HTTP method. Layouts show `METHOD`, `OWNER`,
 and `HELPER` as `-`.
@@ -282,9 +285,9 @@ tenant, portal, or policy configuration. `HELPER` stays path-derived and does
 not use declaration names or labels. For mounted rows, `OWNER` is the live
 mount owner under `app/routes`.
 
-Use `--mount <path>` to filter the existing inventory to routes expanded from
-one mounted subtree. The filter keeps the same table and JSON shapes, and is
-useful for checking which live owners expose a shared mount.
+Use `--mount <path>` to filter the existing inventory to one mounted subtree.
+The filter includes selected live endpoints and explicitly excluded mounted
+children, which is useful for checking which live owners expose a shared mount.
 
 Use `--json` for machine-readable output:
 
@@ -295,6 +298,7 @@ go tool goldr routes list --mount reports --json
 ```
 
 JSON rows include `kind`, `methods`, `path`, `params`, `source`, and `helper`.
+Mounted selection rows include `status` when selection status is present.
 Declaration-backed endpoint rows also include a `declaration` object with
 `source`, `kind`, `name`, `title`, sorted `labels`, and the page, fragment, or
 action implementation evidence Goldr parsed from `route.go`. Mounted route

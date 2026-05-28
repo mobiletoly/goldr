@@ -7,13 +7,13 @@ import (
 )
 
 type ReportData struct {
-	Audience      string
-	Heading       string
-	Description   string
-	URLs          GoldrMountURLs
-	OwnerToolsURL string
-	Periods       []PeriodOption
-	Rows          []Row
+	Audience    string
+	Heading     string
+	Description string
+	URLs        GoldrMountURLs
+	ShowAudit   bool
+	Periods     []PeriodOption
+	Rows        []Row
 }
 
 type PeriodOption struct {
@@ -47,4 +47,14 @@ func (kit Kit) Page(_ *http.Request) goldr.PageRouteResponse {
 
 func (kit Kit) Table(_ *http.Request) goldr.FragmentRouteResponse {
 	return goldr.NewFragment(TableView(kit.data))
+}
+
+func (kit Kit) Audit(_ *http.Request) goldr.PageRouteResponse {
+	return goldr.NewPage(
+		AuditView(kit.data),
+		goldr.PageMetadata{
+			Title:       "Admin Report Tools",
+			Description: "Owner-only report operations for admins.",
+		},
+	)
 }

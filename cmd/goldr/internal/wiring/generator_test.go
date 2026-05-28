@@ -257,6 +257,23 @@ func mountedURLHelperManifest() routing.Manifest {
 				},
 			},
 			{
+				Route:  "/user/reports/{id}",
+				Params: []string{"id"},
+				GoFile: "user/reports/route.go",
+				Kind:   "mounted-kit",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Fragments: []routing.RouteFragmentDeclaration{
+					{Name: "panel", Segment: "panel", SymbolName: "Panel", Handler: "Panel"},
+				},
+				Source: "../mounts/reports/by_id/route.go",
+				Mount: &routing.RouteMountDeclaration{
+					Path:            "reports",
+					Owner:           "user/reports/route.go",
+					OwnerRoute:      "/user/reports",
+					OwnerParamCount: 0,
+				},
+			},
+			{
 				Route:  "/user/reports",
 				GoFile: "user/reports/route.go",
 				Kind:   "mounted-kit",
@@ -270,6 +287,30 @@ func mountedURLHelperManifest() routing.Manifest {
 					Owner:           "user/reports/route.go",
 					OwnerRoute:      "/user/reports",
 					OwnerParamCount: 0,
+				},
+			},
+		},
+		MountSource: []routing.ManifestMountSourceRoute{
+			{
+				MountPath: "reports",
+				Route:     "/",
+				Source:    "../mounts/reports/route.go",
+				Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Fragments: []routing.RouteFragmentDeclaration{
+					{Name: "table", Segment: "table", SymbolName: "Table", Handler: "Table"},
+				},
+				Actions: []routing.RouteActionDeclaration{
+					{Method: "POST", Name: "export", Segment: "export", SymbolName: "Export", Handler: "PostExport"},
+				},
+			},
+			{
+				MountPath: "reports",
+				Route:     "/{id}",
+				Params:    []string{"id"},
+				Source:    "../mounts/reports/by_id/route.go",
+				Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Fragments: []routing.RouteFragmentDeclaration{
+					{Name: "panel", Segment: "panel", SymbolName: "Panel", Handler: "Panel"},
 				},
 			},
 		},

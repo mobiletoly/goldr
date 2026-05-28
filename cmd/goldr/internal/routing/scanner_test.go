@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -249,6 +250,69 @@ func TestScanWithMountsExpandsKitRouteDefs(t *testing.T) {
 	}
 	if !reflect.DeepEqual(tree.Layouts, wantLayouts) {
 		t.Fatalf("layouts = %#v, want %#v", tree.Layouts, wantLayouts)
+	}
+}
+
+func TestScanWithMountsSelectsMountedRoutesPerOwner(t *testing.T) {
+	root := t.TempDir()
+	routesRoot := filepath.Join(root, "app/routes")
+	mountsRoot := filepath.Join(root, "app/mounts")
+	writeFile(t, routesRoot, "admin/reports/route.go", routeGoKitMountRoutesSource("reports", "reports", "/", "/table"))
+	writeFile(t, mountsRoot, "reports/route.go", routeGoMountedKitPageSource("reports", "shared.Kit.Page"))
+	writeFile(t, mountsRoot, "reports/table/route.go", routeGoMountedKitPageSource("table", "shared.Kit.Table"))
+	writeFile(t, mountsRoot, "reports/audit/route.go", routeGoMountedKitPageSource("audit", "shared.Kit.Audit"))
+	writeFile(t, mountsRoot, "reports/audit/layout.go", "package audit\n")
+	writeFile(t, mountsRoot, "reports/audit/layout.templ", "package audit\n")
+
+	tree, err := ScanWithMounts(routesRoot, mountsRoot)
+	if err != nil {
+		t.Fatalf("ScanWithMounts() error = %v, want nil", err)
+	}
+
+	gotRoutes := []string{}
+	for _, route := range tree.Routes {
+		gotRoutes = append(gotRoutes, route.Route)
+	}
+	wantRoutes := []string{"/admin/reports", "/admin/reports/table"}
+	if !reflect.DeepEqual(gotRoutes, wantRoutes) {
+		t.Fatalf("routes = %#v, want %#v", gotRoutes, wantRoutes)
+	}
+	if len(tree.Layouts) != 0 {
+		t.Fatalf("layouts = %#v, want no excluded audit layout", tree.Layouts)
+	}
+	wantSelections := []MountRouteSelection{
+		{MountPath: "reports", Owner: "admin/reports/route.go", Source: "../mounts/reports/route.go", Route: "/admin/reports", Included: true},
+		{MountPath: "reports", Owner: "admin/reports/route.go", Source: "../mounts/reports/audit/route.go", Route: "/admin/reports/audit", Included: false},
+		{MountPath: "reports", Owner: "admin/reports/route.go", Source: "../mounts/reports/table/route.go", Route: "/admin/reports/table", Included: true},
+	}
+	if !reflect.DeepEqual(tree.MountRoutes, wantSelections) {
+		t.Fatalf("mount selections = %#v, want %#v", tree.MountRoutes, wantSelections)
+	}
+	wantSources := []MountSourceRoute{
+		{MountPath: "reports", Source: "../mounts/reports/route.go", Route: "/", Page: &RouteHandlerDeclaration{Handler: "shared.Kit.Page"}},
+		{MountPath: "reports", Source: "../mounts/reports/audit/route.go", Route: "/audit", Page: &RouteHandlerDeclaration{Handler: "shared.Kit.Audit"}},
+		{MountPath: "reports", Source: "../mounts/reports/table/route.go", Route: "/table", Page: &RouteHandlerDeclaration{Handler: "shared.Kit.Table"}},
+	}
+	if !reflect.DeepEqual(tree.MountSource, wantSources) {
+		t.Fatalf("mount sources = %#v, want %#v", tree.MountSource, wantSources)
+	}
+}
+
+func TestScanWithMountsRejectsMissingSelectedRoute(t *testing.T) {
+	root := t.TempDir()
+	routesRoot := filepath.Join(root, "app/routes")
+	mountsRoot := filepath.Join(root, "app/mounts")
+	writeFile(t, routesRoot, "admin/reports/route.go", routeGoKitMountRoutesSource("reports", "reports", "/missing"))
+	writeFile(t, mountsRoot, "reports/route.go", routeGoMountedKitPageSource("reports", "shared.Kit.Page"))
+
+	_, err := ScanWithMounts(routesRoot, mountsRoot)
+	var scanErr *ScanError
+	if !errors.As(err, &scanErr) {
+		t.Fatalf("ScanWithMounts() error = %T, want *ScanError", err)
+	}
+	want := Problem{Path: "admin/reports/route.go", Message: "KitRouteMount.Routes references missing mounted route: /missing"}
+	if !hasProblem(scanErr.Problems, want.Path, want.Message) {
+		t.Fatalf("problems = %#v, want %#v", scanErr.Problems, want)
 	}
 }
 
@@ -623,6 +687,40 @@ func newKit(r *http.Request) shared.Kit {
 	return shared.New()
 }
 `
+}
+
+func routeGoKitMountRoutesSource(packageName string, mount string, routes ...string) string {
+	var builder strings.Builder
+	builder.WriteString(`package `)
+	builder.WriteString(packageName)
+	builder.WriteString(`
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.KitRouteMount[shared.Kit]{
+	New: newKit,
+	Mount: "`)
+	builder.WriteString(mount)
+	builder.WriteString(`",
+	Routes: goldr.MountRoutes{
+`)
+	for _, route := range routes {
+		builder.WriteString("\t\t")
+		builder.WriteString(strconv.Quote(route))
+		builder.WriteString(",\n")
+	}
+	builder.WriteString(`	},
+}
+
+func newKit(r *http.Request) shared.Kit {
+	return shared.New()
+}
+`)
+	return builder.String()
 }
 
 func routeGoMountedKitPageSource(packageName string, page string) string {

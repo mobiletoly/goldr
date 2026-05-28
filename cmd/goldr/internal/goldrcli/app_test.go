@@ -163,6 +163,70 @@ func (kit Kit) Table(_ *http.Request) goldr.FragmentRouteResponse {
 	return root
 }
 
+func tempSelectiveMountedRouteApp(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	writeTemplToolModule(t, root, "example.com/selectivemountedapp")
+	writeFile(t, root, "app/routes/admin/reports/route.go", `package reports
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+	sharedreports "example.com/selectivemountedapp/app/mounts/reports"
+)
+
+var Route = goldr.KitRouteMount[sharedreports.Kit]{
+	New: newKit,
+	Mount: "reports",
+	Routes: goldr.MountRoutes{
+		"/",
+	},
+}
+
+func newKit(_ *http.Request) sharedreports.Kit {
+	return sharedreports.Kit{}
+}
+`)
+	writeFile(t, root, "app/mounts/reports/route.go", `package reports
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+var Route = goldr.KitRouteDef[Kit]{
+	Page: Kit.Page,
+}
+
+func (kit Kit) Page(_ *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "ok"}
+}
+`)
+	writeFile(t, root, "app/mounts/reports/audit/route.go", `package audit
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+	sharedreports "example.com/selectivemountedapp/app/mounts/reports"
+)
+
+var Route = goldr.KitRouteDef[sharedreports.Kit]{
+	Page: sharedreports.Kit.Audit,
+}
+
+func (kit sharedreports.Kit) Audit(_ *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "ok"}
+}
+`)
+	return root
+}
+
 type routeDeclarationOptions struct {
 	Page          bool
 	Fragments     []string

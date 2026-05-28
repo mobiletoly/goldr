@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -63,7 +64,12 @@ func runList(_ context.Context, options listOptions, writer io.Writer) error {
 		return fmt.Errorf("goldr routes list: %w", err)
 	}
 
-	rows, err := wiring.RouteSurface(manifest)
+	var rows []wiring.RouteSurfaceRow
+	if strings.TrimSpace(options.mount) == "" {
+		rows, err = wiring.RouteSurface(manifest)
+	} else {
+		rows, err = wiring.RouteSurfaceWithMountSelections(manifest)
+	}
 	if err != nil {
 		return fmt.Errorf("goldr routes list: %w", err)
 	}
@@ -102,13 +108,17 @@ func filterRouteSurfaceRowsByMount(rows []wiring.RouteSurfaceRow, mount string) 
 
 func renderRouteSurfaceTable(writer io.Writer, rows []wiring.RouteSurfaceRow) error {
 	table := tabwriter.NewWriter(writer, 0, 0, 2, ' ', 0)
-	if _, err := fmt.Fprintln(table, "KIND\tMETHOD\tPATH\tPARAMS\tSOURCE\tOWNER\tDECL\tNAME\tTITLE\tLABELS\tHELPER"); err != nil {
+	showStatus := routeSurfaceRowsHaveStatus(rows)
+	header := "KIND\tMETHOD\tPATH\tPARAMS\tSOURCE\tOWNER\tDECL\tNAME\tTITLE\tLABELS\tHELPER"
+	if showStatus {
+		header += "\tSTATUS"
+	}
+	if _, err := fmt.Fprintln(table, header); err != nil {
 		return err
 	}
 	for _, row := range rows {
-		if _, err := fmt.Fprintf(
-			table,
-			"%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		line := "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"
+		values := []any{
 			row.Kind,
 			wiring.FormatRouteSurfaceList(row.Methods),
 			row.Path,
@@ -120,11 +130,27 @@ func renderRouteSurfaceTable(writer io.Writer, rows []wiring.RouteSurfaceRow) er
 			routeSurfaceDeclarationTitleText(row.Declaration),
 			routeSurfaceDeclarationLabelsText(row.Declaration),
 			routeSurfaceHelperText(row.Helper),
+		}
+		if showStatus {
+			line += "\t%s"
+			values = append(values, routeSurfaceStatusText(row.Selection))
+		}
+		line += "\n"
+		if _, err := fmt.Fprintf(
+			table,
+			line,
+			values...,
 		); err != nil {
 			return err
 		}
 	}
 	return table.Flush()
+}
+
+func routeSurfaceRowsHaveStatus(rows []wiring.RouteSurfaceRow) bool {
+	return slices.ContainsFunc(rows, func(row wiring.RouteSurfaceRow) bool {
+		return row.Selection != ""
+	})
 }
 
 type routeSurfaceJSONRow struct {
@@ -134,6 +160,7 @@ type routeSurfaceJSONRow struct {
 	Params      []string                     `json:"params"`
 	Source      string                       `json:"source"`
 	Helper      string                       `json:"helper"`
+	Status      string                       `json:"status,omitempty"`
 	Declaration *routeSurfaceJSONDeclaration `json:"declaration,omitempty"`
 }
 
@@ -204,6 +231,7 @@ func routeSurfaceJSONRows(rows []wiring.RouteSurfaceRow) []routeSurfaceJSONRow {
 			Params:      routeSurfaceJSONStrings(row.Params),
 			Source:      row.Source,
 			Helper:      row.Helper,
+			Status:      row.Selection,
 			Declaration: routeSurfaceJSONDeclarationFrom(row.Declaration),
 		})
 	}
@@ -224,6 +252,13 @@ func routeSurfaceHelperText(helper string) string {
 		return "-"
 	}
 	return helper
+}
+
+func routeSurfaceStatusText(status string) string {
+	if status == "" {
+		return "-"
+	}
+	return status
 }
 
 func routeSurfaceDeclarationKindText(declaration *wiring.RouteDeclarationInfo) string {

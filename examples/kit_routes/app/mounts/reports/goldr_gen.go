@@ -4,6 +4,7 @@ package reports
 
 type GoldrMountURLs struct {
 	basePath string
+	Audit    goldrMountAuditURL
 	Table    goldrMountTableURL
 }
 
@@ -15,6 +16,7 @@ func newGoldrMountURLs(mountPath string) GoldrMountURLs {
 	normalizedMountPath := normalizeGoldrMountPath(mountPath)
 	return GoldrMountURLs{
 		basePath: normalizedMountPath,
+		Audit:    newGoldrMountAuditURL(normalizedMountPath),
 		Table:    newGoldrMountTableURL(normalizedMountPath),
 	}
 }
@@ -23,14 +25,28 @@ func (r GoldrMountURLs) Path() string {
 	return goldrMountRootPath(r.basePath)
 }
 
+type goldrMountAuditURL struct {
+	basePath string
+}
+
 type goldrMountTableURL struct {
 	basePath string
+}
+
+func newGoldrMountAuditURL(basePath string) goldrMountAuditURL {
+	return goldrMountAuditURL{
+		basePath: basePath,
+	}
 }
 
 func newGoldrMountTableURL(basePath string) goldrMountTableURL {
 	return goldrMountTableURL{
 		basePath: basePath,
 	}
+}
+
+func (r goldrMountAuditURL) Path() string {
+	return r.basePath + "/" + "audit"
 }
 
 func (r goldrMountTableURL) Path() string {

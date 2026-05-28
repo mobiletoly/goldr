@@ -16,6 +16,8 @@ type Manifest struct {
 	Actions     []ManifestAction
 	Middlewares []ManifestMiddleware
 	Routes      []ManifestRouteDeclaration
+	MountRoutes []ManifestMountRouteSelection
+	MountSource []ManifestMountSourceRoute
 }
 
 type RenderUnit struct {
@@ -85,6 +87,25 @@ type ManifestRouteDeclaration struct {
 	Mount            *RouteMountDeclaration
 	Source           string
 	Adapter          string
+}
+
+type ManifestMountRouteSelection struct {
+	MountPath string
+	Owner     string
+	Source    string
+	Route     string
+	Params    []string
+	Included  bool
+}
+
+type ManifestMountSourceRoute struct {
+	MountPath string
+	Source    string
+	Route     string
+	Params    []string
+	Page      *RouteHandlerDeclaration
+	Fragments []RouteFragmentDeclaration
+	Actions   []RouteActionDeclaration
 }
 
 func BuildManifest(tree Tree) Manifest {
@@ -179,6 +200,35 @@ func BuildManifest(tree Tree) Manifest {
 		})
 	}
 
+	if len(tree.MountRoutes) > 0 {
+		manifest.MountRoutes = make([]ManifestMountRouteSelection, 0, len(tree.MountRoutes))
+		for _, route := range tree.MountRoutes {
+			manifest.MountRoutes = append(manifest.MountRoutes, ManifestMountRouteSelection{
+				MountPath: route.MountPath,
+				Owner:     route.Owner,
+				Source:    route.Source,
+				Route:     route.Route,
+				Params:    slices.Clone(route.Params),
+				Included:  route.Included,
+			})
+		}
+	}
+
+	if len(tree.MountSource) > 0 {
+		manifest.MountSource = make([]ManifestMountSourceRoute, 0, len(tree.MountSource))
+		for _, route := range tree.MountSource {
+			manifest.MountSource = append(manifest.MountSource, ManifestMountSourceRoute{
+				MountPath: route.MountPath,
+				Source:    route.Source,
+				Route:     route.Route,
+				Params:    slices.Clone(route.Params),
+				Page:      cloneRouteHandlerDeclaration(route.Page),
+				Fragments: slices.Clone(route.Fragments),
+				Actions:   slices.Clone(route.Actions),
+			})
+		}
+	}
+
 	sortManifest(&manifest)
 
 	return manifest
@@ -203,6 +253,12 @@ func sortManifest(manifest *Manifest) {
 	slices.SortFunc(manifest.Routes, func(a, b ManifestRouteDeclaration) int {
 		return compareRouteOrder(a.Route, a.GoFile, b.Route, b.GoFile)
 	})
+	slices.SortFunc(manifest.MountRoutes, func(a, b ManifestMountRouteSelection) int {
+		return compareRouteOrder(a.Route, a.Source, b.Route, b.Source)
+	})
+	slices.SortFunc(manifest.MountSource, func(a, b ManifestMountSourceRoute) int {
+		return compareRouteOrder(a.Route, a.Source, b.Route, b.Source)
+	})
 }
 
 func cloneRouteHandlerDeclaration(value *RouteHandlerDeclaration) *RouteHandlerDeclaration {
@@ -226,5 +282,6 @@ func cloneRouteMountDeclaration(value *RouteMountDeclaration) *RouteMountDeclara
 		return nil
 	}
 	next := *value
+	next.Routes = slices.Clone(value.Routes)
 	return &next
 }

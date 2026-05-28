@@ -125,6 +125,37 @@ func TestGenerateMountURLHelpersWritesMountRelativeRouteNodes(t *testing.T) {
 	}
 }
 
+func TestGenerateMountURLHelpersIncludesMountedSourceRoutesSelectedByOneOwner(t *testing.T) {
+	manifest := mountedURLHelperManifest()
+	manifest.MountSource = append(manifest.MountSource, routing.ManifestMountSourceRoute{
+		MountPath: "reports",
+		Route:     "/audit",
+		Source:    "../mounts/reports/audit/route.go",
+		Page:      &routing.RouteHandlerDeclaration{Handler: "Audit"},
+	})
+
+	source := generateMountURLHelpersOK(t, manifest, "reports")
+
+	for _, want := range []string{
+		"Audit    goldrMountAuditURL",
+		"ByID(id string) goldrMountByIDURL",
+		"Table    goldrMountTableURL",
+		"return r.basePath + \"/\" + \"audit\"",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("generated mounted URL helper source missing %q:\n%s", want, source)
+		}
+	}
+	for _, unwanted := range []string{
+		`"/" + "admin"`,
+		`"/" + "user"`,
+	} {
+		if strings.Contains(source, unwanted) {
+			t.Fatalf("generated mounted URL helper source contains owner path %q:\n%s", unwanted, source)
+		}
+	}
+}
+
 func TestGenerateMountURLHelpersCompileAndEscapeParams(t *testing.T) {
 	manifest := mountedURLHelperManifest()
 	tempDir := tempGoldrModule(t)
@@ -166,22 +197,73 @@ func TestMountURLHelpers(t *testing.T) {
 	runGoTest(t, filepath.Join(tempDir, "mounts", "reports"))
 }
 
-func TestGenerateMountURLHelpersDropsOwnerParams(t *testing.T) {
-	source := generateMountURLHelpersOK(t, routing.Manifest{
+func TestGenerateURLHelpersPreservesMountBaseForChildOnlyMountSelection(t *testing.T) {
+	manifest := routing.Manifest{
 		Routes: []routing.ManifestRouteDeclaration{
 			{
-				Route:  "/orgs/{org_id}/reports/{id}",
-				Params: []string{"org_id", "id"},
-				GoFile: "orgs/by_org_id/reports/route.go",
+				Route:  "/admin/reports/audit",
+				GoFile: "admin/reports/route.go",
 				Kind:   "mounted-kit",
 				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
-				Source: "../mounts/reports/by_id/route.go",
+				Source: "../mounts/reports/audit/route.go",
 				Mount: &routing.RouteMountDeclaration{
 					Path:            "reports",
-					Owner:           "orgs/by_org_id/reports/route.go",
-					OwnerRoute:      "/orgs/{org_id}/reports",
-					OwnerParamCount: 1,
+					Owner:           "admin/reports/route.go",
+					OwnerRoute:      "/admin/reports",
+					OwnerParamCount: 0,
 				},
+			},
+		},
+		MountSource: []routing.ManifestMountSourceRoute{
+			{
+				MountPath: "reports",
+				Route:     "/",
+				Source:    "../mounts/reports/route.go",
+				Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
+			},
+			{
+				MountPath: "reports",
+				Route:     "/audit",
+				Source:    "../mounts/reports/audit/route.go",
+				Page:      &routing.RouteHandlerDeclaration{Handler: "Audit"},
+			},
+		},
+	}
+	tempDir := tempGoldrModule(t)
+	writeTempFile(t, tempDir, "urls/goldr_gen.go", generateURLHelpersOK(t, manifest))
+	writeTempFile(t, tempDir, "mounts/reports/goldr_gen.go", generateMountURLHelpersOK(t, manifest, "reports"))
+	writeTempFile(t, tempDir, "mount_binding_test.go", `package app_test
+
+import (
+	"testing"
+
+	reports "example.com/app/mounts/reports"
+	"example.com/app/urls"
+)
+
+func TestChildOnlyMountURLBinding(t *testing.T) {
+	reportURLs := reports.NewGoldrMountURLs(urls.Admin.Reports)
+	if got, want := reportURLs.Path(), "/admin/reports"; got != want {
+		t.Fatalf("reportURLs.Path() = %q, want %q", got, want)
+	}
+	if got, want := reportURLs.Audit.Path(), "/admin/reports/audit"; got != want {
+		t.Fatalf("reportURLs.Audit.Path() = %q, want %q", got, want)
+	}
+}
+`)
+
+	runGoTest(t, tempDir)
+}
+
+func TestGenerateMountURLHelpersDropsOwnerParams(t *testing.T) {
+	source := generateMountURLHelpersOK(t, routing.Manifest{
+		MountSource: []routing.ManifestMountSourceRoute{
+			{
+				MountPath: "reports",
+				Route:     "/{id}",
+				Params:    []string{"id"},
+				Source:    "../mounts/reports/by_id/route.go",
+				Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
 			},
 		},
 	}, "reports")

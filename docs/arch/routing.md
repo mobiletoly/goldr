@@ -205,6 +205,10 @@ from `app/mounts`:
 var Route = goldr.KitRouteMount[reports.Kit]{
 	New:   newReportKit,
 	Mount: "reports",
+	Routes: goldr.MountRoutes{
+		"/",
+		"/audit",
+	},
 }
 ```
 
@@ -230,15 +234,21 @@ live owner path, and records both the mounted source and owner source in the
 manifest. The expanded routes are ordinary final runtime routes for dispatch
 and URL helper generation.
 
+`KitRouteMount.Routes` is an optional explicit allowlist at the live owner.
+When omitted, every mounted route declaration is included for that owner. When
+present, entries are mount-relative browser route patterns such as `/`,
+`/audit`, or `/{id}`. Missing, duplicate, or malformed entries are scan
+problems. Excluded mounted children are not added to dispatch, live URL
+helpers, route inventory, or middleware composition for that owner.
+
 Mounted middleware is rejected. Middleware remains owned by the live
 `app/routes` tree. Mounted layouts are allowed and are rebased under the mount
 path; real ancestry layouts wrap mounted layouts, and a real layout at the same
 final prefix is ordered outside the mounted layout.
 
-Mounted route subtrees contain only routes valid for every live owner that
-mounts them. Owner-only children remain under the live `app/routes` owner. If
-shared mounted templates need links to owner-only children, the live owner passes
-those URLs through app-owned kit or page data.
+Mounted route subtrees may contain cohesive shared implementation that is not
+exposed by every owner. The live `app/routes` owner remains the source of truth
+for which subset is public.
 
 ## Determinism
 
@@ -565,6 +575,13 @@ usually from `app/urls`, and the mounted package uses helpers such as
 `mountURLs.Table.Path()`. `Path()` returns the normalized mount path itself
 instead of forcing a trailing slash. Child and dynamic helpers follow the same
 path-derived naming and escaping rules as `app/urls`.
+These mount-relative helper files include every route declaration from the
+mounted source subtree, including owner-specific children selected by only some
+live owners. They are subtree path helpers. They do not make excluded children
+part of an owner's live dispatch, normal route inventory, or `app/urls` helper
+surface. A child-only mounted selection still gets an `app/urls` helper for the
+owner mount base so `NewGoldrMountURLs` can be bound from the live owner, but
+that synthetic helper does not register the mount root as a live handler.
 
 Generated URL helper source imports only standard library packages. It imports
 `net/url` only when dynamic params exist. It does not import route packages,

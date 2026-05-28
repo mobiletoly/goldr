@@ -11,6 +11,9 @@ import (
 var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	New:   newReportKit,
 	Mount: "reports",
+	Routes: goldr.MountRoutes{
+		"/",
+	},
 }
 
 func newReportKit(r *http.Request) sharedreports.Kit {
