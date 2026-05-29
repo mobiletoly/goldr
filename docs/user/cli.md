@@ -358,6 +358,42 @@ If a path exists but the method is wrong, the command exits non-zero and prints
 the allowed methods. If no generated route matches the path, it exits non-zero
 with a no-route diagnostic.
 
+## Routes Refs
+
+`goldr routes refs` prints direct HTMX request attributes found in `.templ`
+source and resolves obvious references to the Goldr route surface:
+
+```bash
+go tool goldr routes refs
+go tool goldr routes refs --app-root ../my-app
+go tool goldr routes refs --json
+```
+
+It scans `.templ` files under `app/routes` and `app/mounts` and reports:
+
+```text
+STATUS    METHOD  ROUTE          KIND    ATTRIBUTE  SOURCE                    VALUE
+resolved  POST    /users/create  action  hx-post    users/page.templ:6:8      urls.Users.Create.Path()
+dynamic   GET     -              -       hx-get     users/page.templ:10:5     href
+```
+
+Supported trigger attributes are `hx-get`, `hx-post`, `hx-put`, `hx-patch`,
+`hx-delete`, and their `data-hx-*` equivalents.
+
+Statuses:
+
+- `resolved`: matched a Goldr route for the same HTTP method.
+- `unmatched`: looked like a same-app path or generated helper, but no route
+  matched the method and path.
+- `dynamic`: app-owned expression such as a variable or helper function.
+- `external`: full external URL or protocol-relative URL.
+- `invalid`: malformed value that is not an absolute app path, generated
+  helper expression, dynamic expression, or external URL.
+
+The command is source-level reference inventory. It does not render pages,
+execute handlers, trace templ component calls, or infer inherited HTMX
+attributes such as `hx-target`, `hx-swap`, `hx-headers`, or `hx-include`.
+
 ## Unknown Commands
 
 Unknown commands print an error, print help, and exit with status code `2`.

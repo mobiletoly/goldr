@@ -768,6 +768,14 @@ the matched page, fragment, or action adapter. The CLI renders this as
 sections are display-only and must not become a second route registry or policy
 engine.
 
+`goldr routes refs` is a template-source inspection view. It parses `.templ`
+files with templ's parser through Goldr's internal `templscan` wrapper, then
+uses `htmxrefs` to report direct HTMX request attributes and resolve only
+obvious route-surface references. It does not render pages, execute app code,
+trace templ component composition, or infer inherited HTMX attributes. This
+keeps route references inspectable without turning HTMX behavior into hidden
+Goldr metadata.
+
 ## CLI Generation
 
 `goldr generate` is the supported CLI entrypoint for writing goldr-owned

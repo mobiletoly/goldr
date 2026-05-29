@@ -178,6 +178,7 @@ func TestRunRoutesShowsSubcommandHelp(t *testing.T) {
 		"list",
 		"layouts",
 		"explain",
+		"refs",
 	)
 }
 
@@ -190,6 +191,18 @@ func TestRunRoutesListHelpShowsRootFlag(t *testing.T) {
 		"stable route inventory",
 		"--app-root string",
 		"--mount string",
+		"--json",
+	)
+}
+
+func TestRunRoutesRefsHelpShowsRootAndJSONFlags(t *testing.T) {
+	requireGoldrOutputContains(
+		t,
+		[]string{"routes", "refs", "--help"},
+		"goldr routes refs [--app-root <dir>] [--json]",
+		"direct HTMX request attributes",
+		"source-level reference inventory",
+		"--app-root string",
 		"--json",
 	)
 }

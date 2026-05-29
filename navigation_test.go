@@ -4,6 +4,7 @@
 package goldr
 
 import (
+	"context"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
@@ -54,7 +55,7 @@ func TestBackHref(t *testing.T) {
 
 func TestQueryValues(t *testing.T) {
 	t.Run("copies selected app query values", func(t *testing.T) {
-		r := httptest.NewRequest("GET", "/report?view=summary&page=2&tag=a&tag=b&empty=&_goldr_trail=ignored", nil)
+		r := httptest.NewRequestWithContext(context.Background(), "GET", "/report?view=summary&page=2&tag=a&tag=b&empty=&_goldr_trail=ignored", nil)
 
 		got := QueryValues(r, "view", "tag", "_goldr_trail", "missing", "empty", "view")
 		want := url.Values{
@@ -69,7 +70,7 @@ func TestQueryValues(t *testing.T) {
 	})
 
 	t.Run("returns fresh values", func(t *testing.T) {
-		r := httptest.NewRequest("GET", "/report?tag=a&tag=b", nil)
+		r := httptest.NewRequestWithContext(context.Background(), "GET", "/report?tag=a&tag=b", nil)
 
 		got := QueryValues(r, "tag")
 		got.Set("tag", "changed")
@@ -87,7 +88,7 @@ func TestQueryValues(t *testing.T) {
 }
 
 func TestNavTrailSelected(t *testing.T) {
-	r := httptest.NewRequest("GET", "/report?_goldr_trail=ignored", nil)
+	r := httptest.NewRequestWithContext(context.Background(), "GET", "/report?_goldr_trail=ignored", nil)
 	selected := WithNavTrailKey(r, "provider-profile")
 
 	if !NavTrailSelected(selected, "provider-profile") {

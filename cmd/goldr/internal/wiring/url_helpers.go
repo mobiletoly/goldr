@@ -121,10 +121,7 @@ func urlHelperPaths(manifest routing.Manifest, routes []runtimeRoute) []runtimeP
 		if route.Mount == nil || route.Mount.OwnerRoute == "" || seen[route.Mount.OwnerRoute] {
 			continue
 		}
-		ownerParamCount := route.Mount.OwnerParamCount
-		if ownerParamCount > len(route.Params) {
-			ownerParamCount = len(route.Params)
-		}
+		ownerParamCount := min(route.Mount.OwnerParamCount, len(route.Params))
 		paths = append(paths, runtimePath{
 			route:    route.Mount.OwnerRoute,
 			params:   slices.Clone(route.Params[:ownerParamCount]),
@@ -824,7 +821,7 @@ func writeURLDestinationMethods(buffer *bytes.Buffer, root *urlHelperNode) {
 				fmt.Fprintf(buffer, "\t%s := url.PathEscape(%s)\n", escapedName, argName)
 				fmt.Fprintf(buffer, "\treturn %s{\n", next)
 				buffer.WriteString("\t\tbasePath: d.basePath,\n")
-				for priorIndex := 0; priorIndex < index; priorIndex++ {
+				for priorIndex := range index {
 					priorName := unexportedIdentifier(destination.paramNames[priorIndex])
 					fmt.Fprintf(buffer, "\t\t%s: d.%s,\n", priorName, priorName)
 				}
@@ -869,15 +866,6 @@ func writeURLConstructorParams(buffer *bytes.Buffer, params []urlHelperParam) {
 			buffer.WriteString(", ")
 		}
 		fmt.Fprintf(buffer, "%s string", param.field)
-	}
-}
-
-func writeURLConstructorArgs(buffer *bytes.Buffer, params []urlHelperParam) {
-	for index, param := range params {
-		if index > 0 {
-			buffer.WriteString(", ")
-		}
-		buffer.WriteString(param.field)
 	}
 }
 
@@ -986,13 +974,6 @@ func urlAliasablePathNode(node *urlHelperNode) bool {
 		len(node.params) == 0 &&
 		len(node.staticChildren) == 0 &&
 		len(node.dynamicChildren) == 0
-}
-
-func urlReceiverPathExpression(node *urlHelperNode) string {
-	if node.isPath {
-		return "string(r.goldrURLPath)"
-	}
-	return "r.basePath"
 }
 
 func urlDynamicNodeTypeName(node *urlHelperNode) string {

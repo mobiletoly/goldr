@@ -156,10 +156,8 @@ func goldrWithNavTrailKey(r *http.Request, allowed []string) *http.Request {
 	if key == "" {
 		return r
 	}
-	for _, allowedKey := range allowed {
-		if key == allowedKey {
-			return goldr.WithNavTrailKey(r, key)
-		}
+	if slices.Contains(allowed, key) {
+		return goldr.WithNavTrailKey(r, key)
 	}
 	return r
 }

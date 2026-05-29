@@ -3,6 +3,15 @@
 Use navigation trails for breadcrumb-style presentation data and app-level Back
 links in Goldr apps.
 
+Keep the route ownership split explicit:
+
+- `NavTrails` belongs to the target route. It declares the allowed context keys
+  that the target handler knows how to render.
+- `Destinations` belongs to the source route. It declares named outbound links
+  that may select one of the target route's allowed keys.
+- `goldr.NavTrail` is the app-owned breadcrumb data rendered by the target
+  handler. Do not confuse it with the `NavTrails` allow-list.
+
 Rules:
 
 - Use clean route `Path()` helpers for canonical links.
@@ -64,6 +73,11 @@ if goldr.NavTrailSelected(r, urls.Main.Reports.ByCustomerID.NavTrails.HqCustomer
 ```
 
 Source route setup:
+
+Use `Destinations` on the route that renders the outbound link. If a
+destination calls `.NavTrail("key")`, that key must be listed in the target
+route's `NavTrails.Allowed`; generation rejects unknown target routes and
+unknown target trail keys.
 
 ```go
 var Route = goldr.RouteDef{

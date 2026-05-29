@@ -67,7 +67,7 @@ func routeSurfaceCommentWidth(rows []routeSurfaceCommentRow, value func(routeSur
 	return width
 }
 
-func writeImports(buffer *bytes.Buffer, imports []routeImport, adapterImports []routeAdapterImport, inspectorImportPath string, needsDynamicRoutes, needsRuntime, needsRouteRenderer, needsSegments, needsGoldr bool) {
+func writeImports(buffer *bytes.Buffer, imports []routeImport, adapterImports []routeAdapterImport, inspectorImportPath string, needsDynamicRoutes, needsRuntime, needsRouteRenderer, needsSegments, needsSlices, needsGoldr bool) {
 	if !needsRuntime {
 		return
 	}
@@ -79,6 +79,9 @@ func writeImports(buffer *bytes.Buffer, imports []routeImport, adapterImports []
 	}
 	if needsSegments {
 		buffer.WriteString("\t\"strings\"\n")
+	}
+	if needsSlices {
+		buffer.WriteString("\t\"slices\"\n")
 	}
 	buffer.WriteString("\n")
 	if needsRouteRenderer {

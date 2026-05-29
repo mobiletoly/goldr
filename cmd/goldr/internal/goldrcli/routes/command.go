@@ -33,6 +33,7 @@ func Command() *cli.Command {
 			listCommand(),
 			layoutsCommand(),
 			explainCommand(),
+			refsCommand(),
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return cli.ShowSubcommandHelp(cmd)
@@ -46,6 +47,7 @@ Use before editing routes:
   go tool goldr routes list
   go tool goldr routes layouts
   go tool goldr routes explain /users/7
+  go tool goldr routes refs
 
 These commands do not write generated files. Run "go tool goldr generate" after route changes.`
 

@@ -74,7 +74,7 @@ func GenerateManifest(manifest routing.Manifest, options GenerateOptions) ([]byt
 	writeGeneratedFileHeader(&buffer, routeSurfaceRows(manifest, routes))
 	fmt.Fprintf(&buffer, "package %s\n\n", options.PackageName)
 	needsRouteRenderer := len(routes) > 0
-	writeImports(&buffer, imports, adapterImports, inspectorImportPath, hasDynamicRoutes(routes), len(routes) > 0, needsRouteRenderer, hasSegmentRoutes(routes), len(routes) > 0)
+	writeImports(&buffer, imports, adapterImports, inspectorImportPath, hasDynamicRoutes(routes), len(routes) > 0, needsRouteRenderer, hasSegmentRoutes(routes), hasNavTrailRoutes(routes), len(routes) > 0)
 	writeTypes(&buffer, len(routes) > 0)
 	writeManifestValue(&buffer, manifest)
 	if len(routes) > 0 {

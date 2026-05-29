@@ -1204,7 +1204,7 @@ func exportedDeclarationName(value string) string {
 
 func navTrailGeneratedFieldName(value string) string {
 	var builder strings.Builder
-	for _, part := range strings.Split(value, "-") {
+	for part := range strings.SplitSeq(value, "-") {
 		if part == "" {
 			continue
 		}
