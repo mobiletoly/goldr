@@ -165,6 +165,28 @@ handle links that intentionally came from a workflow route. Binding generated
 route helpers into local variables keeps trail code readable while remaining
 route-safe.
 
+When a trail step points at a route whose next param is already on the current
+request, use `goldr.BindFromRequest` instead of spelling out `r.PathValue(...)`:
+
+```go
+teamURL, ok := goldr.BindFromRequest(r, urls.Main.Hq.Teams.ByTeamID)
+if !ok {
+	teamURL = urls.Main.Hq.Teams.ByTeamID.Bind(team.ID)
+}
+
+trail := goldr.NavTrail{
+	goldr.NavStep("Home", urls.Root.Path()),
+	goldr.NavStep("HQ", urls.Main.Hq.Path()),
+	goldr.NavStep(team.Name, teamURL.Path()),
+	goldr.CurrentNavStep(customer.Name),
+}
+```
+
+`goldr.BindFromRequest` binds only one dynamic node. For nested dynamic routes,
+bind the parent node first, then bind the child node from the bound parent. It
+does not infer breadcrumb meaning or bind unrelated parent and child helpers at
+once.
+
 ## Source Route
 
 The source route declares the navigation edge with `Destinations`:
@@ -325,21 +347,23 @@ The live owner passes owner-specific trail behavior through the kit value:
 ```go
 func newKit(r *http.Request) analytics.Kit {
 	team := store.Default.Team(r.PathValue("team_id"))
+	teamURL, ok := goldr.BindFromRequest(r, urls.Main.Hq.Teams.ByTeamID)
+	if !ok {
+		teamURL = urls.Main.Hq.Teams.ByTeamID.Bind(team.ID)
+	}
 	return analytics.Kit{
 		TrailBase: func(*http.Request) goldr.NavTrail {
 			return goldr.NavTrail{
 				goldr.NavStep("Home", urls.Root.Path()),
 				goldr.NavStep("HQ", urls.Main.Hq.Path()),
-				goldr.NavStep(team.Name, urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Path()),
+				goldr.NavStep(team.Name, teamURL.Path()),
 			}
 		},
 		AnalyticsURL: func() string {
-			return urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Analytics.Path()
+			return teamURL.Analytics.Path()
 		},
 		CustomerURL: func(customerID string) string {
-			return urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).
-				Customers.ByCustomerID.Bind(customerID).
-				Path()
+			return teamURL.Customers.ByCustomerID.Bind(customerID).Path()
 		},
 		CustomerReportHref: func(customerID string) string {
 			return urls.Main.Hq.Teams.ByTeamID.Analytics.Destinations.CustomerReport.

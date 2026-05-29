@@ -376,6 +376,21 @@ urls.Users.ByID.Bind(id).Path()
 ```
 
 Dynamic params are bound with `.Bind(value)` and path-escaped by helpers.
+When the current request already carries a path value for one dynamic node,
+use `goldr.BindFromRequest(r, node)` as the checked equivalent of
+`node.Bind(r.PathValue("<param>"))`:
+
+```go
+userURL, ok := goldr.BindFromRequest(r, urls.Users.ByID)
+```
+
+Nested dynamic routes still bind one node at a time:
+
+```go
+orgURL, ok := goldr.BindFromRequest(r, urls.Orgs.ByID)
+userURL, ok := goldr.BindFromRequest(r, orgURL.Users.ByID)
+```
+
 Use helpers instead of hard-coded internal route paths when helpers exist.
 
 For apps mounted below a URL prefix, bind helpers once with the app base path:

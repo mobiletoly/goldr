@@ -214,6 +214,17 @@ it. `Path()` returns the mount path itself, while child helpers append their
 route segments. These helpers do not make `app/mounts` live; the final URL owner
 is still the real `app/routes` mount owner.
 
+Dynamic mount-relative helpers also work with `goldr.BindFromRequest` for one
+dynamic node:
+
+```go
+reportURL, ok := goldr.BindFromRequest(r, reportURLs.ByID)
+```
+
+That is only a request path-value binding shortcut. It does not prove that a
+live owner exposes a mounted child, and it does not carry owner-specific
+navigation context. Keep those decisions in the live owner and in the kit value.
+
 Mount-relative helpers include every route declaration from the mounted source
 subtree, including children that only some live owners expose. They are subtree
 path helpers, not proof that a particular owner exposes the child route. Live

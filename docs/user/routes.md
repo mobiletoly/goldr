@@ -652,6 +652,26 @@ segment with `url.PathEscape` when `.Bind(value)` is called:
 urls.Users.ByID.Bind("a/b").Path() // /users/a%2Fb
 ```
 
+When the current request already matched a route with that path value, use
+`goldr.BindFromRequest` to bind one dynamic node from the request:
+
+```go
+userURL, ok := goldr.BindFromRequest(r, urls.Users.ByID)
+if !ok {
+	// The current request does not carry id.
+}
+```
+
+`goldr.BindFromRequest` uses the generated node's route params and binds the
+last param with `r.PathValue("<param>")`. It is a checked shortcut for one
+dynamic node, not a whole-route binder. Nested dynamic routes still bind one
+node at a time:
+
+```go
+orgURL, ok := goldr.BindFromRequest(r, urls.Orgs.ByOrgID)
+userURL, ok := goldr.BindFromRequest(r, orgURL.Users.ByUserID)
+```
+
 When the generated handler is mounted below a URL prefix, bind the generated
 helpers once instead of writing route-specific string helpers:
 

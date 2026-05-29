@@ -614,6 +614,13 @@ route nodes with `.Bind(value)` methods. Dynamic params are escaped with
 `url.PathEscape` when `.Bind(value)` is called, and the escaped values are
 stored on the returned bound route node.
 
+Generated dynamic route nodes work with `goldr.BindFromRequest`, which uses
+`GoldrRouteParams()` to choose the last param for that node and returns
+`(route, ok)` after binding `r.PathValue("<param>")`. Nil requests, nodes with
+no params, and empty path values return `ok == false`. Nested dynamic helpers
+still bind one node at a time because parent params are carried on the receiver
+after the parent node is bound.
+
 Generated runtime dispatch matches `r.URL.EscapedPath()` so escaped dynamic
 segment values are not split as extra path segments. Captured params are
 decoded with `url.PathUnescape` before generated dispatch attaches them with

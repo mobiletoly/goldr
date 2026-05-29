@@ -663,7 +663,12 @@ func TestGenerateMountURLHelpersCompileAndEscapeParams(t *testing.T) {
 	writeTempFile(t, tempDir, "mounts/reports/goldr_gen.go", generateMountURLHelpersOK(t, manifest, "reports"))
 	writeTempFile(t, tempDir, "mounts/reports/url_test.go", `package reports
 
-import "testing"
+import (
+	"net/http"
+	"testing"
+
+	"github.com/mobiletoly/goldr"
+)
 
 type testRoutePath string
 
@@ -691,6 +696,19 @@ func TestMountURLHelpers(t *testing.T) {
 		if test.got != test.want {
 			t.Fatalf("%s = %q, want %q", test.name, test.got, test.want)
 		}
+	}
+}
+
+func TestMountURLHelpersBindFromRequest(t *testing.T) {
+	req := new(http.Request)
+	req.SetPathValue("id", "a/b")
+
+	route, ok := goldr.BindFromRequest(req, NewGoldrMountURLs(testRoutePath("/admin/reports")).ByID)
+	if !ok {
+		t.Fatal("BindFromRequest() ok = false, want true")
+	}
+	if got, want := route.Path(), "/admin/reports/a%2Fb"; got != want {
+		t.Fatalf("BindFromRequest().Path() = %q, want %q", got, want)
 	}
 }
 `)
@@ -904,7 +922,12 @@ func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 `)
 	writeTempFile(t, tempDir, "urls/url_test.go", `package urls
 
-import "testing"
+import (
+	"net/http"
+	"testing"
+
+	"github.com/mobiletoly/goldr"
+)
 
 func TestURLHelpers(t *testing.T) {
 	tests := []struct {
@@ -949,6 +972,42 @@ func TestURLHelpers(t *testing.T) {
 	}
 	if got, want := Users.ByID.Bind("42").Profile.GoldrRoutePattern(), "/users/{id}/profile"; got != want {
 		t.Fatalf("Users.ByID.Bind(...).Profile.GoldrRoutePattern() = %q, want %q", got, want)
+	}
+}
+
+func TestURLHelpersBindFromRequest(t *testing.T) {
+	req := new(http.Request)
+	req.SetPathValue("slug", "x/y")
+	req.SetPathValue("id", "a/b")
+	req.SetPathValue("org_id", "o/1")
+	req.SetPathValue("user_id", "u/2")
+
+	slugRoute, ok := goldr.BindFromRequest(req, BySlug)
+	if !ok {
+		t.Fatal("BindFromRequest(BySlug) ok = false, want true")
+	}
+	if got, want := slugRoute.Path(), "/x%2Fy"; got != want {
+		t.Fatalf("BindFromRequest(BySlug).Path() = %q, want %q", got, want)
+	}
+
+	userRoute, ok := goldr.BindFromRequest(req, Users.ByID)
+	if !ok {
+		t.Fatal("BindFromRequest(Users.ByID) ok = false, want true")
+	}
+	if got, want := userRoute.Profile.Path(), "/users/a%2Fb/profile"; got != want {
+		t.Fatalf("BindFromRequest(Users.ByID).Profile.Path() = %q, want %q", got, want)
+	}
+
+	orgRoute, ok := goldr.BindFromRequest(req, Orgs.ByOrgID)
+	if !ok {
+		t.Fatal("BindFromRequest(Orgs.ByOrgID) ok = false, want true")
+	}
+	orgUserRoute, ok := goldr.BindFromRequest(req, orgRoute.Users.ByUserID)
+	if !ok {
+		t.Fatal("BindFromRequest(Users.ByUserID) ok = false, want true")
+	}
+	if got, want := orgUserRoute.Path(), "/orgs/o%2F1/users/u%2F2"; got != want {
+		t.Fatalf("nested BindFromRequest().Path() = %q, want %q", got, want)
 	}
 }
 `)
