@@ -25,6 +25,7 @@ const (
 
 var (
 	routeDeclarationNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+	navTrailKeyPattern          = regexp.MustCompile(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`)
 	mountRouteStaticPattern     = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 )
 
@@ -38,11 +39,13 @@ type RouteDeclaration struct {
 	Name             string
 	Title            string
 	Meta             []RouteMetaLabel
+	NavTrails        []string
 	Page             *RouteHandlerDeclaration
 	Fragments        []RouteFragmentDeclaration
 	Actions          []RouteActionDeclaration
 	Kit              *RouteKitDeclaration
 	Mount            *RouteMountDeclaration
+	Destinations     []RouteDestinationDeclaration
 	Source           string
 	Adapter          string
 }
@@ -82,11 +85,23 @@ type RouteKitDeclaration struct {
 
 type RouteMountDeclaration struct {
 	Path            string
-	Routes          []string
+	Routes          []MountRouteDeclaration
 	RoutesSet       bool
 	Owner           string
 	OwnerRoute      string
 	OwnerParamCount int
+}
+
+type MountRouteDeclaration struct {
+	Path      string
+	NavTrails []string
+}
+
+type RouteDestinationDeclaration struct {
+	Name       string
+	SymbolName string
+	Target     []string
+	NavTrail   string
 }
 
 type RouteMetaLabel struct {
@@ -321,8 +336,8 @@ func (parser *routeDeclarationParser) parseRouteFields(decl *RouteDeclaration, l
 			continue
 		}
 
-		if decl.Kind == routeDeclarationKindKitMount && key.Name != "New" && key.Name != "Mount" && key.Name != "Routes" {
-			parser.addProblem("KitRouteMount supports only New, Mount, and Routes route surface fields")
+		if decl.Kind == routeDeclarationKindKitMount && key.Name != "New" && key.Name != "Mount" && key.Name != "Routes" && key.Name != "Destinations" {
+			parser.addProblem("KitRouteMount supports only New, Mount, Routes, and Destinations route surface fields")
 			continue
 		}
 
@@ -339,6 +354,14 @@ func (parser *routeDeclarationParser) parseRouteFields(decl *RouteDeclaration, l
 			decl.Actions = parser.parseActions(decl.Kind, field.Value)
 		case "Meta":
 			decl.Meta = parser.parseMeta(field.Value)
+		case "NavTrails":
+			if decl.Kind == routeDeclarationKindKitMount {
+				parser.addProblem("NavTrails is not supported on goldr.KitRouteMount")
+				continue
+			}
+			decl.NavTrails = parser.parseNavTrails(field.Value)
+		case "Destinations":
+			decl.Destinations = parser.parseDestinations(field.Value)
 		case "New":
 			if decl.Kind != routeDeclarationKindKit && decl.Kind != routeDeclarationKindKitMount {
 				parser.addProblem("New is only supported on goldr.KitRouteDef and goldr.KitRouteMount")
@@ -375,7 +398,7 @@ func (parser *routeDeclarationParser) parseRouteFields(decl *RouteDeclaration, l
 	}
 }
 
-func (parser *routeDeclarationParser) parseMountRoutes(expr ast.Expr) []string {
+func (parser *routeDeclarationParser) parseMountRoutes(expr ast.Expr) []MountRouteDeclaration {
 	literal, ok := expr.(*ast.CompositeLit)
 	if !ok || !selectorName(literal.Type, "goldr", "MountRoutes") {
 		parser.addProblem("KitRouteMount.Routes must use a literal goldr.MountRoutes value")
@@ -385,25 +408,69 @@ func (parser *routeDeclarationParser) parseMountRoutes(expr ast.Expr) []string {
 		parser.addProblem("KitRouteMount.Routes must not be empty")
 		return nil
 	}
-	routes := make([]string, 0, len(literal.Elts))
+	routes := make([]MountRouteDeclaration, 0, len(literal.Elts))
 	seen := make(map[string]bool, len(literal.Elts))
 	for _, item := range literal.Elts {
-		route := parser.stringLiteral("KitRouteMount.Routes entry", item)
-		if route == "" {
+		route, ok := parser.parseMountRoute(item)
+		if !ok {
 			continue
 		}
-		if !validMountRouteSelector(route) {
+		if !validMountRouteSelector(route.Path) {
 			parser.addProblem("KitRouteMount.Routes entries must be mount-relative browser route patterns like \"/\", \"/table\", or \"/{id}\"")
 			continue
 		}
-		if seen[route] {
-			parser.addProblem("KitRouteMount.Routes contains duplicate route pattern: " + route)
+		if seen[route.Path] {
+			parser.addProblem("KitRouteMount.Routes contains duplicate route pattern: " + route.Path)
 			continue
 		}
-		seen[route] = true
+		seen[route.Path] = true
 		routes = append(routes, route)
 	}
 	return routes
+}
+
+func (parser *routeDeclarationParser) parseMountRoute(expr ast.Expr) (MountRouteDeclaration, bool) {
+	literal, ok := expr.(*ast.CompositeLit)
+	if !ok {
+		parser.addProblem("KitRouteMount.Routes entries must use goldr.MountRoute values")
+		return MountRouteDeclaration{}, false
+	}
+	if literal.Type != nil && !selectorName(literal.Type, "goldr", "MountRoute") {
+		parser.addProblem("KitRouteMount.Routes entries must use goldr.MountRoute values")
+		return MountRouteDeclaration{}, false
+	}
+	var route MountRouteDeclaration
+	seenPath := false
+	for _, item := range literal.Elts {
+		field, ok := item.(*ast.KeyValueExpr)
+		if !ok {
+			parser.addProblem("MountRoute fields must use keyed composite literal entries")
+			continue
+		}
+		key, ok := field.Key.(*ast.Ident)
+		if !ok {
+			parser.addProblem("MountRoute fields must use identifier keys")
+			continue
+		}
+		switch key.Name {
+		case "Path":
+			if seenPath {
+				parser.addProblem("MountRoute.Path must be declared once")
+				continue
+			}
+			seenPath = true
+			route.Path = parser.stringLiteral("MountRoute.Path", field.Value)
+		case "NavTrails":
+			route.NavTrails = parser.parseNavTrails(field.Value)
+		default:
+			parser.addProblem("unsupported MountRoute field: " + key.Name)
+		}
+	}
+	if !seenPath {
+		parser.addProblem("MountRoute requires Path")
+		return MountRouteDeclaration{}, false
+	}
+	return route, true
 }
 
 func (parser *routeDeclarationParser) parsePage(expr ast.Expr) *RouteHandlerDeclaration {
@@ -760,12 +827,211 @@ func (parser *routeDeclarationParser) parseLabels(expr ast.Expr) []RouteMetaLabe
 	return labels
 }
 
+func (parser *routeDeclarationParser) parseNavTrails(expr ast.Expr) []string {
+	literal, ok := expr.(*ast.CompositeLit)
+	if !ok || !selectorName(literal.Type, "goldr", "NavTrails") {
+		parser.addProblem("NavTrails must use a literal goldr.NavTrails value")
+		return nil
+	}
+
+	var allowed []string
+	seenAllowed := false
+	for _, item := range literal.Elts {
+		field, ok := item.(*ast.KeyValueExpr)
+		if !ok {
+			parser.addProblem("NavTrails fields must use keyed composite literal entries")
+			continue
+		}
+		key, ok := field.Key.(*ast.Ident)
+		if !ok || key.Name != "Allowed" {
+			parser.addProblem("NavTrails supports only the Allowed field")
+			continue
+		}
+		if seenAllowed {
+			parser.addProblem("NavTrails.Allowed must be declared once")
+			continue
+		}
+		seenAllowed = true
+		allowed = parser.parseNavTrailAllowed(field.Value)
+	}
+	if !seenAllowed {
+		parser.addProblem("NavTrails requires Allowed")
+	}
+	return allowed
+}
+
+func (parser *routeDeclarationParser) parseNavTrailAllowed(expr ast.Expr) []string {
+	literal, ok := expr.(*ast.CompositeLit)
+	if !ok || !arrayStringType(literal.Type) {
+		parser.addProblem("NavTrails.Allowed must use a literal []string value")
+		return nil
+	}
+	if len(literal.Elts) == 0 {
+		parser.addProblem("NavTrails.Allowed must not be empty")
+		return nil
+	}
+
+	values := make([]string, 0, len(literal.Elts))
+	seen := make(map[string]bool, len(literal.Elts))
+	fieldNames := make(map[string]string, len(literal.Elts))
+	for _, item := range literal.Elts {
+		key := parser.stringLiteral("NavTrails.Allowed entry", item)
+		if key == "" {
+			continue
+		}
+		if !navTrailKeyPattern.MatchString(key) {
+			parser.addProblem("NavTrails.Allowed entries must use lowercase ASCII trail keys like \"provider-search\"")
+			continue
+		}
+		if seen[key] {
+			parser.addProblem("NavTrails.Allowed contains duplicate key: " + key)
+			continue
+		}
+		seen[key] = true
+
+		fieldName := navTrailGeneratedFieldName(key)
+		if previous, ok := fieldNames[fieldName]; ok {
+			parser.addProblem(fmt.Sprintf("NavTrails.Allowed keys %q and %q map to the same generated field name %s", previous, key, fieldName))
+			continue
+		}
+		fieldNames[fieldName] = key
+		values = append(values, key)
+	}
+	return values
+}
+
+func (parser *routeDeclarationParser) parseDestinations(expr ast.Expr) []RouteDestinationDeclaration {
+	literal, ok := expr.(*ast.CompositeLit)
+	if !ok || !selectorName(literal.Type, "goldr", "Destinations") {
+		parser.addProblem("Destinations must use a literal goldr.Destinations value")
+		return nil
+	}
+	if len(literal.Elts) == 0 {
+		parser.addProblem("Destinations must not be empty")
+		return nil
+	}
+
+	destinations := make([]RouteDestinationDeclaration, 0, len(literal.Elts))
+	seenNames := make(map[string]bool, len(literal.Elts))
+	fieldNames := make(map[string]string, len(literal.Elts))
+	for _, item := range literal.Elts {
+		field, ok := item.(*ast.KeyValueExpr)
+		if !ok {
+			parser.addProblem("Destinations entries must use key-value literals")
+			continue
+		}
+		name := parser.stringLiteral("destination name", field.Key)
+		if name == "" {
+			continue
+		}
+		if !validRouteDeclarationName(name) {
+			parser.addProblem("destination names must use lowercase ASCII letters, digits, underscores, or hyphens and start with a lowercase ASCII letter")
+			continue
+		}
+		if seenNames[name] {
+			parser.addProblem("Destinations contains duplicate name: " + name)
+			continue
+		}
+		seenNames[name] = true
+		symbolName := exportedDeclarationName(name)
+		if previous, ok := fieldNames[symbolName]; ok {
+			parser.addProblem(fmt.Sprintf("destination names %q and %q map to the same generated field name %s", previous, name, symbolName))
+			continue
+		}
+		fieldNames[symbolName] = name
+
+		target, navTrail, ok := parser.parseDestinationValue(field.Value)
+		if !ok {
+			continue
+		}
+		destinations = append(destinations, RouteDestinationDeclaration{
+			Name:       name,
+			SymbolName: symbolName,
+			Target:     target,
+			NavTrail:   navTrail,
+		})
+	}
+	return destinations
+}
+
+func (parser *routeDeclarationParser) parseDestinationValue(expr ast.Expr) ([]string, string, bool) {
+	navTrail := ""
+	if call, ok := expr.(*ast.CallExpr); ok {
+		if selector, ok := call.Fun.(*ast.SelectorExpr); ok && selector.Sel.Name == "NavTrail" {
+			if len(call.Args) != 1 {
+				parser.addProblem("Destination.NavTrail must use one string literal argument")
+				return nil, "", false
+			}
+			navTrail = parser.stringLiteral("Destination.NavTrail argument", call.Args[0])
+			if navTrail == "" {
+				return nil, "", false
+			}
+			if !navTrailKeyPattern.MatchString(navTrail) {
+				parser.addProblem("Destination.NavTrail argument must use a lowercase ASCII trail key like \"provider-search\"")
+				return nil, "", false
+			}
+			expr = selector.X
+		}
+	}
+
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		parser.addProblem("Destinations entries must use goldr.To(routeNode)")
+		return nil, "", false
+	}
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || !selectorName(selector, "goldr", "To") {
+		parser.addProblem("Destinations entries must use goldr.To(routeNode)")
+		return nil, "", false
+	}
+	if len(call.Args) != 1 {
+		parser.addProblem("goldr.To must use one generated route node argument")
+		return nil, "", false
+	}
+	target, ok := destinationTargetChain(call.Args[0])
+	if !ok {
+		parser.addProblem("goldr.To target must be a generated route node selector")
+		return nil, "", false
+	}
+	return target, navTrail, true
+}
+
+func destinationTargetChain(expr ast.Expr) ([]string, bool) {
+	var reversed []string
+	for {
+		switch value := expr.(type) {
+		case *ast.SelectorExpr:
+			reversed = append(reversed, value.Sel.Name)
+			expr = value.X
+		case *ast.Ident:
+			if len(reversed) == 0 {
+				return nil, false
+			}
+			chain := make([]string, len(reversed))
+			for index := range reversed {
+				chain[index] = reversed[len(reversed)-1-index]
+			}
+			return chain, true
+		default:
+			return nil, false
+		}
+	}
+}
+
 func mapStringStringType(expr ast.Expr) bool {
 	mapType, ok := expr.(*ast.MapType)
 	if !ok {
 		return false
 	}
 	return identName(mapType.Key, "string") && identName(mapType.Value, "string")
+}
+
+func arrayStringType(expr ast.Expr) bool {
+	arrayType, ok := expr.(*ast.ArrayType)
+	if !ok {
+		return false
+	}
+	return arrayType.Len == nil && identName(arrayType.Elt, "string")
 }
 
 func (parser *routeDeclarationParser) validateRouteSurface(decl RouteDeclaration) {
@@ -924,6 +1190,26 @@ func exportedDeclarationName(value string) string {
 		return r == '_' || r == '-'
 	}) {
 		if part == "" {
+			continue
+		}
+		if part == "id" {
+			builder.WriteString("ID")
+			continue
+		}
+		builder.WriteString(strings.ToUpper(part[:1]))
+		builder.WriteString(part[1:])
+	}
+	return builder.String()
+}
+
+func navTrailGeneratedFieldName(value string) string {
+	var builder strings.Builder
+	for _, part := range strings.Split(value, "-") {
+		if part == "" {
+			continue
+		}
+		if part == "id" {
+			builder.WriteString("ID")
 			continue
 		}
 		builder.WriteString(strings.ToUpper(part[:1]))

@@ -149,6 +149,23 @@ func goldrPathParam(segment string) (string, bool) {
 `)
 	}
 
+	if hasNavTrailRoutes(routes) {
+		buffer.WriteString(`
+func goldrWithNavTrailKey(r *http.Request, allowed []string) *http.Request {
+	key := r.URL.Query().Get("_goldr_trail")
+	if key == "" {
+		return r
+	}
+	for _, allowedKey := range allowed {
+		if key == allowedKey {
+			return goldr.WithNavTrailKey(r, key)
+		}
+	}
+	return r
+}
+`)
+	}
+
 	if hasFragmentRoutes(routes) {
 		buffer.WriteString(`
 func goldrWrapFragmentRouteResponse(response goldr.FragmentRouteResponse, marker goldrinspect.Marker) goldr.FragmentRouteResponse {
@@ -644,6 +661,7 @@ func writeMethodDispatch(buffer *bytes.Buffer, route runtimeRoute, helpers handl
 }
 
 func writeEndpointDispatch(buffer *bytes.Buffer, route runtimeRoute, helpers handlerHelperPlan, indent string, writeEndpoint func(*bytes.Buffer, runtimeRoute, handlerHelperPlan, string)) {
+	writeNavTrailKeyAssignment(buffer, route, indent)
 	middlewares := routeMiddlewares(route)
 	if len(middlewares) == 0 {
 		writeEndpoint(buffer, route, helpers, indent)
@@ -684,6 +702,20 @@ func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, helpers handlerH
 		fmt.Fprintf(buffer, "%sgoldrWriteFragmentEndpointResponse(options, w, r, routeResponse, %s)\n", indent, helpers.routePageRendererName(route.fragment.layouts))
 	}
 	fmt.Fprintf(buffer, "%sreturn\n", indent)
+}
+
+func writeNavTrailKeyAssignment(buffer *bytes.Buffer, route runtimeRoute, indent string) {
+	if len(route.navTrails) == 0 {
+		return
+	}
+	fmt.Fprintf(buffer, "%sr = goldrWithNavTrailKey(r, []string{", indent)
+	for index, key := range route.navTrails {
+		if index > 0 {
+			buffer.WriteString(", ")
+		}
+		buffer.WriteString(strconv.Quote(key))
+	}
+	buffer.WriteString("})\n")
 }
 
 func writeRootErrorRoutePageRenderer(buffer *bytes.Buffer, layouts []routing.ManifestLayout, helpers handlerHelperPlan) {

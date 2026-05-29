@@ -28,7 +28,7 @@ func TestRunRoutesPrintsRouteTable(t *testing.T) {
 		{"action", "POST", "/users/create", "-", "users/route.go:GoldrRoutePostCreate", "-", "local", "users.index", "Users", "app.nav=\"users\",app.permission=\"view\"", "urls.Users.Create.Path()"},
 		{"fragment", "GET,HEAD", "/users/table", "-", "users/route.go", "-", "local", "users.index", "Users", "app.nav=\"users\",app.permission=\"view\"", "urls.Users.Table.Path()"},
 		{"page", "GET,HEAD", "/users", "-", "users/route.go", "-", "local", "users.index", "Users", "app.nav=\"users\",app.permission=\"view\"", "urls.Users.Path()"},
-		{"page", "GET,HEAD", "/users/{id}", "id", "users/by_id/route.go", "-", "local", "-", "-", "-", "urls.Users.ByID(id).Path()"},
+		{"page", "GET,HEAD", "/users/{id}", "id", "users/by_id/route.go", "-", "local", "-", "-", "-", "urls.Users.ByID.Bind(id).Path()"},
 	}
 	requireRouteTableRows(t, stdout, want)
 	requireMissingFile(t, filepath.Join(root, "app", "routes", "goldr_gen.go"))
@@ -115,7 +115,7 @@ func TestRunRoutesPrintsJSON(t *testing.T) {
 			},
 			Page: &routeSurfaceJSONPage{Handler: "page", Adapter: "GoldrRoutePage"},
 		}},
-		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/users/{id}", Params: []string{"id"}, Source: "users/by_id/route.go", Helper: "urls.Users.ByID(id).Path()", Declaration: &routeSurfaceJSONDeclaration{
+		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/users/{id}", Params: []string{"id"}, Source: "users/by_id/route.go", Helper: "urls.Users.ByID.Bind(id).Path()", Declaration: &routeSurfaceJSONDeclaration{
 			Source: "users/by_id/route.go",
 			Kind:   "local",
 			Labels: []routeSurfaceJSONLabel{},
@@ -195,6 +195,164 @@ func TestRunRoutesInspectIndexFragment(t *testing.T) {
 	} {
 		if !strings.Contains(explainOut, want) {
 			t.Fatalf("routes explain output = %q, want %q", explainOut, want)
+		}
+	}
+}
+
+func TestRunRoutesExplainNavigationDeclaration(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "app/routes/analytics/route.go", `package analytics
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+	"example.com/app/urls"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	NavTrails: goldr.NavTrails{
+		Allowed: []string{"attention-center"},
+	},
+	Destinations: goldr.Destinations{
+		"customer": goldr.To(urls.Customers.ByID).NavTrail("attention-center"),
+	},
+}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "analytics"}
+}
+`)
+	writeFile(t, root, "app/routes/customers/by_id/route.go", `package by_id
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	NavTrails: goldr.NavTrails{
+		Allowed: []string{"attention-center"},
+	},
+}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "customer"}
+}
+`)
+
+	code, explainOut, explainErr := runGoldr(t, "routes", "explain", "--app-root", root, "/analytics")
+	if code != 0 {
+		t.Fatalf("Run(routes explain) exit code = %d, want 0; stderr = %q", code, explainErr)
+	}
+	for _, want := range []string{
+		"  trails   attention-center",
+		"DESTINATIONS",
+		"  customer           urls.Analytics.Destinations.Customer -> urls.Customers.ByID trail=attention-center",
+	} {
+		if !strings.Contains(explainOut, want) {
+			t.Fatalf("routes explain output = %q, want %q", explainOut, want)
+		}
+	}
+}
+
+func TestRunRoutesExplainMountedNavigationDeclaration(t *testing.T) {
+	root := t.TempDir()
+	writeTemplToolModule(t, root, "example.com/mountednavapp")
+	writeFile(t, root, "app/routes/admin/reports/route.go", `package reports
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+	sharedreports "example.com/mountednavapp/app/mounts/reports"
+	"example.com/mountednavapp/app/urls"
+)
+
+var Route = goldr.KitRouteMount[sharedreports.Kit]{
+	New: newKit,
+	Mount: "reports",
+	Routes: goldr.MountRoutes{
+		{Path: "/"},
+		{
+			Path: "/audit",
+			NavTrails: goldr.NavTrails{
+				Allowed: []string{"admin-reports"},
+			},
+		},
+	},
+	Destinations: goldr.Destinations{
+		"audit": goldr.To(urls.Admin.Reports.Audit).NavTrail("admin-reports"),
+	},
+}
+
+func newKit(_ *http.Request) sharedreports.Kit {
+	return sharedreports.Kit{}
+}
+`)
+	writeFile(t, root, "app/mounts/reports/route.go", `package reports
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+var Route = goldr.KitRouteDef[Kit]{
+	Page: Kit.Page,
+}
+
+func (kit Kit) Page(_ *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "ok"}
+}
+`)
+	writeFile(t, root, "app/mounts/reports/audit/route.go", `package audit
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+	sharedreports "example.com/mountednavapp/app/mounts/reports"
+)
+
+var Route = goldr.KitRouteDef[sharedreports.Kit]{
+	Page: sharedreports.Kit.Audit,
+}
+
+func (kit sharedreports.Kit) Audit(_ *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "ok"}
+}
+`)
+
+	code, rootOut, rootErr := runGoldr(t, "routes", "explain", "--app-root", root, "/admin/reports")
+	if code != 0 {
+		t.Fatalf("Run(routes explain root) exit code = %d, want 0; stderr = %q", code, rootErr)
+	}
+	for _, want := range []string{
+		"DESTINATIONS",
+		"  audit              urls.Admin.Reports.Destinations.Audit -> urls.Admin.Reports.Audit trail=admin-reports",
+	} {
+		if !strings.Contains(rootOut, want) {
+			t.Fatalf("routes explain root output = %q, want %q", rootOut, want)
+		}
+	}
+
+	code, auditOut, auditErr := runGoldr(t, "routes", "explain", "--app-root", root, "/admin/reports/audit")
+	if code != 0 {
+		t.Fatalf("Run(routes explain audit) exit code = %d, want 0; stderr = %q", code, auditErr)
+	}
+	for _, want := range []string{
+		"/admin/reports/audit  GET",
+		"  trails   admin-reports",
+		"app/mounts/reports/audit/route.go",
+	} {
+		if !strings.Contains(auditOut, want) {
+			t.Fatalf("routes explain audit output = %q, want %q", auditOut, want)
 		}
 	}
 }
@@ -430,7 +588,7 @@ func TestRunRoutesFullFeatureOutputIsDeterministic(t *testing.T) {
 		{"page", "GET,HEAD", "/", "-", "route.go", "-", "local", "-", "-", "-", "urls.Root.Path()"},
 		{"page", "GET,HEAD", "/settings", "-", "settings/route.go", "-", "local", "-", "-", "-", "urls.Settings.Path()"},
 		{"layout", "-", "/users", "-", "users/layout.go", "-", "-", "-", "-", "-", "-"},
-		{"page", "GET,HEAD", "/users/{id}", "id", "users/by_id/route.go", "-", "local", "-", "-", "-", "urls.Users.ByID(id).Path()"},
+		{"page", "GET,HEAD", "/users/{id}", "id", "users/by_id/route.go", "-", "local", "-", "-", "-", "urls.Users.ByID.Bind(id).Path()"},
 		{"action", "POST", "/users/create", "-", "users/route.go:GoldrRoutePostCreate", "-", "local", "-", "-", "-", "urls.Users.Create.Path()"},
 		{"action", "POST", "/users/save-preview", "-", "users/route.go:GoldrRoutePostSavePreview", "-", "local", "-", "-", "-", "urls.Users.SavePreview.Path()"},
 	} {
@@ -459,7 +617,7 @@ func TestRunRoutesFullFeatureJSONOutputIsDeterministic(t *testing.T) {
 		Path:    "/users/{id}",
 		Params:  []string{"id"},
 		Source:  "users/by_id/route.go",
-		Helper:  "urls.Users.ByID(id).Path()",
+		Helper:  "urls.Users.ByID.Bind(id).Path()",
 	})
 	requireRouteJSONContainsRow(t, rows, routeSurfaceJSONRow{
 		Kind:    "action",

@@ -9,6 +9,10 @@ Goldr fingerprints final browser-ready files. It does not compile CSS, bundle
 JavaScript, minify files, optimize images, upload to a CDN, register static
 handlers, or inject assets into layouts.
 
+Place `assets/` directly under the Goldr app root, as a sibling of `app/`.
+For `--app-root internal/adapters/webapp`, Goldr reads
+`internal/adapters/webapp/assets/build`.
+
 Use this shape:
 
 ```text
@@ -20,7 +24,8 @@ assets/
   goldr_assets_gen.go   generated manifest package
 ```
 
-Only `assets/build` is input to Goldr. App-owned tools write final files there.
+Only `<app-root>/assets/build` is input to Goldr. App-owned tools write final
+files there.
 
 After assets are built:
 
@@ -89,8 +94,8 @@ go tool goldr dev --proxy-addr 127.0.0.1:7332
 Use placeholders only after inspecting the target app's actual app root,
 command package, and scripts.
 
-Goldr watches `.go`, `.templ`, and `assets/build`. If a separate asset tool is
-needed, run it separately so it writes final files into `assets/build`.
+Goldr watches `.go`, `.templ`, and `<app-root>/assets/build`. If a separate
+asset tool is needed, run it separately so it writes final files there.
 
 Stop any dev server you start.
 

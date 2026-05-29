@@ -48,8 +48,8 @@ var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	New:   newReportKit,
 	Mount: "reports",
 	Routes: goldr.MountRoutes{
-		"/",
-		"/audit",
+		{Path: "/"},
+		{Path: "/audit"},
 	},
 }
 
@@ -73,8 +73,54 @@ constructor keeps the mounted route declaration readable and supported.
 
 `Routes` is optional. When omitted, the owner exposes every route declaration
 in the mounted subtree. When present, it is an explicit allowlist of
-mount-relative browser route patterns such as `/`, `/audit`, or `/{id}`.
-Missing, duplicate, or malformed entries fail generation and checking.
+`goldr.MountRoute` values with mount-relative browser route patterns such as
+`/`, `/audit`, or `/{id}`. Missing, duplicate, or malformed entries fail
+generation and checking.
+
+An owner can attach navigation trail keys to selected mounted children:
+
+```go
+Routes: goldr.MountRoutes{
+	{Path: "/"},
+	{
+		Path: "/customers/{customer_id}/report",
+		NavTrails: goldr.NavTrails{
+			Allowed: []string{"team-analytics"},
+		},
+	},
+}
+```
+
+Mounted source routes under `app/mounts` cannot declare live `NavTrails` or
+`Destinations`. Generated mount helpers stay path-only. Pass owner-specific
+navigation behavior through `K`, usually as a trail base and owner URL
+callbacks. The mounted page then appends local suffix steps to the owner base:
+
+```go
+trail := append(kit.TrailBase(r),
+	goldr.NavStep("Analytics", kit.AnalyticsURL()),
+	goldr.NavStep(customer.DisplayName, kit.CustomerURL(customer.ID)),
+	goldr.CurrentNavStep("Report"),
+)
+```
+
+When shared mounted code needs to carry app query state, keep that policy in
+the mounted code and pass the selected values into owner callbacks:
+
+```go
+query := goldr.QueryValues(r, "view", "sort", "page")
+href := kit.CustomerReportHref(customer.ID, query)
+```
+
+The live owner callback can then use a destination-aware helper:
+
+```go
+CustomerReportHref: func(customerID string, query url.Values) string {
+	return urls.Admin.Analytics.Destinations.CustomerReport.
+		Bind(customerID).
+		HrefWithQuery(query)
+}
+```
 
 ## Mount Surface
 
@@ -176,7 +222,8 @@ does not appear under that owner, does not dispatch, and does not appear in
 normal live route inventory. A child-only owner still has the mount-base helper
 needed to bind `NewGoldrMountURLs`, but that helper is not proof that the root
 URL dispatches. Shared mounted code should render owner-specific links only
-when app-owned state says the current owner selected that child.
+when app-owned state says the current owner selected that child. For a full HQ
+and Regional navigation example, see `examples/navigation`.
 
 ## Layouts And Middleware
 

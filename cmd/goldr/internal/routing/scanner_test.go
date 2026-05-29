@@ -298,6 +298,59 @@ func TestScanWithMountsSelectsMountedRoutesPerOwner(t *testing.T) {
 	}
 }
 
+func TestScanWithMountsAppliesOwnerNavTrailsToIncludedMountedRoutes(t *testing.T) {
+	root := t.TempDir()
+	routesRoot := filepath.Join(root, "app/routes")
+	mountsRoot := filepath.Join(root, "app/mounts")
+	writeFile(t, routesRoot, "admin/reports/route.go", `package reports
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.KitRouteMount[shared.Kit]{
+	New: newKit,
+	Mount: "reports",
+	Routes: goldr.MountRoutes{
+		{Path: "/"},
+		{
+			Path: "/audit",
+			NavTrails: goldr.NavTrails{
+				Allowed: []string{"attention-center"},
+			},
+		},
+	},
+}
+
+func newKit(r *http.Request) shared.Kit {
+	return shared.New()
+}
+`)
+	writeFile(t, routesRoot, "user/reports/route.go", routeGoKitMountRoutesSource("reports", "reports", "/"))
+	writeFile(t, mountsRoot, "reports/route.go", routeGoMountedKitPageSource("reports", "shared.Kit.Page"))
+	writeFile(t, mountsRoot, "reports/audit/route.go", routeGoMountedKitPageSource("audit", "shared.Kit.Audit"))
+
+	tree, err := ScanWithMounts(routesRoot, mountsRoot)
+	if err != nil {
+		t.Fatalf("ScanWithMounts() error = %v, want nil", err)
+	}
+
+	got := make(map[string][]string)
+	for _, route := range tree.Routes {
+		got[route.Route] = route.NavTrails
+	}
+	want := map[string][]string{
+		"/admin/reports":       nil,
+		"/admin/reports/audit": {"attention-center"},
+		"/user/reports":        nil,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("mounted nav trails = %#v, want %#v", got, want)
+	}
+}
+
 func TestScanWithMountsRejectsMissingSelectedRoute(t *testing.T) {
 	root := t.TempDir()
 	routesRoot := filepath.Join(root, "app/routes")
@@ -346,12 +399,15 @@ func Middleware(next http.Handler) http.Handler {
 	}
 }
 
-func TestScanWithMountsRejectsMountedKitRouteDefNew(t *testing.T) {
-	root := t.TempDir()
-	routesRoot := filepath.Join(root, "app/routes")
-	mountsRoot := filepath.Join(root, "app/mounts")
-	writeFile(t, routesRoot, "admin/reports/route.go", routeGoKitMountSource("reports", "reports"))
-	writeFile(t, mountsRoot, "reports/route.go", `package reports
+func TestScanWithMountsRejectsMountedKitRouteDefOwnerFields(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		message string
+	}{
+		{
+			name: "new",
+			source: `package reports
 
 import (
 	"net/http"
@@ -368,19 +424,69 @@ var Route = goldr.KitRouteDef[shared.Kit]{
 func newKit(r *http.Request) shared.Kit {
 	return shared.New()
 }
-`)
+`,
+			message: "KitRouteDef.New is not supported under app/mounts; the KitRouteMount owner supplies New",
+		},
+		{
+			name: "nav trails",
+			source: `package reports
 
-	_, err := ScanWithMounts(routesRoot, mountsRoot)
-	var scanErr *ScanError
-	if !errors.As(err, &scanErr) {
-		t.Fatalf("ScanWithMounts() error = %T, want *ScanError", err)
+import (
+	"github.com/mobiletoly/goldr"
+	"example.com/app/shared"
+)
+
+var Route = goldr.KitRouteDef[shared.Kit]{
+	Page: shared.Kit.Page,
+	NavTrails: goldr.NavTrails{
+		Allowed: []string{"admin-reports"},
+	},
+}
+`,
+			message: "KitRouteDef.NavTrails is not supported under app/mounts; live mounted routes declare allowed navigation trails",
+		},
+		{
+			name: "destinations",
+			source: `package reports
+
+import (
+	"github.com/mobiletoly/goldr"
+	"example.com/app/urls"
+	"example.com/app/shared"
+)
+
+var Route = goldr.KitRouteDef[shared.Kit]{
+	Page: shared.Kit.Page,
+	Destinations: goldr.Destinations{
+		"audit": goldr.To(urls.Reports.Audit),
+	},
+}
+`,
+			message: "KitRouteDef.Destinations is not supported under app/mounts; live mounted route owners declare destinations",
+		},
 	}
-	want := Problem{
-		Path:    "../mounts/reports/route.go",
-		Message: "KitRouteDef.New is not supported under app/mounts; the KitRouteMount owner supplies New",
-	}
-	if !hasProblem(scanErr.Problems, want.Path, want.Message) {
-		t.Fatalf("problems = %#v, want %#v", scanErr.Problems, want)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			routesRoot := filepath.Join(root, "app/routes")
+			mountsRoot := filepath.Join(root, "app/mounts")
+			writeFile(t, routesRoot, "admin/reports/route.go", routeGoKitMountSource("reports", "reports"))
+			writeFile(t, mountsRoot, "reports/route.go", test.source)
+
+			_, err := ScanWithMounts(routesRoot, mountsRoot)
+			var scanErr *ScanError
+			if !errors.As(err, &scanErr) {
+				t.Fatalf("ScanWithMounts() error = %T, want *ScanError", err)
+			}
+			want := Problem{
+				Path:    "../mounts/reports/route.go",
+				Message: test.message,
+			}
+			if !hasProblem(scanErr.Problems, want.Path, want.Message) {
+				t.Fatalf("problems = %#v, want %#v", scanErr.Problems, want)
+			}
+		})
 	}
 }
 
@@ -709,9 +815,9 @@ var Route = goldr.KitRouteMount[shared.Kit]{
 	Routes: goldr.MountRoutes{
 `)
 	for _, route := range routes {
-		builder.WriteString("\t\t")
+		builder.WriteString("\t\t{Path: ")
 		builder.WriteString(strconv.Quote(route))
-		builder.WriteString(",\n")
+		builder.WriteString("},\n")
 	}
 	builder.WriteString(`	},
 }

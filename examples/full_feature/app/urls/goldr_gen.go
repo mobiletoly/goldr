@@ -5,16 +5,28 @@ package urls
 import "net/url"
 
 var Root = newRootRoute("")
-var Admin = adminRoute("/admin")
+var Admin = adminRoute(goldrURLPath{path: "/admin", pattern: "/admin"})
 var ProtectedResourceDemo = newProtectedResourceDemoRoute("")
-var Settings = settingsRoute("/settings")
-var SignIn = signInRoute("/sign-in")
+var Settings = settingsRoute(goldrURLPath{path: "/settings", pattern: "/settings"})
+var SignIn = signInRoute(goldrURLPath{path: "/sign-in", pattern: "/sign-in"})
 var Users = newUsersRoute("")
 
-type goldrURLPath string
+type goldrURLPath struct {
+	path    string
+	pattern string
+	params  []string
+}
 
 func (p goldrURLPath) Path() string {
-	return string(p)
+	return p.path
+}
+
+func (p goldrURLPath) GoldrRoutePattern() string {
+	return p.pattern
+}
+
+func (p goldrURLPath) GoldrRouteParams() []string {
+	return append([]string(nil), p.params...)
 }
 
 type MountedRoutes struct {
@@ -32,10 +44,10 @@ func WithBasePath(basePath string) MountedRoutes {
 	return MountedRoutes{
 		basePath:              normalizedBasePath,
 		Root:                  newRootRoute(normalizedBasePath),
-		Admin:                 adminRoute(normalizedBasePath + "/admin"),
+		Admin:                 adminRoute(goldrURLPath{path: normalizedBasePath + "/admin", pattern: "/admin"}),
 		ProtectedResourceDemo: newProtectedResourceDemoRoute(normalizedBasePath),
-		Settings:              settingsRoute(normalizedBasePath + "/settings"),
-		SignIn:                signInRoute(normalizedBasePath + "/sign-in"),
+		Settings:              settingsRoute(goldrURLPath{path: normalizedBasePath + "/settings", pattern: "/settings"}),
+		SignIn:                signInRoute(goldrURLPath{path: normalizedBasePath + "/sign-in", pattern: "/sign-in"}),
 		Users:                 newUsersRoute(normalizedBasePath),
 	}
 }
@@ -66,6 +78,7 @@ type usersRoute struct {
 	SavePreview   usersSavePreviewRoute
 	StatusOptions usersStatusOptionsRoute
 	Table         usersTableRoute
+	ByID          usersByIDRouteNode
 }
 
 type usersCreateRoute = goldrURLPath
@@ -81,44 +94,63 @@ type usersByIDRoute struct {
 	id string
 }
 
+type usersByIDRouteNode struct {
+	basePath string
+}
+
 func newRootRoute(basePath string) rootRoute {
 	path := basePath + "/"
 	return rootRoute{
-		goldrURLPath: goldrURLPath(path),
+		goldrURLPath: goldrURLPath{path: path, pattern: "/"},
 	}
 }
 
 func newProtectedResourceDemoRoute(basePath string) protectedResourceDemoRoute {
 	path := basePath + "/protected-resource-demo"
 	return protectedResourceDemoRoute{
-		goldrURLPath: goldrURLPath(path),
-		RevealSecret: protectedResourceDemoRevealSecretRoute(path + "/reveal-secret"),
-		SignOut:      protectedResourceDemoSignOutRoute(path + "/sign-out"),
+		goldrURLPath: goldrURLPath{path: path, pattern: "/protected-resource-demo"},
+		RevealSecret: protectedResourceDemoRevealSecretRoute(goldrURLPath{path: path + "/reveal-secret", pattern: "/protected-resource-demo/reveal-secret"}),
+		SignOut:      protectedResourceDemoSignOutRoute(goldrURLPath{path: path + "/sign-out", pattern: "/protected-resource-demo/sign-out"}),
 	}
 }
 
 func newUsersRoute(basePath string) usersRoute {
 	path := basePath + "/users"
 	return usersRoute{
-		goldrURLPath:  goldrURLPath(path),
-		Create:        usersCreateRoute(path + "/create"),
-		SavePreview:   usersSavePreviewRoute(path + "/save-preview"),
-		StatusOptions: usersStatusOptionsRoute(path + "/status-options"),
-		Table:         usersTableRoute(path + "/table"),
+		goldrURLPath:  goldrURLPath{path: path, pattern: "/users"},
+		Create:        usersCreateRoute(goldrURLPath{path: path + "/create", pattern: "/users/create"}),
+		SavePreview:   usersSavePreviewRoute(goldrURLPath{path: path + "/save-preview", pattern: "/users/save-preview"}),
+		StatusOptions: usersStatusOptionsRoute(goldrURLPath{path: path + "/status-options", pattern: "/users/status-options"}),
+		Table:         usersTableRoute(goldrURLPath{path: path + "/table", pattern: "/users/table"}),
+		ByID:          newUsersByIDRouteNode(path),
 	}
 }
 
 func newUsersByIDRoute(basePath string, id string) usersByIDRoute {
 	path := basePath + "/" + id
 	return usersByIDRoute{
-		goldrURLPath: goldrURLPath(path),
+		goldrURLPath: goldrURLPath{path: path, pattern: "/users/{id}", params: []string{"id"}},
 		id:           id,
 	}
 }
 
-func (r usersRoute) ByID(id string) usersByIDRoute {
+func newUsersByIDRouteNode(basePath string) usersByIDRouteNode {
+	return usersByIDRouteNode{
+		basePath: basePath,
+	}
+}
+
+func (r usersByIDRouteNode) Bind(id string) usersByIDRoute {
 	escapedID := url.PathEscape(id)
-	return newUsersByIDRoute(string(r.goldrURLPath), escapedID)
+	return newUsersByIDRoute(r.basePath, escapedID)
+}
+
+func (r usersByIDRouteNode) GoldrRoutePattern() string {
+	return "/users/{id}"
+}
+
+func (r usersByIDRouteNode) GoldrRouteParams() []string {
+	return []string{"id"}
 }
 
 func normalizeBasePath(basePath string) string {

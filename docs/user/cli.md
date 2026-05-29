@@ -300,9 +300,10 @@ go tool goldr routes list --mount reports --json
 JSON rows include `kind`, `methods`, `path`, `params`, `source`, and `helper`.
 Mounted selection rows include `status` when selection status is present.
 Declaration-backed endpoint rows also include a `declaration` object with
-`source`, `kind`, `name`, `title`, sorted `labels`, and the page, fragment, or
-action implementation evidence Goldr parsed from `route.go`. Mounted route
-declarations include a `mount` object with the mount path and live owner.
+`source`, `kind`, `name`, `title`, sorted `labels`, optional `nav_trails`,
+optional `destinations`, and the page, fragment, or action implementation
+evidence Goldr parsed from `route.go`. Mounted route declarations include a
+`mount` object with the mount path and live owner.
 Fragment and
 action declaration evidence includes `index` when the endpoint uses the route
 directory path itself. Kit declarations also include static kit type and
@@ -347,6 +348,11 @@ For routes declared in `route.go`, matched output also shows `DECLARATION` and
 `IMPLEMENTATION` sections with the static declaration metadata and generated
 adapter evidence. These sections are read-only inspection output; they do not
 execute handlers or change route matching.
+
+When a matched declaration has allowed navigation trail keys, `routes explain`
+prints a `trails` row. When it declares destinations, it also prints a
+`DESTINATIONS` section with the destination name, generated helper path, target
+route helper, and selected nav trail key when present.
 
 If a path exists but the method is wrong, the command exits non-zero and prints
 the allowed methods. If no generated route matches the path, it exits non-zero

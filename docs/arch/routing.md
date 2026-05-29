@@ -196,6 +196,64 @@ package name differs from the final import path segment, the application must
 use an explicit import alias in `route.go` so the generated adapter can import
 the same selector name.
 
+## Navigation Trail Keys
+
+Route declarations may allow app-owned navigation trail keys:
+
+```go
+var Route = goldr.RouteDef{
+	Page: Page,
+	NavTrails: goldr.NavTrails{
+		Allowed: []string{"provider-search", "attention-center"},
+	},
+}
+```
+
+The declaration parser accepts only literal
+`goldr.NavTrails{Allowed: []string{...}}` values. Keys must be lowercase ASCII
+trail keys such as `provider-search`. Duplicate keys, non-literal entries,
+invalid syntax, and generated Go field-name collisions are scan errors.
+
+`NavTrails` is valid on live `goldr.RouteDef` and live
+`goldr.KitRouteDef[K]` declarations under `app/routes`. Mounted source
+`KitRouteDef[K]` declarations under `app/mounts` cannot declare navigation
+trail keys because the live owner route decides which contextual trails are
+valid after mount expansion. `goldr.KitRouteMount[K]` has no top-level
+`NavTrails` field; owner-specific mounted child keys live on structured
+`MountRoute.NavTrails` entries inside `KitRouteMount.Routes`.
+
+Manifest and runtime route data carry the allowed keys for each generated page,
+fragment, and action endpoint. Generated dispatch reads `_goldr_trail` after a
+route has matched and before the endpoint handler or middleware stack runs. If
+the value is allowed for that matched route, dispatch stores it on the request
+context with `goldr.WithNavTrailKey`; otherwise it is ignored without logging.
+Application code reads the validated value with `goldr.NavTrailKey(r)` and
+falls back to the default trail when it returns `""`. For one-off checks,
+`goldr.NavTrailSelected(r, key)` compares a non-empty expected key with the
+validated request key.
+
+Generated `app/urls` route nodes expose route-scoped `NavTrails` fields only
+when the route has allowed keys. Constants are generated as fields on the
+target route helper, not as global package constants. Unbound route-reference
+nodes under dynamic routes also expose those fields so handler code can compare
+against `urls.Users.ByID.Report.NavTrails.AttentionCenter` without binding path
+values.
+
+Destination declarations are parsed from literal `goldr.Destinations` maps on
+`RouteDef`, `KitRouteDef`, and `KitRouteMount`. Values must use
+`goldr.To(generatedRouteNode)` and may call `.NavTrail("key")` with a string
+literal. URL helper generation resolves each target against the live generated
+route graph and rejects unknown targets, destination helper-name collisions,
+and selected trail keys not allowed by the target route. Generated destination
+helpers expose `Href()` and `HrefWithQuery(url.Values)`, bind target params
+with `Bind(...)`, append `_goldr_trail` only for destination-selected trails,
+ignore app-supplied `_goldr_trail` values, and preserve clean `Path()` output
+on normal route helpers. App workflow state stays in app-owned query
+parameters; destination declarations do not declare static query strings.
+`goldr.QueryValues(r, keys...)` copies named app-owned query keys from the
+current request into fresh `url.Values` for `HrefWithQuery` call sites and
+always excludes `_goldr_trail`.
+
 ## Mounted Kit Route Subtrees
 
 `KitRouteMount[K]` lets a live route owner mount a non-live Kit route subtree
@@ -206,8 +264,8 @@ var Route = goldr.KitRouteMount[reports.Kit]{
 	New:   newReportKit,
 	Mount: "reports",
 	Routes: goldr.MountRoutes{
-		"/",
-		"/audit",
+		{Path: "/"},
+		{Path: "/audit"},
 	},
 }
 ```
@@ -223,7 +281,8 @@ var Route = goldr.KitRouteDef[reports.Kit]{
 Live `KitRouteDef[K]` declarations under `app/routes` require `New`.
 Mounted `KitRouteDef[K]` declarations under `app/mounts` must omit `New`
 because the `KitRouteMount[K]` owner supplies the request-scoped kit
-constructor.
+constructor. They must also omit `NavTrails` and `Destinations`; live owners
+declare owner-specific navigation metadata and destination edges.
 
 Mount expansion happens after the live route tree scan. The mount path must be
 a clean relative slash path under `app/mounts`, and each component must be a
@@ -236,10 +295,12 @@ and URL helper generation.
 
 `KitRouteMount.Routes` is an optional explicit allowlist at the live owner.
 When omitted, every mounted route declaration is included for that owner. When
-present, entries are mount-relative browser route patterns such as `/`,
-`/audit`, or `/{id}`. Missing, duplicate, or malformed entries are scan
-problems. Excluded mounted children are not added to dispatch, live URL
-helpers, route inventory, or middleware composition for that owner.
+present, entries are structured `goldr.MountRoute` values with mount-relative
+browser route patterns such as `/`, `/audit`, or `/{id}`. Missing, duplicate,
+or malformed entries are scan problems. Excluded mounted children are not added
+to dispatch, live URL helpers, route inventory, or middleware composition for
+that owner. `MountRoute.NavTrails` metadata is copied only onto the included
+live mounted child selected by that owner.
 
 Mounted middleware is rejected. Middleware remains owned by the live
 `app/routes` tree. Mounted layouts are allowed and are rebased under the mount
@@ -249,6 +310,14 @@ final prefix is ordered outside the mounted layout.
 Mounted route subtrees may contain cohesive shared implementation that is not
 exposed by every owner. The live `app/routes` owner remains the source of truth
 for which subset is public.
+
+Generated mount-relative helpers under `app/mounts/<mount>/goldr_gen.go` stay
+path helpers. They do not expose owner-specific trail constants or destination
+state. Shared mounted code receives owner-specific navigation behavior through
+the kit value `K`, usually as a trail base and URL callbacks. When a shared kit
+needs app query state, the kit-owned callback shape should accept explicit
+`url.Values`; the mounted implementation chooses the keys and the live owner
+composes the destination-aware href.
 
 ## Determinism
 
@@ -484,6 +553,8 @@ Generated metadata includes:
 - fragment segments, route prefixes, params, Go files, and templ files
 - action methods, routes, params, Go files, functions, suffixes, and URL
   segments
+- route-local allowed navigation trail keys for page, fragment, and action
+  endpoints
 
 Generated metadata omits the route root so output does not depend on local
 machine paths.
@@ -533,23 +604,23 @@ urls.Root.Path()
 urls.Users.Path()
 urls.Users.Create.Path()
 urls.Users.Table.Path()
-urls.BySlug(slug).Path()
-urls.Users.ByID(id).Path()
-urls.Users.ByID(id).Profile.Path()
+urls.BySlug.Bind(slug).Path()
+urls.Users.ByID.Bind(id).Path()
+urls.Users.ByID.Bind(id).Profile.Path()
 ```
 
 Static child segments are exported fields. Dynamic child segments are exported
-methods such as `ByID(id string)` because they need path param values. Dynamic
-params are escaped with `url.PathEscape` when the dynamic method is called, and
-the escaped values are stored on the returned route node.
+route nodes with `.Bind(value)` methods. Dynamic params are escaped with
+`url.PathEscape` when `.Bind(value)` is called, and the escaped values are
+stored on the returned bound route node.
 
 Generated runtime dispatch matches `r.URL.EscapedPath()` so escaped dynamic
 segment values are not split as extra path segments. Captured params are
 decoded with `url.PathUnescape` before generated dispatch attaches them with
 `r.SetPathValue`.
 
-Root-level dynamic segments have no parent route node, so they are emitted as
-package functions such as `BySlug(slug string)`.
+Root-level dynamic segments are emitted as package route nodes, so callers use
+the same `urls.BySlug.Bind(slug).Path()` shape as nested dynamic routes.
 
 Generated URL helpers also expose `WithBasePath(basePath string)` for
 applications mounted below a URL prefix. It returns an exported `MountedRoutes`
@@ -557,8 +628,8 @@ route set with the same top-level helper surface as the package globals:
 
 ```go
 mounted := urls.WithBasePath("/webapp")
-mounted.Users.ByID(id).Path()
-mounted.BySlug(slug).Path()
+mounted.Users.ByID.Bind(id).Path()
+mounted.BySlug.Bind(slug).Path()
 ```
 
 The generated helper normalizes `""` and `"/"` to no prefix, adds a missing

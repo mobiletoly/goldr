@@ -21,6 +21,8 @@ Then use the references:
 - [Routes](routes.md) - filesystem conventions and runtime behavior.
 - [Mounted Kit Route Subtrees](mounted-routes.md) - reusable non-live
   `app/mounts` route surfaces mounted by real `app/routes` owners.
+- [Navigation Trails](navigation.md) - app-owned contextual trails,
+  breadcrumb-style rendering, and app-level Back links.
 - [HTMX](htmx.md) - visible `hx-*` attributes and response headers.
 - [Forms](forms.md) - form parsing, validation errors, and redisplay.
 - [Error Handling](error-handling.md) - route errors, custom generated error

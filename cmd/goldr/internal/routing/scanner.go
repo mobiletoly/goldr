@@ -102,6 +102,7 @@ type MountRouteSelection struct {
 	Source    string
 	Route     string
 	Params    []string
+	NavTrails []string
 	Included  bool
 }
 
@@ -313,6 +314,12 @@ func (scanner *scanner) validateRouteDeclaration(relPath string, route RouteDecl
 			if route.Kit != nil && route.Kit.New != "" {
 				scanner.addProblem(relPath, "KitRouteDef.New is not supported under app/mounts; the KitRouteMount owner supplies New")
 			}
+			if len(route.NavTrails) > 0 {
+				scanner.addProblem(relPath, "KitRouteDef.NavTrails is not supported under app/mounts; live mounted routes declare allowed navigation trails")
+			}
+			if len(route.Destinations) > 0 {
+				scanner.addProblem(relPath, "KitRouteDef.Destinations is not supported under app/mounts; live mounted route owners declare destinations")
+			}
 		case routeDeclarationKindLocal:
 			scanner.addProblem(relPath, "mounted route files must use goldr.KitRouteDef[K]")
 		case routeDeclarationKindKitMount:
@@ -487,14 +494,14 @@ func (expander *mountExpander) recordMountSourceRoutes(mountPath string, routes 
 }
 
 func (expander *mountExpander) selectedMountRoutes(owner RouteDeclaration, mountPath string, routes []RouteDeclaration) ([]RouteDeclaration, bool) {
-	selected := make(map[string]bool, len(routes))
+	selected := make(map[string]MountRouteDeclaration, len(routes))
 	if owner.Mount != nil && owner.Mount.RoutesSet {
 		for _, route := range owner.Mount.Routes {
-			if selected[route] {
-				expander.addProblem(owner.GoFile, "KitRouteMount.Routes contains duplicate route pattern: "+route)
+			if _, ok := selected[route.Path]; ok {
+				expander.addProblem(owner.GoFile, "KitRouteMount.Routes contains duplicate route pattern: "+route.Path)
 				continue
 			}
-			selected[route] = true
+			selected[route.Path] = route
 		}
 		for route := range selected {
 			if !slices.ContainsFunc(routes, func(candidate RouteDeclaration) bool {
@@ -510,16 +517,19 @@ func (expander *mountExpander) selectedMountRoutes(owner RouteDeclaration, mount
 
 	result := make([]RouteDeclaration, 0, len(routes))
 	for _, route := range routes {
-		included := owner.Mount == nil || !owner.Mount.RoutesSet || selected[route.Route]
+		selectedRoute, selectedRouteOK := selected[route.Route]
+		included := owner.Mount == nil || !owner.Mount.RoutesSet || selectedRouteOK
 		expander.tree.MountRoutes = append(expander.tree.MountRoutes, MountRouteSelection{
 			MountPath: mountPath,
 			Owner:     owner.GoFile,
 			Source:    prefixedMountPath(mountPath, route.GoFile),
 			Route:     joinRoute(owner.Route, route.Route),
 			Params:    append(slices.Clone(owner.Params), route.Params...),
+			NavTrails: slices.Clone(selectedRoute.NavTrails),
 			Included:  included,
 		})
 		if included {
+			route.NavTrails = slices.Clone(selectedRoute.NavTrails)
 			result = append(result, route)
 		}
 	}
@@ -574,6 +584,10 @@ func (expander *mountExpander) rebaseRoute(owner RouteDeclaration, mountPath str
 	rebased.Imports = slices.Clone(route.Imports)
 	rebased.Kind = routeDeclarationKindKitMount
 	rebased.Kit = cloneRouteKitDeclaration(owner.Kit)
+	rebased.Destinations = cloneRouteDestinations(route.Destinations)
+	if route.Route == "/" && len(owner.Destinations) > 0 {
+		rebased.Destinations = cloneRouteDestinations(owner.Destinations)
+	}
 	rebased.Mount = &RouteMountDeclaration{
 		Path:            mountPath,
 		Owner:           owner.GoFile,

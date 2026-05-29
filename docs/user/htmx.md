@@ -39,6 +39,33 @@ templ DirectoryView() {
 URL helpers remove hard-coded paths. HTMX still owns the interaction through
 visible attributes such as `hx-get`, `hx-post`, `hx-target`, and `hx-swap`.
 
+When a link intentionally selects a navigation trail, build the destination
+href once and reuse it for both `href` and `hx-get`:
+
+```templ
+templ CustomerLink(href string, label string) {
+	<a
+		href={ href }
+		hx-get={ href }
+		hx-target="body"
+		hx-push-url="true"
+	>
+		{ label }
+	</a>
+}
+```
+
+The `href` should come from a generated destination helper such as:
+
+```go
+href := urls.Regional.Analytics.Destinations.CustomerReport.
+	Bind(customer.ID).
+	Href()
+```
+
+Do not hide HTMX behind a Goldr navigation component. Goldr only generates the
+URL; the template keeps the HTMX attributes visible.
+
 When a control refreshes a fragment, prefer a page-owned slot as the HTMX
 replacement boundary and put `hx-target` / `hx-swap` on the triggering element.
 The slot uses `innerHTML`; the fragment root remains inside the slot for
@@ -51,7 +78,7 @@ stable page-owned slot for those interactions instead of appending directly to
 
 ```templ
 <button
-	hx-get={ urls.Tenants.ByID(id).WebhookSettings.Edit.Path() }
+	hx-get={ urls.Tenants.ByID.Bind(id).WebhookSettings.Edit.Path() }
 	hx-target="#webhook-settings-dialog-slot"
 	hx-swap="innerHTML"
 >

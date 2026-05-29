@@ -317,6 +317,63 @@ func TestHandlerHeadAndErrors(t *testing.T) {
 	runGoTest(t, tempDir)
 }
 
+func TestGenerateManifestDispatchValidatesNavTrailKey(t *testing.T) {
+	tempDir := tempGoldrModule(t)
+	manifest := routing.Manifest{
+		Pages: []routing.ManifestPage{
+			{
+				Route:     "/",
+				NavTrails: []string{"provider-search", "attention-center"},
+				Unit:      completeUnit("page.go"),
+			},
+		},
+	}
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
+	writeTempFile(t, tempDir, "routes/page.go", `package routes
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func Page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: goldr.NavTrailKey(r)}
+}
+`)
+	writeTempFile(t, tempDir, "routes/nav_trail_test.go", `package routes
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestNavTrailKey(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"/?_goldr_trail=provider-search", "provider-search"},
+		{"/?_goldr_trail=missing", ""},
+		{"/", ""},
+	}
+	for _, test := range tests {
+		recorder := httptest.NewRecorder()
+		Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, test.path, nil))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d", test.path, recorder.Code, http.StatusOK)
+		}
+		if recorder.Body.String() != test.want {
+			t.Fatalf("%s body = %q, want %q", test.path, recorder.Body.String(), test.want)
+		}
+	}
+}
+`)
+
+	runGoTest(t, tempDir)
+}
+
 func TestGenerateManifestDeclarationRoutesDispatch(t *testing.T) {
 	tempDir := tempGoldrModule(t)
 	manifest := routing.Manifest{

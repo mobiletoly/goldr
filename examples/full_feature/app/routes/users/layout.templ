@@ -8,7 +8,7 @@ templ LayoutView(child templ.Component) {
 			<p>people section shell</p>
 			<nav aria-label="Users">
 				<a href={ urls.Users.Path() }>Directory</a>
-				<a href={ urls.Users.ByID("42").Path() }>Featured user</a>
+				<a href={ urls.Users.ByID.Bind("42").Path() }>Featured user</a>
 			</nav>
 		</header>
 		<aside>

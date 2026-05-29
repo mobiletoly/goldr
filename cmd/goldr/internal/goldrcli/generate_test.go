@@ -45,7 +45,7 @@ func TestRunGenerateWritesGeneratedFiles(t *testing.T) {
 	if !strings.Contains(urlsSource, `package urls`) {
 		t.Fatalf("%s = %q, want package urls", urlsFile, urlsSource)
 	}
-	if !strings.Contains(urlsSource, `var Settings = settingsRoute("/settings")`) {
+	if !strings.Contains(urlsSource, `var Settings = settingsRoute(goldrURLPath{path: "/settings", pattern: "/settings"})`) {
 		t.Fatalf("%s = %q, want settings helper", urlsFile, urlsSource)
 	}
 	if !strings.Contains(urlsSource, `func WithBasePath(basePath string) MountedRoutes`) {

@@ -37,11 +37,11 @@ func TestRouteSurfaceRows(t *testing.T) {
 		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/", Source: "page.go", Helper: "urls.Root.Path()"},
 		{Kind: "action", Methods: []string{"POST"}, Path: "/users/create", Source: "users/actions.go:PostCreate", Helper: "urls.Users.Create.Path()"},
 		{Kind: "fragment", Methods: []string{"GET", "HEAD"}, Path: "/users/table", Source: "users/frag_table.go", Helper: "urls.Users.Table.Path()"},
-		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/orgs/{org_id}/users/{user_id}", Params: []string{"org_id", "user_id"}, Source: "orgs/by_org_id/users/by_user_id/page.go", Helper: "urls.Orgs.ByOrgID(orgID).Users.ByUserID(userID).Path()"},
+		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/orgs/{org_id}/users/{user_id}", Params: []string{"org_id", "user_id"}, Source: "orgs/by_org_id/users/by_user_id/page.go", Helper: "urls.Orgs.ByOrgID.Bind(orgID).Users.ByUserID.Bind(userID).Path()"},
 		{Kind: "layout", Path: "/users", Source: "users/layout.go"},
 		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/users", Source: "users/page.go", Helper: "urls.Users.Path()"},
-		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/users/{id}", Params: []string{"id"}, Source: "users/by_id/page.go", Helper: "urls.Users.ByID(id).Path()"},
-		{Kind: "action", Methods: []string{"PATCH"}, Path: "/users/{id}", Params: []string{"id"}, Source: "users/by_id/actions.go:PatchIndex", Helper: "urls.Users.ByID(id).Path()"},
+		{Kind: "page", Methods: []string{"GET", "HEAD"}, Path: "/users/{id}", Params: []string{"id"}, Source: "users/by_id/page.go", Helper: "urls.Users.ByID.Bind(id).Path()"},
+		{Kind: "action", Methods: []string{"PATCH"}, Path: "/users/{id}", Params: []string{"id"}, Source: "users/by_id/actions.go:PatchIndex", Helper: "urls.Users.ByID.Bind(id).Path()"},
 	}
 	if !reflect.DeepEqual(rows, want) {
 		t.Fatalf("rows = %#v, want %#v", rows, want)

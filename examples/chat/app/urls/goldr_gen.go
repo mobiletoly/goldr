@@ -4,12 +4,24 @@ package urls
 
 var Root = newRootRoute("")
 var Chat = newChatRoute("")
-var Join = joinRoute("/join")
+var Join = joinRoute(goldrURLPath{path: "/join", pattern: "/join"})
 
-type goldrURLPath string
+type goldrURLPath struct {
+	path    string
+	pattern string
+	params  []string
+}
 
 func (p goldrURLPath) Path() string {
-	return string(p)
+	return p.path
+}
+
+func (p goldrURLPath) GoldrRoutePattern() string {
+	return p.pattern
+}
+
+func (p goldrURLPath) GoldrRouteParams() []string {
+	return append([]string(nil), p.params...)
 }
 
 type MountedRoutes struct {
@@ -25,7 +37,7 @@ func WithBasePath(basePath string) MountedRoutes {
 		basePath: normalizedBasePath,
 		Root:     newRootRoute(normalizedBasePath),
 		Chat:     newChatRoute(normalizedBasePath),
-		Join:     joinRoute(normalizedBasePath + "/join"),
+		Join:     joinRoute(goldrURLPath{path: normalizedBasePath + "/join", pattern: "/join"}),
 	}
 }
 
@@ -48,16 +60,16 @@ type joinRoute = goldrURLPath
 func newRootRoute(basePath string) rootRoute {
 	path := basePath + "/"
 	return rootRoute{
-		goldrURLPath: goldrURLPath(path),
+		goldrURLPath: goldrURLPath{path: path, pattern: "/"},
 	}
 }
 
 func newChatRoute(basePath string) chatRoute {
 	path := basePath + "/chat"
 	return chatRoute{
-		goldrURLPath: goldrURLPath(path),
-		Message:      chatMessageRoute(path + "/message"),
-		SignOut:      chatSignOutRoute(path + "/sign-out"),
+		goldrURLPath: goldrURLPath{path: path, pattern: "/chat"},
+		Message:      chatMessageRoute(goldrURLPath{path: path + "/message", pattern: "/chat/message"}),
+		SignOut:      chatSignOutRoute(goldrURLPath{path: path + "/sign-out", pattern: "/chat/sign-out"}),
 	}
 }
 

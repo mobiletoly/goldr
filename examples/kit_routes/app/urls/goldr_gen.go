@@ -6,10 +6,22 @@ var Root = newRootRoute("")
 var Admin = newAdminRoute("")
 var User = newUserRoute("")
 
-type goldrURLPath string
+type goldrURLPath struct {
+	path    string
+	pattern string
+	params  []string
+}
 
 func (p goldrURLPath) Path() string {
-	return string(p)
+	return p.path
+}
+
+func (p goldrURLPath) GoldrRoutePattern() string {
+	return p.pattern
+}
+
+func (p goldrURLPath) GoldrRouteParams() []string {
+	return append([]string(nil), p.params...)
 }
 
 type MountedRoutes struct {
@@ -63,7 +75,7 @@ type userReportsTableRoute = goldrURLPath
 func newRootRoute(basePath string) rootRoute {
 	path := basePath + "/"
 	return rootRoute{
-		goldrURLPath: goldrURLPath(path),
+		goldrURLPath: goldrURLPath{path: path, pattern: "/"},
 	}
 }
 
@@ -78,9 +90,9 @@ func newAdminRoute(basePath string) adminRoute {
 func newAdminReportsRoute(basePath string) adminReportsRoute {
 	path := basePath + "/reports"
 	return adminReportsRoute{
-		goldrURLPath: goldrURLPath(path),
-		Audit:        adminReportsAuditRoute(path + "/audit"),
-		Table:        adminReportsTableRoute(path + "/table"),
+		goldrURLPath: goldrURLPath{path: path, pattern: "/admin/reports"},
+		Audit:        adminReportsAuditRoute(goldrURLPath{path: path + "/audit", pattern: "/admin/reports/audit"}),
+		Table:        adminReportsTableRoute(goldrURLPath{path: path + "/table", pattern: "/admin/reports/table"}),
 	}
 }
 
@@ -95,9 +107,25 @@ func newUserRoute(basePath string) userRoute {
 func newUserReportsRoute(basePath string) userReportsRoute {
 	path := basePath + "/reports"
 	return userReportsRoute{
-		goldrURLPath: goldrURLPath(path),
-		Table:        userReportsTableRoute(path + "/table"),
+		goldrURLPath: goldrURLPath{path: path, pattern: "/user/reports"},
+		Table:        userReportsTableRoute(goldrURLPath{path: path + "/table", pattern: "/user/reports/table"}),
 	}
+}
+
+func (r adminRoute) GoldrRoutePattern() string {
+	return "/admin"
+}
+
+func (r adminRoute) GoldrRouteParams() []string {
+	return nil
+}
+
+func (r userRoute) GoldrRoutePattern() string {
+	return "/user"
+}
+
+func (r userRoute) GoldrRouteParams() []string {
+	return nil
 }
 
 func normalizeBasePath(basePath string) string {

@@ -151,8 +151,8 @@ var Route = goldr.KitRouteMount[reports.Kit]{
 	New:   newReportKit,
 	Mount: "reports",
 	Routes: goldr.MountRoutes{
-		"/",
-		"/audit",
+		{Path: "/"},
+		{Path: "/audit"},
 	},
 }
 ```
@@ -169,12 +169,30 @@ type is `func(*http.Request) K`.
 
 `KitRouteMount.Routes` is optional. Omit it to expose the full mounted
 subtree. Set it to a `goldr.MountRoutes` allowlist when one live owner should
-expose only part of the mounted subtree. Entries are mount-relative browser
-route patterns such as `/`, `/audit`, or `/{id}`. Excluded children are not
-routable for that owner and do not receive live URL helpers. If a child is
-selected without `/`, the live owner still gets a mount-base `Path()` helper so
-mounted helpers can be bound from the owner route. That helper does not make the
-mount root dispatchable.
+expose only part of the mounted subtree. Entries are structured
+`goldr.MountRoute` values with mount-relative browser route patterns such as
+`/`, `/audit`, or `/{id}`. Excluded children are not routable for that owner
+and do not receive live URL helpers. If a child is selected without `/`, the
+live owner still gets a mount-base `Path()` helper so mounted helpers can be
+bound from the owner route. That helper does not make the mount root
+dispatchable.
+
+Mounted owners may attach owner-specific navigation trail metadata to selected
+children:
+
+```go
+Routes: goldr.MountRoutes{
+	{
+		Path: "/customers/{customer_id}/report",
+		NavTrails: goldr.NavTrails{
+			Allowed: []string{"team-analytics"},
+		},
+	},
+}
+```
+
+See [Navigation Trails And Destinations](navigation.md) for destination
+`Href()`, route-scoped `NavTrails` constants, and mounted owner trail patterns.
 
 ```go
 var Route = goldr.KitRouteDef[reports.Kit]{
@@ -608,8 +626,8 @@ urls.Root.Path()
 urls.Users.Path()
 urls.Users.Create.Path()
 urls.Users.Table.Path()
-urls.Users.ByID(id).Path()
-urls.Users.ByID(id).Profile.Path()
+urls.Users.ByID.Bind(id).Path()
+urls.Users.ByID.Bind(id).Profile.Path()
 ```
 
 Pages, fragments, and actions contribute helper paths. Same-path routes with
@@ -617,17 +635,17 @@ different HTTP methods share one helper. The method stays visible at the call
 site:
 
 ```templ
-<a href={ urls.Users.ByID(contact.ID).Path() }>{ contact.Name }</a>
+<a href={ urls.Users.ByID.Bind(contact.ID).Path() }>{ contact.Name }</a>
 <button hx-get={ urls.Users.Table.Path() } hx-target="#users-table-slot" hx-swap="innerHTML">
 <select hx-get={ urls.Users.StatusOptions.Path() } hx-target="#status-options" hx-swap="innerHTML">
 <form method="post" hx-post={ urls.Users.Create.Path() }>
 ```
 
-Dynamic params are explicit string arguments. Helpers escape each dynamic
-segment with `url.PathEscape`:
+Dynamic params are bound at the dynamic route node. Helpers escape each dynamic
+segment with `url.PathEscape` when `.Bind(value)` is called:
 
 ```go
-urls.Users.ByID("a/b").Path() // /users/a%2Fb
+urls.Users.ByID.Bind("a/b").Path() // /users/a%2Fb
 ```
 
 When the generated handler is mounted below a URL prefix, bind the generated
@@ -635,7 +653,7 @@ helpers once instead of writing route-specific string helpers:
 
 ```go
 appURLs := urls.WithBasePath("/webapp")
-appURLs.Users.ByID(id).Path() // /webapp/users/{id}
+appURLs.Users.ByID.Bind("42").Path() // /webapp/users/42
 ```
 
 `WithBasePath` returns `urls.MountedRoutes`, so applications can pass the

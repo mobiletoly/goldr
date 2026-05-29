@@ -16,7 +16,7 @@ templ FragTableView(contacts []Contact) {
 			<tbody>
 				for _, contact := range contacts {
 					<tr>
-						<td><a href={ urls.Users.ByID(contact.ID).Path() }>{ contact.Name }</a></td>
+						<td><a href={ urls.Users.ByID.Bind(contact.ID).Path() }>{ contact.Name }</a></td>
 						<td>{ contact.Status }</td>
 						if contact.AvatarFilename != "" {
 							<td>{ contact.AvatarFilename }</td>

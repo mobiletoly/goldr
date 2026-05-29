@@ -76,6 +76,8 @@ Load only the references needed for the current request:
   `references/project-setup.md`.
 - For route trees, pages, layouts, params, URL helpers, generated handlers, or
   custom error hooks: read `references/routes.md`.
+- For navigation trails, breadcrumb-style rendering, or app-level Back links:
+  read `references/navigation.md`.
 - For shared page, fragment, or action implementations mounted by multiple
   filesystem-owned routes: read `references/shared-kit-routes.md`.
 - For fragments, visible HTMX attributes, action responses, `hx` headers, or

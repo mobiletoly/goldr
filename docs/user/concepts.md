@@ -174,7 +174,7 @@ routes.Handler()
 `app/urls/goldr_gen.go` provides route-shaped URL helpers:
 
 ```go
-urls.Users.ByID(id).Path()
+urls.Users.ByID.Bind(id).Path()
 urls.Users.Create.Path()
 urls.Users.Table.Path()
 ```

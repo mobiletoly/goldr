@@ -181,7 +181,7 @@ var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	New: newKit,
 	Mount: "reports",
 	Routes: goldr.MountRoutes{
-		"/",
+		{Path: "/"},
 	},
 }
 

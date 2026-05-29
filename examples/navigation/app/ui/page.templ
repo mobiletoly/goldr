@@ -1,0 +1,38 @@
+package ui
+
+import "github.com/mobiletoly/goldr"
+
+templ Page(title string, trail goldr.NavTrail, links []Link, body string) {
+	<!doctype html>
+	<html>
+		<body>
+			<nav aria-label="Breadcrumb">
+				<ol>
+					for _, step := range trail {
+						<li>
+							if step.Current {
+								<span aria-current="page">{ step.Label }</span>
+							} else {
+								<a href={ step.Href }>{ step.Label }</a>
+							}
+						</li>
+					}
+				</ol>
+			</nav>
+			if back, ok := goldr.BackHref(trail); ok {
+				<a class="back" href={ back }>Back</a>
+			}
+			<main>
+				<h1>{ title }</h1>
+				<p>{ body }</p>
+				<ul>
+					for _, link := range links {
+						<li>
+							<a href={ link.Href }>{ link.Label }</a>
+						</li>
+					}
+				</ul>
+			</main>
+		</body>
+	</html>
+}

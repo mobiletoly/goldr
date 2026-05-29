@@ -121,7 +121,7 @@ page-owned slot over `hx-target="body"` with `hx-swap="beforeend"`:
 
 ```templ
 <button
-	hx-get={ urls.Tenants.ByID(id).WebhookSettings.Edit.Path() }
+	hx-get={ urls.Tenants.ByID.Bind(id).WebhookSettings.Edit.Path() }
 	hx-target="#webhook-settings-dialog-slot"
 	hx-swap="innerHTML"
 >

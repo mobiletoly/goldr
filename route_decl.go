@@ -7,39 +7,78 @@ import "net/http"
 
 // RouteDef declares a route surface backed by local function handlers.
 type RouteDef struct {
-	Name      string
-	Title     string
-	Page      PageHandler
-	Fragments Fragments
-	Actions   Actions
-	Meta      RouteMeta
+	Name         string
+	Title        string
+	Page         PageHandler
+	Fragments    Fragments
+	Actions      Actions
+	NavTrails    NavTrails
+	Destinations Destinations
+	Meta         RouteMeta
 }
 
 // KitRouteDef declares a route surface backed by a shared kit implementation.
 // Live routes under app/routes must declare New. Mounted route surfaces under
 // app/mounts omit New because their KitRouteMount owner supplies it.
 type KitRouteDef[K any] struct {
-	Name      string
-	Title     string
-	New       func(*http.Request) K
-	Page      KitPageHandler[K]
-	Fragments KitFragments[K]
-	Actions   KitActions[K]
-	Meta      RouteMeta
+	Name         string
+	Title        string
+	New          func(*http.Request) K
+	Page         KitPageHandler[K]
+	Fragments    KitFragments[K]
+	Actions      KitActions[K]
+	NavTrails    NavTrails
+	Destinations Destinations
+	Meta         RouteMeta
 }
 
 // KitRouteMount declares a live route owner that mounts a shared kit route
 // surface from app/mounts. Mount is a clean relative slash path under
 // app/mounts using lowercase Go-safe route directory names.
 type KitRouteMount[K any] struct {
-	New    func(*http.Request) K
-	Mount  string
-	Routes MountRoutes
+	New          func(*http.Request) K
+	Mount        string
+	Routes       MountRoutes
+	Destinations Destinations
 }
 
 // MountRoutes declares the mount-relative route declarations exposed by one
 // KitRouteMount owner. Omit Routes to expose the full mounted subtree.
-type MountRoutes []string
+type MountRoutes []MountRoute
+
+// MountRoute declares one mount-relative route exposed by a KitRouteMount
+// owner.
+type MountRoute struct {
+	Path      string
+	NavTrails NavTrails
+}
+
+// RouteTarget is implemented by generated route nodes that identify a live
+// Goldr route.
+type RouteTarget interface {
+	GoldrRoutePattern() string
+	GoldrRouteParams() []string
+}
+
+// Destinations declares route-owned navigation edges to generated routes.
+type Destinations map[string]Destination
+
+// Destination declares one route-owned navigation edge.
+type Destination struct {
+	target   RouteTarget
+	navTrail string
+}
+
+// To declares a destination that points at a generated route node.
+func To(target RouteTarget) Destination {
+	return Destination{target: target}
+}
+
+// NavTrail selects a target-route navigation trail key for the destination.
+func (destination Destination) NavTrail(key string) Destination {
+	destination.navTrail = key
+	return destination
+}
 
 // RouteMeta carries app-owned opaque route metadata.
 type RouteMeta struct {

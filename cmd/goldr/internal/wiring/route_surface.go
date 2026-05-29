@@ -34,21 +34,30 @@ type RouteSurfaceRow struct {
 }
 
 type RouteDeclarationInfo struct {
-	Source   string
-	Kind     string
-	Name     string
-	Title    string
-	Labels   []RouteDeclarationLabel
-	Mount    *RouteDeclarationMount
-	Kit      *RouteDeclarationKit
-	Page     *RouteDeclarationPage
-	Fragment *RouteDeclarationFragment
-	Action   *RouteDeclarationAction
+	Source       string
+	Kind         string
+	Name         string
+	Title        string
+	Labels       []RouteDeclarationLabel
+	NavTrails    []string
+	Destinations []RouteDeclarationDestination
+	Mount        *RouteDeclarationMount
+	Kit          *RouteDeclarationKit
+	Page         *RouteDeclarationPage
+	Fragment     *RouteDeclarationFragment
+	Action       *RouteDeclarationAction
 }
 
 type RouteDeclarationLabel struct {
 	Key   string
 	Value string
+}
+
+type RouteDeclarationDestination struct {
+	Name     string
+	Helper   string
+	Target   string
+	NavTrail string
 }
 
 type RouteDeclarationKit struct {
@@ -278,11 +287,13 @@ func routeDeclarationInfoForAction(route runtimeRoute, declaration routing.Manif
 
 func baseRouteDeclarationInfo(declaration routing.ManifestRouteDeclaration) *RouteDeclarationInfo {
 	info := &RouteDeclarationInfo{
-		Source: routeDeclarationSource(declaration),
-		Kind:   declaration.Kind,
-		Name:   declaration.Name,
-		Title:  declaration.Title,
-		Labels: routeDeclarationLabels(declaration.Meta),
+		Source:       routeDeclarationSource(declaration),
+		Kind:         declaration.Kind,
+		Name:         declaration.Name,
+		Title:        declaration.Title,
+		Labels:       routeDeclarationLabels(declaration.Meta),
+		NavTrails:    slices.Clone(declaration.NavTrails),
+		Destinations: routeDeclarationDestinations(declaration),
 	}
 	if declaration.Kit != nil {
 		info.Kit = &RouteDeclarationKit{
@@ -297,6 +308,33 @@ func baseRouteDeclarationInfo(declaration routing.ManifestRouteDeclaration) *Rou
 		}
 	}
 	return info
+}
+
+func routeDeclarationDestinations(declaration routing.ManifestRouteDeclaration) []RouteDeclarationDestination {
+	if len(declaration.Destinations) == 0 {
+		return nil
+	}
+	result := make([]RouteDeclarationDestination, len(declaration.Destinations))
+	for index, destination := range declaration.Destinations {
+		result[index] = RouteDeclarationDestination{
+			Name:     destination.Name,
+			Helper:   routeSurfaceDestinationHelper(declaration.Route, destination.SymbolName),
+			Target:   "urls." + strings.Join(destination.Target, "."),
+			NavTrail: destination.NavTrail,
+		}
+	}
+	slices.SortFunc(result, func(a, b RouteDeclarationDestination) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return result
+}
+
+func routeSurfaceDestinationHelper(route string, destination string) string {
+	helper := strings.TrimSuffix(routeSurfaceHelper(route), ".Path()")
+	if helper == "-" {
+		return "-"
+	}
+	return helper + ".Destinations." + destination
 }
 
 func routeDeclarationSource(declaration routing.ManifestRouteDeclaration) string {
@@ -340,7 +378,7 @@ func routeSurfaceHelper(route string) string {
 	for _, segment := range routeSegments(route) {
 		builder.WriteByte('.')
 		if paramName, ok := paramSegmentName(segment); ok {
-			fmt.Fprintf(&builder, "By%s(%s)", exportedSegmentName(paramName), unexportedIdentifier(paramName))
+			fmt.Fprintf(&builder, "By%s.Bind(%s)", exportedSegmentName(paramName), unexportedIdentifier(paramName))
 			continue
 		}
 		builder.WriteString(exportedSegmentName(segment))

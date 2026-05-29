@@ -109,9 +109,10 @@ func writeTypes(buffer *bytes.Buffer, needsRuntime bool) {
 }
 
 type goldrPage struct {
-	Route  string
-	Params []string
-	Unit   goldrRenderUnit
+	Route     string
+	Params    []string
+	NavTrails []string
+	Unit      goldrRenderUnit
 }
 
 type goldrLayout struct {
@@ -124,6 +125,7 @@ type goldrFragment struct {
 	Name        string
 	RoutePrefix string
 	Params      []string
+	NavTrails   []string
 	Unit        goldrRenderUnit
 	Index       bool
 }
@@ -132,6 +134,7 @@ type goldrAction struct {
 	Method       string
 	Route        string
 	Params       []string
+	NavTrails    []string
 	GoFile       string
 	SourceGoFile string
 	Function     string
@@ -175,6 +178,7 @@ func writeManifestValue(buffer *bytes.Buffer, manifest routing.Manifest) {
 		buffer.WriteString("\t\t{\n")
 		fmt.Fprintf(buffer, "\t\t\tRoute: %s,\n", strconv.Quote(page.Route))
 		writeParams(buffer, page.Params)
+		writeNavTrails(buffer, page.NavTrails)
 		writeRenderUnit(buffer, page.Unit)
 		buffer.WriteString("\t\t},\n")
 	}
@@ -196,6 +200,7 @@ func writeManifestValue(buffer *bytes.Buffer, manifest routing.Manifest) {
 		fmt.Fprintf(buffer, "\t\t\tName: %s,\n", strconv.Quote(fragment.Name))
 		fmt.Fprintf(buffer, "\t\t\tRoutePrefix: %s,\n", strconv.Quote(fragment.RoutePrefix))
 		writeParams(buffer, fragment.Params)
+		writeNavTrails(buffer, fragment.NavTrails)
 		writeRenderUnit(buffer, fragment.Unit)
 		if fragment.Index {
 			buffer.WriteString("\t\t\tIndex: true,\n")
@@ -210,6 +215,7 @@ func writeManifestValue(buffer *bytes.Buffer, manifest routing.Manifest) {
 		fmt.Fprintf(buffer, "\t\t\tMethod: %s,\n", strconv.Quote(action.Method))
 		fmt.Fprintf(buffer, "\t\t\tRoute: %s,\n", strconv.Quote(action.Route))
 		writeParams(buffer, action.Params)
+		writeNavTrails(buffer, action.NavTrails)
 		fmt.Fprintf(buffer, "\t\t\tGoFile: %s,\n", strconv.Quote(action.GoFile))
 		if action.SourceGoFile != "" {
 			fmt.Fprintf(buffer, "\t\t\tSourceGoFile: %s,\n", strconv.Quote(action.SourceGoFile))
@@ -245,6 +251,20 @@ func writeParams(buffer *bytes.Buffer, params []string) {
 			buffer.WriteString(", ")
 		}
 		buffer.WriteString(strconv.Quote(param))
+	}
+	buffer.WriteString("},\n")
+}
+
+func writeNavTrails(buffer *bytes.Buffer, keys []string) {
+	if len(keys) == 0 {
+		return
+	}
+	buffer.WriteString("\t\t\tNavTrails: []string{")
+	for index, key := range keys {
+		if index > 0 {
+			buffer.WriteString(", ")
+		}
+		buffer.WriteString(strconv.Quote(key))
 	}
 	buffer.WriteString("},\n")
 }

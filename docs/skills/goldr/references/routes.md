@@ -146,8 +146,8 @@ var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	New:   newReportKit,
 	Mount: "reports",
 	Routes: goldr.MountRoutes{
-		"/",
-		"/audit",
+		{Path: "/"},
+		{Path: "/audit"},
 	},
 }
 ```
@@ -167,10 +167,11 @@ Do not use an inline function literal there, even though the Go field type is
 
 Use `KitRouteMount.Routes` when a live owner exposes only part of a mounted
 subtree. Omit it to expose the full mounted subtree. Entries are
-mount-relative browser route patterns such as `/`, `/audit`, or `/{id}`.
-Excluded children are not live endpoints for that owner. If an owner selects a
-child without `/`, the owner still gets a mount-base `Path()` helper for
-binding `NewGoldrMountURLs`; the mount root still does not dispatch.
+structured `goldr.MountRoute` values with mount-relative browser route
+patterns such as `/`, `/audit`, or `/{id}`. Excluded children are not live
+endpoints for that owner. If an owner selects a child without `/`, the owner
+still gets a mount-base `Path()` helper for binding `NewGoldrMountURLs`; the
+mount root still does not dispatch.
 
 `RouteDef.Name`, `RouteDef.Title`, `KitRouteDef.Name`, `KitRouteDef.Title`,
 and `RouteMeta.Labels` are optional display metadata for route inspection.
@@ -371,17 +372,17 @@ urls.Root.Path()
 urls.Users.Path()
 urls.Users.Create.Path()
 urls.Users.Table.Path()
-urls.Users.ByID(id).Path()
+urls.Users.ByID.Bind(id).Path()
 ```
 
-Dynamic params are explicit string arguments and are path-escaped by helpers.
+Dynamic params are bound with `.Bind(value)` and path-escaped by helpers.
 Use helpers instead of hard-coded internal route paths when helpers exist.
 
 For apps mounted below a URL prefix, bind helpers once with the app base path:
 
 ```go
 appURLs := urls.WithBasePath(appDeps.BasePath)
-appURLs.Users.ByID(id).Path()
+appURLs.Users.ByID.Bind(id).Path()
 ```
 
 `WithBasePath` returns `urls.MountedRoutes`, so app-owned helpers may accept the

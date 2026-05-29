@@ -39,12 +39,13 @@ type runtimeAction struct {
 }
 
 type runtimeRoute struct {
-	route    string
-	params   []string
-	segments []string
-	page     *runtimePage
-	fragment *runtimeFragment
-	action   *runtimeAction
+	route     string
+	params    []string
+	navTrails []string
+	segments  []string
+	page      *runtimePage
+	fragment  *runtimeFragment
+	action    *runtimeAction
 }
 
 type runtimePath struct {
@@ -75,10 +76,11 @@ func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 			middlewares: middlewareStack(middlewareGoFile, manifest.Middlewares),
 		}
 		routes = append(routes, runtimeRoute{
-			route:    page.Route,
-			params:   page.Params,
-			segments: runtimePage.segments,
-			page:     &runtimePage,
+			route:     page.Route,
+			params:    page.Params,
+			navTrails: slices.Clone(page.NavTrails),
+			segments:  runtimePage.segments,
+			page:      &runtimePage,
 		})
 	}
 	for _, fragment := range fragments {
@@ -95,10 +97,11 @@ func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 			middlewares: middlewareStack(middlewareGoFile, manifest.Middlewares),
 		}
 		routes = append(routes, runtimeRoute{
-			route:    route,
-			params:   fragment.Params,
-			segments: runtimeFragment.segments,
-			fragment: &runtimeFragment,
+			route:     route,
+			params:    fragment.Params,
+			navTrails: slices.Clone(fragment.NavTrails),
+			segments:  runtimeFragment.segments,
+			fragment:  &runtimeFragment,
 		})
 	}
 	for _, action := range actions {
@@ -113,10 +116,11 @@ func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 			middlewares: middlewareStack(middlewareGoFile, manifest.Middlewares),
 		}
 		routes = append(routes, runtimeRoute{
-			route:    action.Route,
-			params:   action.Params,
-			segments: runtimeAction.segments,
-			action:   &runtimeAction,
+			route:     action.Route,
+			params:    action.Params,
+			navTrails: slices.Clone(action.NavTrails),
+			segments:  runtimeAction.segments,
+			action:    &runtimeAction,
 		})
 	}
 
@@ -139,10 +143,11 @@ func executableRouteSurface(manifest routing.Manifest) ([]routing.ManifestPage, 
 		}
 		if route.Page != nil {
 			pages = append(pages, routing.ManifestPage{
-				Route:    route.Route,
-				Params:   slices.Clone(route.Params),
-				Unit:     unit,
-				Function: routePageAdapterName(route),
+				Route:     route.Route,
+				Params:    slices.Clone(route.Params),
+				NavTrails: slices.Clone(route.NavTrails),
+				Unit:      unit,
+				Function:  routePageAdapterName(route),
 			})
 		}
 		for _, fragment := range route.Fragments {
@@ -150,6 +155,7 @@ func executableRouteSurface(manifest routing.Manifest) ([]routing.ManifestPage, 
 				Name:        fragment.Name,
 				RoutePrefix: route.Route,
 				Params:      slices.Clone(route.Params),
+				NavTrails:   slices.Clone(route.NavTrails),
 				Unit:        unit,
 				Function:    routeFragmentAdapterName(route, fragment),
 				Segment:     fragment.Segment,
@@ -169,6 +175,7 @@ func executableRouteSurface(manifest routing.Manifest) ([]routing.ManifestPage, 
 				Method:           action.Method,
 				Route:            actionPath,
 				Params:           slices.Clone(route.Params),
+				NavTrails:        slices.Clone(route.NavTrails),
 				GoFile:           route.GoFile,
 				SourceGoFile:     route.Source,
 				MiddlewareGoFile: route.MiddlewareGoFile,
@@ -505,6 +512,15 @@ func hasDynamicRoutes(routes []runtimeRoute) bool {
 func hasFragmentRoutes(routes []runtimeRoute) bool {
 	for _, route := range routes {
 		if route.fragment != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func hasNavTrailRoutes(routes []runtimeRoute) bool {
+	for _, route := range routes {
+		if len(route.navTrails) > 0 {
 			return true
 		}
 	}

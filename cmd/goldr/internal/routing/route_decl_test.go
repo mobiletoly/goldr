@@ -202,9 +202,9 @@ var Route = goldr.KitRouteMount[shared.Kit]{
 	New: newKit,
 	Mount: "reports",
 	Routes: goldr.MountRoutes{
-		"/",
-		"/table",
-		"/orgs/{org_id}",
+		{Path: "/"},
+		{Path: "/table"},
+		{Path: "/orgs/{org_id}"},
 	},
 }
 
@@ -215,8 +215,338 @@ func newKit(r *http.Request) shared.Kit {
 
 	tree := scanOK(t, root)
 
-	if got := tree.Routes[0].Mount; got == nil || got.Path != "reports" || !got.RoutesSet || !reflect.DeepEqual(got.Routes, []string{"/", "/table", "/orgs/{org_id}"}) {
+	wantRoutes := []MountRouteDeclaration{{Path: "/"}, {Path: "/table"}, {Path: "/orgs/{org_id}"}}
+	if got := tree.Routes[0].Mount; got == nil || got.Path != "reports" || !got.RoutesSet || !reflect.DeepEqual(got.Routes, wantRoutes) {
 		t.Fatalf("mount = %#v, want parsed Routes", got)
+	}
+}
+
+func TestScanRouteDeclarationNavTrails(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "users/route.go", `package users
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	NavTrails: goldr.NavTrails{
+		Allowed: []string{"provider-search", "attention-center"},
+	},
+}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "users"}
+}
+`)
+	writeFile(t, root, "reports/route.go", `package reports
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+func New(*http.Request) Kit { return Kit{} }
+
+var Route = goldr.KitRouteDef[Kit]{
+	New:  New,
+	Page: Kit.Page,
+	NavTrails: goldr.NavTrails{
+		Allowed: []string{"report-dashboard"},
+	},
+}
+
+func (Kit) Page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "reports"}
+}
+`)
+
+	tree := scanOK(t, root)
+
+	got := make(map[string][]string)
+	for _, route := range tree.Routes {
+		got[route.Route] = route.NavTrails
+	}
+	want := map[string][]string{
+		"/reports": {"report-dashboard"},
+		"/users":   {"provider-search", "attention-center"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("nav trails = %#v, want %#v", got, want)
+	}
+}
+
+func TestScanRouteDeclarationDestinations(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "analytics/route.go", `package analytics
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+	"example.com/app/urls"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Destinations: goldr.Destinations{
+		"customer-daytempo": goldr.To(urls.Provider.Customers.ByID.DayTempo).NavTrail("attention-center"),
+		"customers": goldr.To(urls.Provider.Customers),
+	},
+}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "analytics"}
+}
+`)
+
+	tree := scanOK(t, root)
+
+	want := []RouteDeclaration{
+		{
+			Route:   "/analytics",
+			GoFile:  "analytics/route.go",
+			Imports: routeImports("goldr", "github.com/mobiletoly/goldr", "http", "net/http", "urls", "example.com/app/urls"),
+			Kind:    routeDeclarationKindLocal,
+			Page:    &RouteHandlerDeclaration{Handler: "page"},
+			Destinations: []RouteDestinationDeclaration{
+				{
+					Name:       "customer-daytempo",
+					SymbolName: "CustomerDaytempo",
+					Target:     []string{"Provider", "Customers", "ByID", "DayTempo"},
+					NavTrail:   "attention-center",
+				},
+				{
+					Name:       "customers",
+					SymbolName: "Customers",
+					Target:     []string{"Provider", "Customers"},
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(tree.Routes, want) {
+		t.Fatalf("routes = %#v, want %#v", tree.Routes, want)
+	}
+}
+
+func TestScanRouteDeclarationRejectsInvalidDestinations(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		message string
+	}{
+		{
+			name: "non literal map",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var destinations = goldr.Destinations{}
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Destinations: destinations,
+}
+`,
+			message: "Destinations must use a literal goldr.Destinations value",
+		},
+		{
+			name: "computed destination",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Destinations: goldr.Destinations{
+		"detail": destination(),
+	},
+}
+`,
+			message: "Destinations entries must use goldr.To(routeNode)",
+		},
+		{
+			name: "duplicate name",
+			source: `package users
+
+import (
+	"github.com/mobiletoly/goldr"
+	"example.com/app/urls"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Destinations: goldr.Destinations{
+		"detail": goldr.To(urls.Users),
+		"detail": goldr.To(urls.Root),
+	},
+}
+`,
+			message: "Destinations contains duplicate name: detail",
+		},
+		{
+			name: "field collision",
+			source: `package users
+
+import (
+	"github.com/mobiletoly/goldr"
+	"example.com/app/urls"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Destinations: goldr.Destinations{
+		"user-id": goldr.To(urls.Users),
+		"user_id": goldr.To(urls.Root),
+	},
+}
+`,
+			message: `destination names "user-id" and "user_id" map to the same generated field name UserID`,
+		},
+		{
+			name: "invalid trail key",
+			source: `package users
+
+import (
+	"github.com/mobiletoly/goldr"
+	"example.com/app/urls"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Destinations: goldr.Destinations{
+		"detail": goldr.To(urls.Users).NavTrail("ProviderSearch"),
+	},
+}
+`,
+			message: "Destination.NavTrail argument must use a lowercase ASCII trail key like \"provider-search\"",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeFile(t, root, "users/route.go", test.source)
+
+			_, err := Scan(root)
+			var scanErr *ScanError
+			if !errors.As(err, &scanErr) {
+				t.Fatalf("Scan() error = %T, want *ScanError", err)
+			}
+			if !hasProblem(scanErr.Problems, "users/route.go", test.message) {
+				t.Fatalf("problems = %#v, want %q", scanErr.Problems, test.message)
+			}
+		})
+	}
+}
+
+func TestScanRouteDeclarationRejectsInvalidNavTrails(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		message string
+	}{
+		{
+			name: "duplicate key",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Page: page,
+	NavTrails: goldr.NavTrails{
+		Allowed: []string{"provider-search", "provider-search"},
+	},
+}
+`,
+			message: "NavTrails.Allowed contains duplicate key: provider-search",
+		},
+		{
+			name: "invalid key",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Page: page,
+	NavTrails: goldr.NavTrails{
+		Allowed: []string{"ProviderSearch"},
+	},
+}
+`,
+			message: "NavTrails.Allowed entries must use lowercase ASCII trail keys like \"provider-search\"",
+		},
+		{
+			name: "non literal key",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+const TrailProviderSearch = "provider-search"
+
+var Route = goldr.RouteDef{
+	Page: page,
+	NavTrails: goldr.NavTrails{
+		Allowed: []string{TrailProviderSearch},
+	},
+}
+`,
+			message: "NavTrails.Allowed entry must be a string literal",
+		},
+		{
+			name: "non literal allowed list",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var allowed = []string{"provider-search"}
+
+var Route = goldr.RouteDef{
+	Page: page,
+	NavTrails: goldr.NavTrails{
+		Allowed: allowed,
+	},
+}
+`,
+			message: "NavTrails.Allowed must use a literal []string value",
+		},
+		{
+			name: "field name collision",
+			source: `package users
+
+import "github.com/mobiletoly/goldr"
+
+var Route = goldr.RouteDef{
+	Page: page,
+	NavTrails: goldr.NavTrails{
+		Allowed: []string{"id", "i-d"},
+	},
+}
+`,
+			message: `NavTrails.Allowed keys "id" and "i-d" map to the same generated field name ID`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeFile(t, root, "users/route.go", test.source)
+
+			_, err := Scan(root)
+			var scanErr *ScanError
+			if !errors.As(err, &scanErr) {
+				t.Fatalf("Scan() error = %T, want *ScanError", err)
+			}
+			if !hasProblem(scanErr.Problems, "users/route.go", test.message) {
+				t.Fatalf("problems = %#v, want %q", scanErr.Problems, test.message)
+			}
+		})
 	}
 }
 
@@ -607,7 +937,7 @@ var Route = goldr.KitRouteMount[Kit]{
 	Name: "reports",
 }
 `,
-			message: "KitRouteMount supports only New, Mount, and Routes route surface fields",
+			message: "KitRouteMount supports only New, Mount, Routes, and Destinations route surface fields",
 		},
 		{
 			name: "kit route mount computed routes",
@@ -673,6 +1003,28 @@ var Route = goldr.KitRouteMount[Kit]{
 	Routes: goldr.MountRoutes{"/bad_name"},
 }
 `,
+			message: "KitRouteMount.Routes entries must use goldr.MountRoute values",
+		},
+		{
+			name: "kit route mount invalid route pattern",
+			source: `package users
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+func New(*http.Request) Kit { return Kit{} }
+
+var Route = goldr.KitRouteMount[Kit]{
+	New: New,
+	Mount: "reports",
+	Routes: goldr.MountRoutes{{Path: "/bad_name"}},
+}
+`,
 			message: "KitRouteMount.Routes entries must be mount-relative browser route patterns like \"/\", \"/table\", or \"/{id}\"",
 		},
 		{
@@ -692,7 +1044,7 @@ func New(*http.Request) Kit { return Kit{} }
 var Route = goldr.KitRouteMount[Kit]{
 	New: New,
 	Mount: "reports",
-	Routes: goldr.MountRoutes{"/table", "/table"},
+	Routes: goldr.MountRoutes{{Path: "/table"}, {Path: "/table"}},
 }
 `,
 			message: "KitRouteMount.Routes contains duplicate route pattern: /table",

@@ -32,9 +32,10 @@ type goldrManifest struct {
 }
 
 type goldrPage struct {
-	Route  string
-	Params []string
-	Unit   goldrRenderUnit
+	Route     string
+	Params    []string
+	NavTrails []string
+	Unit      goldrRenderUnit
 }
 
 type goldrLayout struct {
@@ -47,6 +48,7 @@ type goldrFragment struct {
 	Name        string
 	RoutePrefix string
 	Params      []string
+	NavTrails   []string
 	Unit        goldrRenderUnit
 	Index       bool
 }
@@ -55,6 +57,7 @@ type goldrAction struct {
 	Method       string
 	Route        string
 	Params       []string
+	NavTrails    []string
 	GoFile       string
 	SourceGoFile string
 	Function     string
