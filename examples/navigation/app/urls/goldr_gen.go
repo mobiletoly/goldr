@@ -3,11 +3,13 @@
 package urls
 
 import (
+	"github.com/mobiletoly/goldr"
 	"net/url"
 	"strings"
 )
 
 var Root = newRootRoute("")
+var About = aboutRoute(goldrURLPath{path: "/about", pattern: "/about"})
 var Main = newMainRoute("")
 
 type goldrURLPath struct {
@@ -31,6 +33,7 @@ func (p goldrURLPath) GoldrRouteParams() []string {
 type MountedRoutes struct {
 	basePath string
 	Root     rootRoute
+	About    aboutRoute
 	Main     mainRoute
 }
 
@@ -39,19 +42,20 @@ func WithBasePath(basePath string) MountedRoutes {
 	return MountedRoutes{
 		basePath: normalizedBasePath,
 		Root:     newRootRoute(normalizedBasePath),
+		About:    aboutRoute(goldrURLPath{path: normalizedBasePath + "/about", pattern: "/about"}),
 		Main:     newMainRoute(normalizedBasePath),
 	}
 }
 
-type mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteNavTrails struct {
+type mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteTrailKeys struct {
 	HqAnalytics string
 }
 
-type mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteNavTrails struct {
+type mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteTrailKeys struct {
 	RegionalAnalytics string
 }
 
-type mainReportsByCustomerIDRouteNavTrails struct {
+type mainReportsByCustomerIDRouteTrailKeys struct {
 	HqCustomer       string
 	RegionalCustomer string
 }
@@ -131,6 +135,8 @@ type rootRoute struct {
 	goldrURLPath
 }
 
+type aboutRoute = goldrURLPath
+
 type mainRoute struct {
 	goldrURLPath
 	Hq       mainHqRoute
@@ -179,7 +185,6 @@ type mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRoute struct {
 	goldrURLPath
 	teamID     string
 	customerID string
-	NavTrails  mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteNavTrails
 }
 
 type mainHqTeamsByTeamIDCustomersRoute struct {
@@ -197,6 +202,20 @@ type mainHqTeamsByTeamIDCustomersByCustomerIDRoute struct {
 }
 
 type mainHqTeamsByTeamIDCustomersByCustomerIDReportRoute struct {
+	goldrURLPath
+	teamID     string
+	customerID string
+	Brief      mainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRoute
+	Detailed   mainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute
+}
+
+type mainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRoute struct {
+	goldrURLPath
+	teamID     string
+	customerID string
+}
+
+type mainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute struct {
 	goldrURLPath
 	teamID     string
 	customerID string
@@ -260,7 +279,6 @@ type mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDRep
 	officeID   string
 	teamID     string
 	customerID string
-	NavTrails  mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteNavTrails
 }
 
 type mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersRoute struct {
@@ -284,6 +302,22 @@ type mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportRoute 
 	officeID   string
 	teamID     string
 	customerID string
+	Brief      mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRoute
+	Detailed   mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute
+}
+
+type mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRoute struct {
+	goldrURLPath
+	officeID   string
+	teamID     string
+	customerID string
+}
+
+type mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute struct {
+	goldrURLPath
+	officeID   string
+	teamID     string
+	customerID string
 }
 
 type mainReportsRoute struct {
@@ -294,7 +328,6 @@ type mainReportsRoute struct {
 type mainReportsByCustomerIDRoute struct {
 	goldrURLPath
 	customerID string
-	NavTrails  mainReportsByCustomerIDRouteNavTrails
 }
 
 type mainHqTeamsByTeamIDAnalyticsRouteRef struct {
@@ -311,7 +344,7 @@ type mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDRouteRef struct {
 }
 
 type mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteRef struct {
-	NavTrails mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteNavTrails
+	TrailKeys mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteTrailKeys
 }
 
 type mainHqTeamsByTeamIDCustomersRouteRef struct {
@@ -324,6 +357,14 @@ type mainHqTeamsByTeamIDCustomersByCustomerIDRouteRef struct {
 }
 
 type mainHqTeamsByTeamIDCustomersByCustomerIDReportRouteRef struct {
+	Brief    mainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef
+	Detailed mainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef
+}
+
+type mainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef struct {
+}
+
+type mainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef struct {
 }
 
 type mainRegionalOfficesByOfficeIDTeamsRouteRef struct {
@@ -349,7 +390,7 @@ type mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDRou
 }
 
 type mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteRef struct {
-	NavTrails mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteNavTrails
+	TrailKeys mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteTrailKeys
 }
 
 type mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersRouteRef struct {
@@ -362,6 +403,14 @@ type mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDRouteRef str
 }
 
 type mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportRouteRef struct {
+	Brief    mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef
+	Detailed mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef
+}
+
+type mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef struct {
+}
+
+type mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef struct {
 }
 
 type mainHqTeamsByTeamIDRouteNode struct {
@@ -412,7 +461,7 @@ type mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDRouteNode st
 
 type mainReportsByCustomerIDRouteNode struct {
 	basePath  string
-	NavTrails mainReportsByCustomerIDRouteNavTrails
+	TrailKeys mainReportsByCustomerIDRouteTrailKeys
 }
 
 func newRootRoute(basePath string) rootRoute {
@@ -493,7 +542,6 @@ func newMainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRoute(basePath st
 		goldrURLPath: goldrURLPath{path: path, pattern: "/main/hq/teams/{team_id}/analytics/customers/{customer_id}/report", params: []string{"team_id", "customer_id"}},
 		teamID:       teamID,
 		customerID:   customerID,
-		NavTrails:    mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteNavTrails{HqAnalytics: "hq-analytics"},
 	}
 }
 
@@ -521,6 +569,26 @@ func newMainHqTeamsByTeamIDCustomersByCustomerIDReportRoute(basePath string, tea
 	path := basePath + "/report"
 	return mainHqTeamsByTeamIDCustomersByCustomerIDReportRoute{
 		goldrURLPath: goldrURLPath{path: path, pattern: "/main/hq/teams/{team_id}/customers/{customer_id}/report", params: []string{"team_id", "customer_id"}},
+		teamID:       teamID,
+		customerID:   customerID,
+		Brief:        newMainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRoute(path, teamID, customerID),
+		Detailed:     newMainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute(path, teamID, customerID),
+	}
+}
+
+func newMainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRoute(basePath string, teamID string, customerID string) mainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRoute {
+	path := basePath + "/brief"
+	return mainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRoute{
+		goldrURLPath: goldrURLPath{path: path, pattern: "/main/hq/teams/{team_id}/customers/{customer_id}/report/brief", params: []string{"team_id", "customer_id"}},
+		teamID:       teamID,
+		customerID:   customerID,
+	}
+}
+
+func newMainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute(basePath string, teamID string, customerID string) mainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute {
+	path := basePath + "/detailed"
+	return mainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute{
+		goldrURLPath: goldrURLPath{path: path, pattern: "/main/hq/teams/{team_id}/customers/{customer_id}/report/detailed", params: []string{"team_id", "customer_id"}},
 		teamID:       teamID,
 		customerID:   customerID,
 	}
@@ -610,7 +678,6 @@ func newMainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerID
 		officeID:     officeID,
 		teamID:       teamID,
 		customerID:   customerID,
-		NavTrails:    mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteNavTrails{RegionalAnalytics: "regional-analytics"},
 	}
 }
 
@@ -643,6 +710,28 @@ func newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportRou
 		officeID:     officeID,
 		teamID:       teamID,
 		customerID:   customerID,
+		Brief:        newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRoute(path, officeID, teamID, customerID),
+		Detailed:     newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute(path, officeID, teamID, customerID),
+	}
+}
+
+func newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRoute(basePath string, officeID string, teamID string, customerID string) mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRoute {
+	path := basePath + "/brief"
+	return mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRoute{
+		goldrURLPath: goldrURLPath{path: path, pattern: "/main/regional/offices/{office_id}/teams/{team_id}/customers/{customer_id}/report/brief", params: []string{"office_id", "team_id", "customer_id"}},
+		officeID:     officeID,
+		teamID:       teamID,
+		customerID:   customerID,
+	}
+}
+
+func newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute(basePath string, officeID string, teamID string, customerID string) mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute {
+	path := basePath + "/detailed"
+	return mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRoute{
+		goldrURLPath: goldrURLPath{path: path, pattern: "/main/regional/offices/{office_id}/teams/{team_id}/customers/{customer_id}/report/detailed", params: []string{"office_id", "team_id", "customer_id"}},
+		officeID:     officeID,
+		teamID:       teamID,
+		customerID:   customerID,
 	}
 }
 
@@ -659,7 +748,6 @@ func newMainReportsByCustomerIDRoute(basePath string, customerID string) mainRep
 	return mainReportsByCustomerIDRoute{
 		goldrURLPath: goldrURLPath{path: path, pattern: "/main/reports/{customer_id}", params: []string{"customer_id"}},
 		customerID:   customerID,
-		NavTrails:    mainReportsByCustomerIDRouteNavTrails{HqCustomer: "hq-customer", RegionalCustomer: "regional-customer"},
 	}
 }
 
@@ -684,7 +772,7 @@ func newMainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDRouteRef(basePath strin
 
 func newMainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteRef(basePath string) mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteRef {
 	return mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteRef{
-		NavTrails: mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteNavTrails{HqAnalytics: "hq-analytics"},
+		TrailKeys: mainHqTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteTrailKeys{HqAnalytics: "hq-analytics"},
 	}
 }
 
@@ -702,7 +790,18 @@ func newMainHqTeamsByTeamIDCustomersByCustomerIDRouteRef(basePath string) mainHq
 }
 
 func newMainHqTeamsByTeamIDCustomersByCustomerIDReportRouteRef(basePath string) mainHqTeamsByTeamIDCustomersByCustomerIDReportRouteRef {
-	return mainHqTeamsByTeamIDCustomersByCustomerIDReportRouteRef{}
+	return mainHqTeamsByTeamIDCustomersByCustomerIDReportRouteRef{
+		Brief:    newMainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef(""),
+		Detailed: newMainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef(""),
+	}
+}
+
+func newMainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef(basePath string) mainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef {
+	return mainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef{}
+}
+
+func newMainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef(basePath string) mainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef {
+	return mainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef{}
 }
 
 func newMainRegionalOfficesByOfficeIDTeamsRouteRef(basePath string) mainRegionalOfficesByOfficeIDTeamsRouteRef {
@@ -739,7 +838,7 @@ func newMainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerID
 
 func newMainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteRef(basePath string) mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteRef {
 	return mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteRef{
-		NavTrails: mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteNavTrails{RegionalAnalytics: "regional-analytics"},
+		TrailKeys: mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsCustomersByCustomerIDReportRouteTrailKeys{RegionalAnalytics: "regional-analytics"},
 	}
 }
 
@@ -757,7 +856,18 @@ func newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDRouteRef(
 }
 
 func newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportRouteRef(basePath string) mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportRouteRef {
-	return mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportRouteRef{}
+	return mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportRouteRef{
+		Brief:    newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef(""),
+		Detailed: newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef(""),
+	}
+}
+
+func newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef(basePath string) mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef {
+	return mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef{}
+}
+
+func newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef(basePath string) mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef {
+	return mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef{}
 }
 
 func newMainHqTeamsByTeamIDRouteNode(basePath string) mainHqTeamsByTeamIDRouteNode {
@@ -823,7 +933,7 @@ func newMainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDRouteNode
 func newMainReportsByCustomerIDRouteNode(basePath string) mainReportsByCustomerIDRouteNode {
 	return mainReportsByCustomerIDRouteNode{
 		basePath:  basePath,
-		NavTrails: mainReportsByCustomerIDRouteNavTrails{HqCustomer: "hq-customer", RegionalCustomer: "regional-customer"},
+		TrailKeys: mainReportsByCustomerIDRouteTrailKeys{HqCustomer: "hq-customer", RegionalCustomer: "regional-customer"},
 	}
 }
 
@@ -845,12 +955,13 @@ func (d mainHqTeamsByTeamIDAnalyticsRouteCustomerReportDestinationBound1) Bind(c
 }
 
 func (d mainHqTeamsByTeamIDAnalyticsRouteCustomerReportDestinationBound2) Href() string {
-	return d.HrefWithQuery(nil)
+	path := d.basePath + "/" + "main" + "/" + "hq" + "/" + "teams" + "/" + d.teamID + "/" + "analytics" + "/" + "customers" + "/" + d.customerID + "/" + "report"
+	return goldrURLWithTrail(path, "hq-analytics")
 }
 
-func (d mainHqTeamsByTeamIDAnalyticsRouteCustomerReportDestinationBound2) HrefWithQuery(values url.Values) string {
+func (d mainHqTeamsByTeamIDAnalyticsRouteCustomerReportDestinationBound2) NavigationHref(nav goldr.Navigation) string {
 	path := d.basePath + "/" + "main" + "/" + "hq" + "/" + "teams" + "/" + d.teamID + "/" + "analytics" + "/" + "customers" + "/" + d.customerID + "/" + "report"
-	return goldrURLWithQuery(path, "hq-analytics", values)
+	return goldr.NavigationHref(path, "hq-analytics", nav)
 }
 
 func (d mainHqTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestination) Bind(customerID string) mainHqTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestinationBound1 {
@@ -862,12 +973,13 @@ func (d mainHqTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestination) Bi
 }
 
 func (d mainHqTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestinationBound1) Href() string {
-	return d.HrefWithQuery(nil)
+	path := d.basePath + "/" + "main" + "/" + "reports" + "/" + d.customerID
+	return goldrURLWithTrail(path, "hq-customer")
 }
 
-func (d mainHqTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestinationBound1) HrefWithQuery(values url.Values) string {
+func (d mainHqTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestinationBound1) NavigationHref(nav goldr.Navigation) string {
 	path := d.basePath + "/" + "main" + "/" + "reports" + "/" + d.customerID
-	return goldrURLWithQuery(path, "hq-customer", values)
+	return goldr.NavigationHref(path, "hq-customer", nav)
 }
 
 func (d mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsRouteCustomerReportDestination) Bind(officeID string) mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsRouteCustomerReportDestinationBound1 {
@@ -898,12 +1010,13 @@ func (d mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsRouteCustomerReportDe
 }
 
 func (d mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsRouteCustomerReportDestinationBound3) Href() string {
-	return d.HrefWithQuery(nil)
+	path := d.basePath + "/" + "main" + "/" + "regional" + "/" + "offices" + "/" + d.officeID + "/" + "teams" + "/" + d.teamID + "/" + "analytics" + "/" + "customers" + "/" + d.customerID + "/" + "report"
+	return goldrURLWithTrail(path, "regional-analytics")
 }
 
-func (d mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsRouteCustomerReportDestinationBound3) HrefWithQuery(values url.Values) string {
+func (d mainRegionalOfficesByOfficeIDTeamsByTeamIDAnalyticsRouteCustomerReportDestinationBound3) NavigationHref(nav goldr.Navigation) string {
 	path := d.basePath + "/" + "main" + "/" + "regional" + "/" + "offices" + "/" + d.officeID + "/" + "teams" + "/" + d.teamID + "/" + "analytics" + "/" + "customers" + "/" + d.customerID + "/" + "report"
-	return goldrURLWithQuery(path, "regional-analytics", values)
+	return goldr.NavigationHref(path, "regional-analytics", nav)
 }
 
 func (d mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestination) Bind(customerID string) mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestinationBound1 {
@@ -915,26 +1028,23 @@ func (d mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDRouteShar
 }
 
 func (d mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestinationBound1) Href() string {
-	return d.HrefWithQuery(nil)
+	path := d.basePath + "/" + "main" + "/" + "reports" + "/" + d.customerID
+	return goldrURLWithTrail(path, "regional-customer")
 }
 
-func (d mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestinationBound1) HrefWithQuery(values url.Values) string {
+func (d mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDRouteSharedReportDestinationBound1) NavigationHref(nav goldr.Navigation) string {
 	path := d.basePath + "/" + "main" + "/" + "reports" + "/" + d.customerID
-	return goldrURLWithQuery(path, "regional-customer", values)
+	return goldr.NavigationHref(path, "regional-customer", nav)
 }
 
 func goldrURLWithTrail(path string, trail string) string {
-	return goldrURLWithQuery(path, trail, nil)
-}
-
-func goldrURLWithQuery(path string, trail string, values url.Values) string {
 	rawPath, rawQuery, hasQuery := strings.Cut(path, "?")
 	query := url.Values{}
 	if hasQuery {
 		parsedQuery, err := url.ParseQuery(rawQuery)
 		if err == nil {
 			for key, parsedValues := range parsedQuery {
-				if key == "_goldr_trail" {
+				if key == "_goldr_nav_trail_key" || key == "_goldr_return_to" {
 					continue
 				}
 				for _, value := range parsedValues {
@@ -943,21 +1053,12 @@ func goldrURLWithQuery(path string, trail string, values url.Values) string {
 			}
 		}
 	}
-	for key, incomingValues := range values {
-		if key == "_goldr_trail" {
-			continue
-		}
-		query.Del(key)
-		for _, value := range incomingValues {
-			query.Add(key, value)
-		}
-	}
 	encodedQuery := query.Encode()
 	if trail != "" {
 		if encodedQuery == "" {
-			return rawPath + "?_goldr_trail=" + url.QueryEscape(trail)
+			return rawPath + "?_goldr_nav_trail_key=" + url.QueryEscape(trail)
 		}
-		return rawPath + "?" + encodedQuery + "&_goldr_trail=" + url.QueryEscape(trail)
+		return rawPath + "?" + encodedQuery + "&_goldr_nav_trail_key=" + url.QueryEscape(trail)
 	}
 	if encodedQuery == "" {
 		return rawPath
@@ -1220,6 +1321,22 @@ func (r mainHqTeamsByTeamIDCustomersByCustomerIDReportRouteRef) GoldrRouteParams
 	return []string{"team_id", "customer_id"}
 }
 
+func (r mainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef) GoldrRoutePattern() string {
+	return "/main/hq/teams/{team_id}/customers/{customer_id}/report/brief"
+}
+
+func (r mainHqTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef) GoldrRouteParams() []string {
+	return []string{"team_id", "customer_id"}
+}
+
+func (r mainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef) GoldrRoutePattern() string {
+	return "/main/hq/teams/{team_id}/customers/{customer_id}/report/detailed"
+}
+
+func (r mainHqTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef) GoldrRouteParams() []string {
+	return []string{"team_id", "customer_id"}
+}
+
 func (r mainRegionalOfficesByOfficeIDTeamsRouteRef) GoldrRoutePattern() string {
 	return "/main/regional/offices/{office_id}/teams"
 }
@@ -1289,6 +1406,22 @@ func (r mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportRou
 }
 
 func (r mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportRouteRef) GoldrRouteParams() []string {
+	return []string{"office_id", "team_id", "customer_id"}
+}
+
+func (r mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef) GoldrRoutePattern() string {
+	return "/main/regional/offices/{office_id}/teams/{team_id}/customers/{customer_id}/report/brief"
+}
+
+func (r mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportBriefRouteRef) GoldrRouteParams() []string {
+	return []string{"office_id", "team_id", "customer_id"}
+}
+
+func (r mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef) GoldrRoutePattern() string {
+	return "/main/regional/offices/{office_id}/teams/{team_id}/customers/{customer_id}/report/detailed"
+}
+
+func (r mainRegionalOfficesByOfficeIDTeamsByTeamIDCustomersByCustomerIDReportDetailedRouteRef) GoldrRouteParams() []string {
 	return []string{"office_id", "team_id", "customer_id"}
 }
 

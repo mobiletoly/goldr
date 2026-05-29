@@ -1,169 +1,120 @@
-# Navigation Trails And Destinations
+# Navigation Reference
 
-Use navigation trails for breadcrumb-style presentation data and app-level Back
-links in Goldr apps.
+Use this when working on route-derived navigation, destination trail keys, or
+app-level Back links in Goldr apps.
 
-Keep the route ownership split explicit:
+Core model:
 
-- `NavTrails` belongs to the target route. It declares the allowed context keys
-  that the target handler knows how to render.
-- `Destinations` belongs to the source route. It declares named outbound links
-  that may select one of the target route's allowed keys.
-- `goldr.NavTrail` is the app-owned breadcrumb data rendered by the target
-  handler. Do not confuse it with the `NavTrails` allow-list.
+- `RouteDef.Nav` and `KitRouteDef.Nav` declare one canonical route navigation
+  contribution.
+- `goldr.RouteNav{Label: "..."}` declares a static step.
+- `goldr.RouteNav{Key: "model"}` declares a dynamic step that the handler
+  resolves from app data.
+- `Destination.TrailKey("from-inventory")` declares workflow state on a live
+  source-to-target edge; target accepted keys are derived from inbound
+  destinations.
+- `goldr.Nav(r)` returns request navigation state prepared by generated
+  dispatch.
+- `goldr.Nav(r).Navigation()` returns resolved `goldr.Navigation` data for
+  templates.
+- `goldr.Navigation.Trail` is the resolved app-owned trail rendered by
+  templates.
 
-Rules:
-
-- Use clean route `Path()` helpers for canonical links.
-- Use generated destination `Href()` helpers when a source route intentionally
-  selects a target route navigation context.
-- Use generated destination `HrefWithQuery(url.Values)` helpers when that same
-  workflow link also carries app-owned query state.
-- Use `goldr.QueryValues(r, ...)` to copy named app-owned query keys from the
-  current request before passing them to `HrefWithQuery`. It skips
-  `_goldr_trail`.
-- Build `goldr.NavTrail` explicitly in handlers or app-owned view models with
-  `goldr.NavStep` and `goldr.CurrentNavStep`.
-- Use `goldr.NavTrailSelected(r, key)` for one-off selected-trail checks.
-- Read selected context with `goldr.NavTrailKey(r)` when switching across
-  route-scoped generated constants such as
-  `urls.Regional.Customers.ByID.Report.NavTrails.AttentionCenter`.
-- Render normal links with `href` only. Add `hx-get` only when the anchor is
-  intentionally an HTMX swap trigger; keep HTMX attributes visible in `.templ`.
-- Derive app-level Back with `goldr.BackHref(trail)` and render a normal
-  anchor only when it returns `ok == true`.
-- Do not add cookies, sessions, `Referer` parsing, browser history APIs, or
-  Goldr-owned breadcrumb renderers for semantic navigation.
-
-Target route setup:
+Canonical page pattern:
 
 ```go
 var Route = goldr.RouteDef{
 	Page: Page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{"hq-customer", "regional-customer"},
-	},
+	Nav:  goldr.RouteNav{Key: "customer"},
 }
 
 func Page(r *http.Request) goldr.PageRouteResponse {
 	customer := loadCustomer(r.PathValue("customer_id"))
 
-	trail := goldr.NavTrail{
-		goldr.NavStep("Home", urls.Root.Path()),
-		goldr.NavStep("Reports", urls.Main.Path()),
-		goldr.CurrentNavStep(customer.Name),
-	}
-	switch goldr.NavTrailKey(r) {
-	case urls.Main.Reports.ByCustomerID.NavTrails.HqCustomer:
-		trail = hqCustomerTrail(customer)
-	case urls.Main.Reports.ByCustomerID.NavTrails.RegionalCustomer:
-		trail = regionalCustomerTrail(customer)
-	}
+	nav := goldr.Nav(r)
+	nav.Resolve("customer", customer.Name)
 
-	return goldr.NewPage(PageView(trail, customer), goldr.PageMetadata{Title: "Report"})
+	return goldr.NewPage(PageView(nav.Navigation(), customer), goldr.PageMetadata{
+		Title: customer.Name,
+	})
 }
 ```
 
-For one selected-trail branch, prefer a boolean helper:
+Rules:
+
+- Use `Label` for static labels and `Key` for labels loaded by handlers.
+- `Label` and `Key` are mutually exclusive.
+- `Key` names are semantic label keys, not necessarily route param names.
+- Resolve every dynamic ancestor that should appear in the rendered trail.
+- Use `ResolveHref` only when the app intentionally overrides a canonical href.
+- Repeated resolves for the same key use the last non-empty label.
+- Never resolve labels from raw path values in framework code.
+
+Alternate workflow pattern:
 
 ```go
-if goldr.NavTrailSelected(r, urls.Main.Reports.ByCustomerID.NavTrails.HqCustomer) {
-	parentHref = hqParentHref(customer)
+var Route = goldr.RouteDef{
+	Page: Page,
+	Nav:  goldr.RouteNav{Label: "Report"},
 }
 ```
-
-Source route setup:
-
-Use `Destinations` on the route that renders the outbound link. If a
-destination calls `.NavTrail("key")`, that key must be listed in the target
-route's `NavTrails.Allowed`; generation rejects unknown target routes and
-unknown target trail keys.
 
 ```go
 var Route = goldr.RouteDef{
 	Page: Page,
 	Destinations: goldr.Destinations{
-		"shared-report": goldr.To(urls.Main.Reports.ByCustomerID).
-			NavTrail("hq-customer"),
+		"model-report": goldr.To(urls.Admin.Models.ByModelID.Report).
+			TrailKey("from-inventory"),
 	},
 }
-
-func Page(r *http.Request) goldr.PageRouteResponse {
-	customer := loadCustomer(r.PathValue("customer_id"))
-	href := urls.Main.Hq.Customers.ByCustomerID.Destinations.SharedReport.
-		Bind(customer.ID).
-		Href()
-	return goldr.NewPage(CustomerView(customer, href), goldr.PageMetadata{Title: customer.Name})
-}
 ```
-
-When the link also needs app-owned query state, compose that state with the
-same destination helper:
 
 ```go
-func Page(r *http.Request) goldr.PageRouteResponse {
-	customer := loadCustomer(r.PathValue("customer_id"))
-	query := goldr.QueryValues(r, "view", "sort", "page")
-
-	href := urls.Main.Hq.Customers.ByCustomerID.Destinations.SharedReport.
-		Bind(customer.ID).
-		HrefWithQuery(query)
-	return goldr.NewPage(CustomerView(customer, href), goldr.PageMetadata{Title: customer.Name})
+nav := goldr.Nav(r)
+switch nav.TrailKey() {
+case urls.Admin.Models.ByModelID.Report.TrailKeys.FromInventory:
+	return goldr.NewPage(ReportView(nav.NavigationWithTrail(inventoryTrail(r, model)), model), goldr.PageMetadata{Title: "Report"})
+default:
+	nav.Resolve("model", model.Name)
+	return goldr.NewPage(ReportView(nav.Navigation(), model), goldr.PageMetadata{Title: "Report"})
 }
 ```
 
-Goldr owns only `_goldr_trail`. Do not pass `_goldr_trail` as app state;
-generated destination helpers ignore app-supplied values for that key.
-Use `url.Values` directly when the query values come from loaded app state
-instead of the current request.
+Generated destination helpers:
 
-Template shape:
+- `Href()` appends `_goldr_nav_trail_key` only for destination-selected keys.
+- `NavigationHref(nav)` is generated only for destinations with
+  `TrailKey(...)`. It appends `_goldr_nav_trail_key` and preserves the current
+  relative URL in `_goldr_return_to`.
+- Destination helpers do not copy request query parameters onto the target URL
+  or expose query forwarding helpers.
+- Compose target-owned query strings explicitly in app code.
+- Do not carry source-page filters or pagination into a detached target route.
+- Use `NavigationHref(nav)` when link-based Back should return to the exact
+  current source URL.
+- Plain route `Path()` never emits `_goldr_nav_trail_key`.
+- Destination map keys name generated source helpers; they do not become trail
+  keys.
+
+Mounted routes:
+
+- Source routes under `app/mounts` may declare default `Nav` labels or keys,
+  but cannot declare live `Destinations`.
+- Live owners select mounted children, override nav only when needed, and
+  declare destinations through selected `goldr.MountRoute` entries.
+- `KitRouteMount` has no top-level `Nav` field.
+- If a child-only selection omits `/`, Goldr must not synthesize a mount-root
+  nav step.
+- Reusable mounted handlers may call `goldr.Nav(r).Resolve(...)` for live owner
+  keys, or receive app-owned trail builders and URL callbacks through `K`.
+
+Rendering:
 
 ```templ
-templ CustomerView(customer Customer, reportHref string) {
-	<a href={ reportHref }>Open report</a>
-}
-```
-
-If that link is intentionally an HTMX partial update, keep the same canonical
-URL visible in `href` and use `hx-get` for the HTMX request behavior:
-
-```templ
-templ CustomerRow(customer Customer, reportHref string) {
-	<a href={ reportHref } hx-get={ reportHref } hx-target="#main" hx-push-url="true">Open report</a>
-}
-```
-
-Back link:
-
-```go
-backHref, ok := goldr.BackHref(trail)
-```
-
-Do not make fallback URLs part of Goldr navigation. If a product wants a Back
-fallback, choose that URL explicitly in app rendering code.
-
-Back links that need query state should put that state into the rendered trail
-step explicitly:
-
-```go
-query := goldr.QueryValues(r, "view", "sort", "page")
-parentHref := urls.Admin.Analytics.Destinations.CustomerProfile.
-	Bind(customer.ID).
-	HrefWithQuery(query)
-trail := goldr.NavTrail{
-	goldr.NavStep("Customers", parentHref),
-	goldr.CurrentNavStep(customer.Name),
-}
-```
-
-Breadcrumb-style rendering:
-
-```templ
-templ TrailNav(trail goldr.NavTrail) {
+templ TrailNav(nav goldr.Navigation) {
 	<nav aria-label="Breadcrumb">
 		<ol>
-			for _, step := range trail {
+			for _, step := range nav.Trail {
 				<li>
 					if step.Current {
 						<span aria-current="page">{ step.Label }</span>
@@ -174,89 +125,11 @@ templ TrailNav(trail goldr.NavTrail) {
 			}
 		</ol>
 	</nav>
-}
-```
-
-Mounted routes:
-
-- Mounted source routes under `app/mounts` cannot declare live `NavTrails` or
-  `Destinations`.
-- Live owners attach owner-specific nav trails to structured
-  `goldr.MountRoute` entries.
-- Generated mount helpers stay path-only.
-- Pass owner-specific trail bases and URL callbacks through `K`; let the
-  mounted implementation append local suffix steps.
-- If mounted UI must preserve app query state, make the kit-owned URL callback
-  accept `url.Values`. The mounted code selects keys with
-  `goldr.QueryValues(r, ...)`; the live owner composes the final destination
-  `HrefWithQuery`.
-
-Owner route:
-
-```go
-var Route = goldr.KitRouteMount[analytics.Kit]{
-	New:   newKit,
-	Mount: "analytics",
-	Routes: goldr.MountRoutes{
-		{Path: "/"},
-		{
-			Path: "/customers/{customer_id}/report",
-			NavTrails: goldr.NavTrails{
-				Allowed: []string{"hq-analytics"},
-			},
-		},
-	},
-	Destinations: goldr.Destinations{
-		"customer-report": goldr.To(urls.Main.Hq.Teams.ByID.Analytics.Customers.ByID.Report).
-			NavTrail("hq-analytics"),
-	},
-}
-
-func newKit(r *http.Request) analytics.Kit {
-	team := loadTeam(r.PathValue("team_id"))
-	return analytics.Kit{
-		TrailBase: func(*http.Request) goldr.NavTrail {
-			return goldr.NavTrail{
-				goldr.NavStep("Home", urls.Root.Path()),
-				goldr.NavStep("HQ", urls.Main.Hq.Path()),
-				goldr.NavStep(team.Name, urls.Main.Hq.Teams.ByID.Bind(team.ID).Path()),
-			}
-		},
-		AnalyticsURL: func() string {
-			return urls.Main.Hq.Teams.ByID.Bind(team.ID).Analytics.Path()
-		},
-		CustomerURL: func(customerID string) string {
-			return urls.Main.Hq.Teams.ByID.Bind(team.ID).Customers.ByID.Bind(customerID).Path()
-		},
-		CustomerReportHref: func(customerID string) string {
-			return urls.Main.Hq.Teams.ByID.Analytics.Destinations.CustomerReport.
-				Bind(team.ID).
-				Bind(customerID).
-				Href()
-		},
+	if nav.Back.OK {
+		<a href={ nav.Back.Href }>Back</a>
 	}
 }
 ```
 
-Mounted implementation:
-
-```go
-type Kit struct {
-	TrailBase          func(*http.Request) goldr.NavTrail
-	AnalyticsURL       func() string
-	CustomerURL        func(string) string
-	CustomerReportHref func(string) string
-}
-
-func (kit Kit) CustomerReport(r *http.Request) goldr.PageRouteResponse {
-	customer := loadCustomer(r.PathValue("customer_id"))
-	trail := append(kit.TrailBase(r),
-		goldr.NavStep("Analytics", kit.AnalyticsURL()),
-		goldr.NavStep(customer.Name, kit.CustomerURL(customer.ID)),
-		goldr.CurrentNavStep("Report"),
-	)
-	return goldr.NewPage(ReportView(trail, customer), goldr.PageMetadata{Title: "Report"})
-}
-```
-
-For a complete pattern, inspect `examples/navigation`.
+Use `nav.Back` for app-level Back. Do not add framework fallback URLs;
+fallback policy belongs to app rendering code.

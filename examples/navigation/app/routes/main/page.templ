@@ -1,0 +1,22 @@
+package mainroute
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
+)
+
+templ PageView(nav goldr.Navigation) {
+	@ui.Frame(nav, pageContent())
+}
+
+templ pageContent() {
+	<main>
+		<h1>Main</h1>
+		<p>Top-level sections use different trail defaults.</p>
+		<ul>
+			<li><a href={ urls.Main.Hq.Path() }>HQ</a></li>
+			<li><a href={ urls.Main.Regional.Path() }>Regional</a></li>
+		</ul>
+	</main>
+}

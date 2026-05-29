@@ -7,7 +7,8 @@
 // application keeps ownership of its net/http server, mux, middleware, static
 // asset serving, auth, sessions, persistence, validation, and deployment.
 // Goldr adds filesystem routing under app/routes, mounted non-live Kit route
-// subtrees under app/mounts, generated route wiring, and generated URL helpers.
+// subtrees under app/mounts, route-derived navigation trails, generated route
+// wiring, and generated URL helpers.
 //
 // A minimal goldr app has a route tree like this:
 //
@@ -72,6 +73,12 @@
 // through the matched layout stack, return a Page response. Page, fragment,
 // redirect, text, and no-content route responses can carry explicit headers
 // with WithHeader and AddHeader.
+//
+// Routes may declare canonical navigation metadata with RouteDef.Nav. Generated
+// dispatch attaches the matched route's canonical navigation plan to the
+// request; handlers call Nav(r), resolve dynamic labels with app data, and pass
+// the resulting Navigation to templates. Destination helpers can still select
+// an explicit alternate TrailKey for shared target workflows.
 //
 // For server-sent events, applications keep ownership of their stream routes,
 // mux registration, subscriber state, and replay policy. The sse package

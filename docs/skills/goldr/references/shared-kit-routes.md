@@ -131,6 +131,8 @@ Rules:
 - `app/mounts` never owns live URLs by itself.
 - A mounted subtree can own the reusable kit type, handler methods, and templ
   components for that subtree.
+- A mounted source route may declare default `Nav` label or key metadata for
+  its reusable page.
 - `Mount` is a clean relative path under `app/mounts`.
 - The mount owner supplies the request-scoped `New func(*http.Request) K` as a
   local identifier in the owner route package.
@@ -155,6 +157,8 @@ Rules:
   rejected.
 - `RouteDef` is invalid in `app/mounts`.
 - `KitRouteDef.New` is invalid in `app/mounts`; the mount owner supplies it.
+- `KitRouteDef.Destinations` is invalid in `app/mounts`; live owners declare
+  destinations on selected `MountRoute` entries.
 - `KitRouteDef.New` is required in `app/routes`.
 
 Run `go tool goldr routes list --json` when inspecting mounted routes. JSON

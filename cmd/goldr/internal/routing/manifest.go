@@ -29,11 +29,11 @@ type RenderUnit struct {
 }
 
 type ManifestPage struct {
-	Route     string
-	Params    []string
-	NavTrails []string
-	Unit      RenderUnit
-	Function  string
+	Route    string
+	Params   []string
+	Nav      RouteNavDeclaration
+	Unit     RenderUnit
+	Function string
 }
 
 type ManifestLayout struct {
@@ -46,7 +46,7 @@ type ManifestFragment struct {
 	Name        string
 	RoutePrefix string
 	Params      []string
-	NavTrails   []string
+	Nav         RouteNavDeclaration
 	Unit        RenderUnit
 	Function    string
 	Segment     string
@@ -56,8 +56,9 @@ type ManifestFragment struct {
 type ManifestAction struct {
 	Method           string
 	Route            string
+	NavRoute         string
 	Params           []string
-	NavTrails        []string
+	Nav              RouteNavDeclaration
 	GoFile           string
 	SourceGoFile     string
 	MiddlewareGoFile string
@@ -83,7 +84,7 @@ type ManifestRouteDeclaration struct {
 	Name             string
 	Title            string
 	Meta             []RouteMetaLabel
-	NavTrails        []string
+	Nav              RouteNavDeclaration
 	Page             *RouteHandlerDeclaration
 	Fragments        []RouteFragmentDeclaration
 	Actions          []RouteActionDeclaration
@@ -95,13 +96,14 @@ type ManifestRouteDeclaration struct {
 }
 
 type ManifestMountRouteSelection struct {
-	MountPath string
-	Owner     string
-	Source    string
-	Route     string
-	Params    []string
-	NavTrails []string
-	Included  bool
+	MountPath    string
+	Owner        string
+	Source       string
+	Route        string
+	Params       []string
+	Nav          RouteNavDeclaration
+	Destinations []RouteDestinationDeclaration
+	Included     bool
 }
 
 type ManifestMountSourceRoute struct {
@@ -196,7 +198,7 @@ func BuildManifest(tree Tree) Manifest {
 			Name:             route.Name,
 			Title:            route.Title,
 			Meta:             slices.Clone(route.Meta),
-			NavTrails:        slices.Clone(route.NavTrails),
+			Nav:              cloneRouteNavDeclaration(route.Nav),
 			Page:             cloneRouteHandlerDeclaration(route.Page),
 			Fragments:        slices.Clone(route.Fragments),
 			Actions:          slices.Clone(route.Actions),
@@ -212,13 +214,14 @@ func BuildManifest(tree Tree) Manifest {
 		manifest.MountRoutes = make([]ManifestMountRouteSelection, 0, len(tree.MountRoutes))
 		for _, route := range tree.MountRoutes {
 			manifest.MountRoutes = append(manifest.MountRoutes, ManifestMountRouteSelection{
-				MountPath: route.MountPath,
-				Owner:     route.Owner,
-				Source:    route.Source,
-				Route:     route.Route,
-				Params:    slices.Clone(route.Params),
-				NavTrails: slices.Clone(route.NavTrails),
-				Included:  route.Included,
+				MountPath:    route.MountPath,
+				Owner:        route.Owner,
+				Source:       route.Source,
+				Route:        route.Route,
+				Params:       slices.Clone(route.Params),
+				Nav:          cloneRouteNavDeclaration(route.Nav),
+				Destinations: cloneRouteDestinations(route.Destinations),
+				Included:     route.Included,
 			})
 		}
 	}
@@ -302,7 +305,8 @@ func cloneMountRoutes(values []MountRouteDeclaration) []MountRouteDeclaration {
 	next := make([]MountRouteDeclaration, len(values))
 	for index, value := range values {
 		next[index] = value
-		next[index].NavTrails = slices.Clone(value.NavTrails)
+		next[index].Nav = cloneRouteNavDeclaration(value.Nav)
+		next[index].Destinations = cloneRouteDestinations(value.Destinations)
 	}
 	return next
 }

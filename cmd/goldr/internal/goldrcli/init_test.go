@@ -74,9 +74,9 @@ func TestRunInitCreatesStarterApp(t *testing.T) {
 		t.Fatalf("Run(routes list) exit code = %d, want 0; stderr = %q", code, routesErr)
 	}
 	requireRouteTableRows(t, routesOut, [][]string{
-		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER"},
-		{"layout", "-", "/", "-", "layout.go", "-", "-", "-", "-", "-", "-"},
-		{"page", "GET,HEAD", "/", "-", "route.go", "-", "local", "-", "-", "-", "urls.Root.Path()"},
+		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "NAV", "TRAIL_KEYS", "HELPER"},
+		{"layout", "-", "/", "-", "layout.go", "-", "-", "-", "-", "-", "-", "-", "-"},
+		{"page", "GET,HEAD", "/", "-", "route.go", "-", "local", "-", "-", "-", "-", "-", "urls.Root.Path()"},
 	})
 	if routesErr != "" {
 		t.Fatalf("routes stderr = %q, want empty", routesErr)

@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/mobiletoly/goldr"
-	analytics "github.com/mobiletoly/goldr/examples/navigation/app/mounts/analytics"
 	goldrmount_analytics "github.com/mobiletoly/goldr/examples/navigation/app/mounts/analytics"
 	goldrmount_analytics_customers_by_customer_id_report "github.com/mobiletoly/goldr/examples/navigation/app/mounts/analytics/customers/by_customer_id/report"
 )
@@ -25,5 +24,5 @@ func GoldrRouteMountAnalyticsPage(r *http.Request) goldr.PageRouteResponse {
 
 func GoldrRouteMountAnalyticsCustomersByCustomerIDReportPage(r *http.Request) goldr.PageRouteResponse {
 	goldrKit := newKit(r)
-	return analytics.Kit.CustomerReport(goldrKit, r)
+	return goldrmount_analytics_customers_by_customer_id_report.Page(goldrKit, r)
 }

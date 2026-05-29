@@ -1,0 +1,23 @@
+package by_id
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/store"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
+)
+
+templ PageView(nav goldr.Navigation, team store.Team, customer store.Customer) {
+	@ui.Frame(nav, pageContent(team, customer))
+}
+
+templ pageContent(team store.Team, customer store.Customer) {
+	<main>
+		<h1>{ customer.Name }</h1>
+		<p>Customer labels are loaded by the target page.</p>
+		<ul>
+			<li><a href={ urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Customers.ByCustomerID.Bind(customer.ID).Report.Path() }>Report</a></li>
+			<li><a href={ urls.Main.Hq.Teams.ByTeamID.Customers.ByCustomerID.Destinations.SharedReport.Bind(customer.ID).Href() }>Shared report</a></li>
+		</ul>
+	</main>
+}

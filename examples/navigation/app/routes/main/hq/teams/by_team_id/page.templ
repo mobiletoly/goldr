@@ -1,0 +1,23 @@
+package by_id
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/store"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
+)
+
+templ PageView(nav goldr.Navigation, team store.Team) {
+	@ui.Frame(nav, pageContent(team))
+}
+
+templ pageContent(team store.Team) {
+	<main>
+		<h1>{ team.Name }</h1>
+		<p>HQ team context is loaded from the store.</p>
+		<ul>
+			<li><a href={ urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Analytics.Path() }>Analytics</a></li>
+			<li><a href={ urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Customers.ByCustomerID.Bind("contoso").Path() }>Customer</a></li>
+		</ul>
+	</main>
+}

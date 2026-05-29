@@ -199,8 +199,13 @@ func renderExplainDeclarationOutput(writer io.Writer, routesDir string, match wi
 	if _, err := fmt.Fprintf(writer, "  %-8s %s\n", "labels", routeSurfaceDeclarationLabelsText(declaration)); err != nil {
 		return err
 	}
-	if len(declaration.NavTrails) > 0 {
-		if _, err := fmt.Fprintf(writer, "  %-8s %s\n", "trails", routeSurfaceDeclarationNavTrailsText(declaration)); err != nil {
+	if declaration.Nav.Label != "" || declaration.Nav.Key != "" {
+		if _, err := fmt.Fprintf(writer, "  %-8s %s\n", "nav", routeSurfaceDeclarationNavText(declaration)); err != nil {
+			return err
+		}
+	}
+	if len(declaration.TrailKeys) > 0 {
+		if _, err := fmt.Fprintf(writer, "  %-8s %s\n", "trailkey", routeSurfaceDeclarationTrailKeysText(declaration)); err != nil {
 			return err
 		}
 	}
@@ -233,12 +238,25 @@ func renderExplainDeclarationOutput(writer io.Writer, routesDir string, match wi
 			if _, err := fmt.Fprintf(writer, "  %-18s %s -> %s", destination.Name, destination.Helper, destination.Target); err != nil {
 				return err
 			}
-			if destination.NavTrail != "" {
-				if _, err := fmt.Fprintf(writer, " trail=%s", destination.NavTrail); err != nil {
+			if destination.TrailKey != "" {
+				if _, err := fmt.Fprintf(writer, " trail_key=%s", destination.TrailKey); err != nil {
 					return err
 				}
 			}
 			if _, err := fmt.Fprintln(writer); err != nil {
+				return err
+			}
+		}
+	}
+	if len(declaration.InboundDestinations) > 0 {
+		if _, err := fmt.Fprintln(writer); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintln(writer, "INBOUND DESTINATIONS"); err != nil {
+			return err
+		}
+		for _, destination := range declaration.InboundDestinations {
+			if _, err := fmt.Fprintf(writer, "  %-18s %s -> %s trail_key=%s\n", destination.Name, destination.Helper, destination.Source, destination.TrailKey); err != nil {
 				return err
 			}
 		}

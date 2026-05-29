@@ -67,7 +67,7 @@ func routeSurfaceCommentWidth(rows []routeSurfaceCommentRow, value func(routeSur
 	return width
 }
 
-func writeImports(buffer *bytes.Buffer, imports []routeImport, adapterImports []routeAdapterImport, inspectorImportPath string, needsDynamicRoutes, needsRuntime, needsRouteRenderer, needsSegments, needsSlices, needsGoldr bool) {
+func writeImports(buffer *bytes.Buffer, imports []routeImport, adapterImports []routeAdapterImport, inspectorImportPath string, needsDynamicRoutes, needsRuntime, needsRouteRenderer, needsStrings, needsSlices, needsGoldr bool) {
 	if !needsRuntime {
 		return
 	}
@@ -77,7 +77,7 @@ func writeImports(buffer *bytes.Buffer, imports []routeImport, adapterImports []
 	if needsDynamicRoutes {
 		buffer.WriteString("\t\"net/url\"\n")
 	}
-	if needsSegments {
+	if needsStrings {
 		buffer.WriteString("\t\"strings\"\n")
 	}
 	if needsSlices {
@@ -112,10 +112,10 @@ func writeTypes(buffer *bytes.Buffer, needsRuntime bool) {
 }
 
 type goldrPage struct {
-	Route     string
-	Params    []string
-	NavTrails []string
-	Unit      goldrRenderUnit
+	Route  string
+	Params []string
+	Nav    goldrRouteNav
+	Unit   goldrRenderUnit
 }
 
 type goldrLayout struct {
@@ -128,7 +128,7 @@ type goldrFragment struct {
 	Name        string
 	RoutePrefix string
 	Params      []string
-	NavTrails   []string
+	Nav         goldrRouteNav
 	Unit        goldrRenderUnit
 	Index       bool
 }
@@ -136,8 +136,9 @@ type goldrFragment struct {
 type goldrAction struct {
 	Method       string
 	Route        string
+	NavRoute     string
 	Params       []string
-	NavTrails    []string
+	Nav          goldrRouteNav
 	GoFile       string
 	SourceGoFile string
 	Function     string
@@ -157,6 +158,11 @@ type goldrRenderUnit struct {
 	TemplFile    string
 }
 
+type goldrRouteNav struct {
+	Label string
+	Key   string
+}
+
 `)
 	if needsRuntime {
 		buffer.WriteString(`type ErrorHandlers struct {
@@ -166,6 +172,7 @@ type goldrRenderUnit struct {
 }
 
 type HandlerOptions struct {
+	BasePath           string
 	ErrorHandlers       ErrorHandlers
 	TemplateInspection goldr.TemplateInspectionMode
 }
@@ -181,7 +188,7 @@ func writeManifestValue(buffer *bytes.Buffer, manifest routing.Manifest) {
 		buffer.WriteString("\t\t{\n")
 		fmt.Fprintf(buffer, "\t\t\tRoute: %s,\n", strconv.Quote(page.Route))
 		writeParams(buffer, page.Params)
-		writeNavTrails(buffer, page.NavTrails)
+		writeRouteNav(buffer, page.Nav)
 		writeRenderUnit(buffer, page.Unit)
 		buffer.WriteString("\t\t},\n")
 	}
@@ -203,7 +210,7 @@ func writeManifestValue(buffer *bytes.Buffer, manifest routing.Manifest) {
 		fmt.Fprintf(buffer, "\t\t\tName: %s,\n", strconv.Quote(fragment.Name))
 		fmt.Fprintf(buffer, "\t\t\tRoutePrefix: %s,\n", strconv.Quote(fragment.RoutePrefix))
 		writeParams(buffer, fragment.Params)
-		writeNavTrails(buffer, fragment.NavTrails)
+		writeRouteNav(buffer, fragment.Nav)
 		writeRenderUnit(buffer, fragment.Unit)
 		if fragment.Index {
 			buffer.WriteString("\t\t\tIndex: true,\n")
@@ -217,8 +224,11 @@ func writeManifestValue(buffer *bytes.Buffer, manifest routing.Manifest) {
 		buffer.WriteString("\t\t{\n")
 		fmt.Fprintf(buffer, "\t\t\tMethod: %s,\n", strconv.Quote(action.Method))
 		fmt.Fprintf(buffer, "\t\t\tRoute: %s,\n", strconv.Quote(action.Route))
+		if action.NavRoute != "" && action.NavRoute != action.Route {
+			fmt.Fprintf(buffer, "\t\t\tNavRoute: %s,\n", strconv.Quote(action.NavRoute))
+		}
 		writeParams(buffer, action.Params)
-		writeNavTrails(buffer, action.NavTrails)
+		writeRouteNav(buffer, action.Nav)
 		fmt.Fprintf(buffer, "\t\t\tGoFile: %s,\n", strconv.Quote(action.GoFile))
 		if action.SourceGoFile != "" {
 			fmt.Fprintf(buffer, "\t\t\tSourceGoFile: %s,\n", strconv.Quote(action.SourceGoFile))
@@ -258,18 +268,18 @@ func writeParams(buffer *bytes.Buffer, params []string) {
 	buffer.WriteString("},\n")
 }
 
-func writeNavTrails(buffer *bytes.Buffer, keys []string) {
-	if len(keys) == 0 {
+func writeRouteNav(buffer *bytes.Buffer, nav routing.RouteNavDeclaration) {
+	if nav.Label == "" && nav.Key == "" {
 		return
 	}
-	buffer.WriteString("\t\t\tNavTrails: []string{")
-	for index, key := range keys {
-		if index > 0 {
-			buffer.WriteString(", ")
-		}
-		buffer.WriteString(strconv.Quote(key))
+	buffer.WriteString("\t\t\tNav: goldrRouteNav{\n")
+	if nav.Label != "" {
+		fmt.Fprintf(buffer, "\t\t\t\tLabel: %s,\n", strconv.Quote(nav.Label))
 	}
-	buffer.WriteString("},\n")
+	if nav.Key != "" {
+		fmt.Fprintf(buffer, "\t\t\t\tKey: %s,\n", strconv.Quote(nav.Key))
+	}
+	buffer.WriteString("\t\t\t},\n")
 }
 
 func writeRenderUnit(buffer *bytes.Buffer, unit routing.RenderUnit) {

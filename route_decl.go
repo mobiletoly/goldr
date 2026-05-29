@@ -12,7 +12,7 @@ type RouteDef struct {
 	Page         PageHandler
 	Fragments    Fragments
 	Actions      Actions
-	NavTrails    NavTrails
+	Nav          RouteNav
 	Destinations Destinations
 	Meta         RouteMeta
 }
@@ -27,7 +27,7 @@ type KitRouteDef[K any] struct {
 	Page         KitPageHandler[K]
 	Fragments    KitFragments[K]
 	Actions      KitActions[K]
-	NavTrails    NavTrails
+	Nav          RouteNav
 	Destinations Destinations
 	Meta         RouteMeta
 }
@@ -36,10 +36,9 @@ type KitRouteDef[K any] struct {
 // surface from app/mounts. Mount is a clean relative slash path under
 // app/mounts using lowercase Go-safe route directory names.
 type KitRouteMount[K any] struct {
-	New          func(*http.Request) K
-	Mount        string
-	Routes       MountRoutes
-	Destinations Destinations
+	New    func(*http.Request) K
+	Mount  string
+	Routes MountRoutes
 }
 
 // MountRoutes declares the mount-relative route declarations exposed by one
@@ -49,8 +48,15 @@ type MountRoutes []MountRoute
 // MountRoute declares one mount-relative route exposed by a KitRouteMount
 // owner.
 type MountRoute struct {
-	Path      string
-	NavTrails NavTrails
+	Path         string
+	Nav          RouteNav
+	Destinations Destinations
+}
+
+// RouteNav declares route-owned canonical navigation metadata.
+type RouteNav struct {
+	Label string
+	Key   string
 }
 
 // RouteTarget is implemented by generated route nodes that identify a live
@@ -66,7 +72,7 @@ type Destinations map[string]Destination
 // Destination declares one route-owned navigation edge.
 type Destination struct {
 	target   RouteTarget
-	navTrail string
+	trailKey string
 }
 
 // To declares a destination that points at a generated route node.
@@ -74,9 +80,9 @@ func To(target RouteTarget) Destination {
 	return Destination{target: target}
 }
 
-// NavTrail selects a target-route navigation trail key for the destination.
-func (destination Destination) NavTrail(key string) Destination {
-	destination.navTrail = key
+// TrailKey selects a target-route navigation trail key for the destination.
+func (destination Destination) TrailKey(key string) Destination {
+	destination.trailKey = key
 	return destination
 }
 

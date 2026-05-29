@@ -97,13 +97,14 @@ type Middleware struct {
 }
 
 type MountRouteSelection struct {
-	MountPath string
-	Owner     string
-	Source    string
-	Route     string
-	Params    []string
-	NavTrails []string
-	Included  bool
+	MountPath    string
+	Owner        string
+	Source       string
+	Route        string
+	Params       []string
+	Nav          RouteNavDeclaration
+	Destinations []RouteDestinationDeclaration
+	Included     bool
 }
 
 type MountSourceRoute struct {
@@ -314,9 +315,6 @@ func (scanner *scanner) validateRouteDeclaration(relPath string, route RouteDecl
 			if route.Kit != nil && route.Kit.New != "" {
 				scanner.addProblem(relPath, "KitRouteDef.New is not supported under app/mounts; the KitRouteMount owner supplies New")
 			}
-			if len(route.NavTrails) > 0 {
-				scanner.addProblem(relPath, "KitRouteDef.NavTrails is not supported under app/mounts; live mounted routes declare allowed navigation trails")
-			}
 			if len(route.Destinations) > 0 {
 				scanner.addProblem(relPath, "KitRouteDef.Destinations is not supported under app/mounts; live mounted route owners declare destinations")
 			}
@@ -519,17 +517,27 @@ func (expander *mountExpander) selectedMountRoutes(owner RouteDeclaration, mount
 	for _, route := range routes {
 		selectedRoute, selectedRouteOK := selected[route.Route]
 		included := owner.Mount == nil || !owner.Mount.RoutesSet || selectedRouteOK
+		nav := cloneRouteNavDeclaration(route.Nav)
+		if selectedRouteOK && !routeNavEmpty(selectedRoute.Nav) {
+			nav = cloneRouteNavDeclaration(selectedRoute.Nav)
+		}
+		var destinations []RouteDestinationDeclaration
+		if selectedRouteOK {
+			destinations = cloneRouteDestinations(selectedRoute.Destinations)
+		}
 		expander.tree.MountRoutes = append(expander.tree.MountRoutes, MountRouteSelection{
-			MountPath: mountPath,
-			Owner:     owner.GoFile,
-			Source:    prefixedMountPath(mountPath, route.GoFile),
-			Route:     joinRoute(owner.Route, route.Route),
-			Params:    append(slices.Clone(owner.Params), route.Params...),
-			NavTrails: slices.Clone(selectedRoute.NavTrails),
-			Included:  included,
+			MountPath:    mountPath,
+			Owner:        owner.GoFile,
+			Source:       prefixedMountPath(mountPath, route.GoFile),
+			Route:        joinRoute(owner.Route, route.Route),
+			Params:       append(slices.Clone(owner.Params), route.Params...),
+			Nav:          cloneRouteNavDeclaration(nav),
+			Destinations: cloneRouteDestinations(destinations),
+			Included:     included,
 		})
 		if included {
-			route.NavTrails = slices.Clone(selectedRoute.NavTrails)
+			route.Nav = cloneRouteNavDeclaration(nav)
+			route.Destinations = cloneRouteDestinations(destinations)
 			result = append(result, route)
 		}
 	}
@@ -585,9 +593,6 @@ func (expander *mountExpander) rebaseRoute(owner RouteDeclaration, mountPath str
 	rebased.Kind = routeDeclarationKindKitMount
 	rebased.Kit = cloneRouteKitDeclaration(owner.Kit)
 	rebased.Destinations = cloneRouteDestinations(route.Destinations)
-	if route.Route == "/" && len(owner.Destinations) > 0 {
-		rebased.Destinations = cloneRouteDestinations(owner.Destinations)
-	}
 	rebased.Mount = &RouteMountDeclaration{
 		Path:            mountPath,
 		Owner:           owner.GoFile,

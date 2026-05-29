@@ -1,0 +1,22 @@
+package regional
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/store"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
+)
+
+templ PageView(nav goldr.Navigation, office store.Office) {
+	@ui.Frame(nav, pageContent(office))
+}
+
+templ pageContent(office store.Office) {
+	<main>
+		<h1>Regional</h1>
+		<p>Regional owns an office-aware trail prefix.</p>
+		<ul>
+			<li><a href={ urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Path() }>{ office.Name }</a></li>
+		</ul>
+	</main>
+}

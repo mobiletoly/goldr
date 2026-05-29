@@ -195,6 +195,7 @@ import (
 	"net/http"
 
 	"github.com/mobiletoly/goldr"
+	"example.com/app/urls"
 	shared "example.com/app/shared"
 )
 
@@ -203,7 +204,13 @@ var Route = goldr.KitRouteMount[shared.Kit]{
 	Mount: "reports",
 	Routes: goldr.MountRoutes{
 		{Path: "/"},
-		{Path: "/table"},
+		{
+				Path: "/table",
+				Nav: goldr.RouteNav{Key: "report_table"},
+				Destinations: goldr.Destinations{
+					"audit": goldr.To(urls.Admin.Reports.Audit).TrailKey("admin-reports"),
+				},
+			},
 		{Path: "/orgs/{org_id}"},
 	},
 }
@@ -215,13 +222,26 @@ func newKit(r *http.Request) shared.Kit {
 
 	tree := scanOK(t, root)
 
-	wantRoutes := []MountRouteDeclaration{{Path: "/"}, {Path: "/table"}, {Path: "/orgs/{org_id}"}}
+	wantRoutes := []MountRouteDeclaration{
+		{Path: "/"},
+		{
+			Path: "/table",
+			Nav:  RouteNavDeclaration{Key: "report_table"},
+			Destinations: []RouteDestinationDeclaration{{
+				Name:       "audit",
+				SymbolName: "Audit",
+				Target:     []string{"Admin", "Reports", "Audit"},
+				TrailKey:   "admin-reports",
+			}},
+		},
+		{Path: "/orgs/{org_id}"},
+	}
 	if got := tree.Routes[0].Mount; got == nil || got.Path != "reports" || !got.RoutesSet || !reflect.DeepEqual(got.Routes, wantRoutes) {
 		t.Fatalf("mount = %#v, want parsed Routes", got)
 	}
 }
 
-func TestScanRouteDeclarationNavTrails(t *testing.T) {
+func TestScanRouteDeclarationNav(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "users/route.go", `package users
 
@@ -231,12 +251,12 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-var Route = goldr.RouteDef{
-	Page: page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{"provider-search", "attention-center"},
-	},
-}
+	var Route = goldr.RouteDef{
+		Page: page,
+		Nav: goldr.RouteNav{
+			Label: "Users",
+		},
+	}
 
 func page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Body: "users"}
@@ -254,13 +274,13 @@ type Kit struct{}
 
 func New(*http.Request) Kit { return Kit{} }
 
-var Route = goldr.KitRouteDef[Kit]{
-	New:  New,
-	Page: Kit.Page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{"report-dashboard"},
-	},
-}
+	var Route = goldr.KitRouteDef[Kit]{
+		New:  New,
+		Page: Kit.Page,
+		Nav: goldr.RouteNav{
+			Key: "report",
+		},
+	}
 
 func (Kit) Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Body: "reports"}
@@ -269,16 +289,16 @@ func (Kit) Page(r *http.Request) goldr.PageRouteResponse {
 
 	tree := scanOK(t, root)
 
-	got := make(map[string][]string)
+	got := make(map[string]RouteNavDeclaration)
 	for _, route := range tree.Routes {
-		got[route.Route] = route.NavTrails
+		got[route.Route] = route.Nav
 	}
-	want := map[string][]string{
-		"/reports": {"report-dashboard"},
-		"/users":   {"provider-search", "attention-center"},
+	want := map[string]RouteNavDeclaration{
+		"/reports": {Key: "report"},
+		"/users":   {Label: "Users"},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("nav trails = %#v, want %#v", got, want)
+		t.Fatalf("nav = %#v, want %#v", got, want)
 	}
 }
 
@@ -293,12 +313,12 @@ import (
 	"example.com/app/urls"
 )
 
-var Route = goldr.RouteDef{
-	Page: page,
-	Destinations: goldr.Destinations{
-		"customer-daytempo": goldr.To(urls.Provider.Customers.ByID.DayTempo).NavTrail("attention-center"),
-		"customers": goldr.To(urls.Provider.Customers),
-	},
+	var Route = goldr.RouteDef{
+		Page: page,
+		Destinations: goldr.Destinations{
+			"project-report": goldr.To(urls.Workspace.Projects.ByID.Report).TrailKey("workflow-a"),
+			"projects": goldr.To(urls.Workspace.Projects),
+		},
 }
 
 func page(r *http.Request) goldr.PageRouteResponse {
@@ -317,15 +337,15 @@ func page(r *http.Request) goldr.PageRouteResponse {
 			Page:    &RouteHandlerDeclaration{Handler: "page"},
 			Destinations: []RouteDestinationDeclaration{
 				{
-					Name:       "customer-daytempo",
-					SymbolName: "CustomerDaytempo",
-					Target:     []string{"Provider", "Customers", "ByID", "DayTempo"},
-					NavTrail:   "attention-center",
+					Name:       "project-report",
+					SymbolName: "ProjectReport",
+					Target:     []string{"Workspace", "Projects", "ByID", "Report"},
+					TrailKey:   "workflow-a",
 				},
 				{
-					Name:       "customers",
-					SymbolName: "Customers",
-					Target:     []string{"Provider", "Customers"},
+					Name:       "projects",
+					SymbolName: "Projects",
+					Target:     []string{"Workspace", "Projects"},
 				},
 			},
 		},
@@ -421,11 +441,29 @@ import (
 var Route = goldr.RouteDef{
 	Page: page,
 	Destinations: goldr.Destinations{
-		"detail": goldr.To(urls.Users).NavTrail("ProviderSearch"),
+		"detail": goldr.To(urls.Users).TrailKey("ProjectSearch"),
 	},
 }
 `,
-			message: "Destination.NavTrail argument must use a lowercase ASCII trail key like \"provider-search\"",
+			message: "Destination.TrailKey argument must use a lowercase ASCII trail key like \"project-search\"",
+		},
+		{
+			name: "unsupported destination query keys",
+			source: `package users
+
+import (
+	"github.com/mobiletoly/goldr"
+	"example.com/app/urls"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Destinations: goldr.Destinations{
+		"detail": goldr.To(urls.Users).QueryKeys("view"),
+	},
+}
+`,
+			message: "Destinations entries support only goldr.To(routeNode) and Destination.TrailKey",
 		},
 	}
 
@@ -446,90 +484,72 @@ var Route = goldr.RouteDef{
 	}
 }
 
-func TestScanRouteDeclarationRejectsInvalidNavTrails(t *testing.T) {
+func TestScanRouteDeclarationRejectsInvalidNav(t *testing.T) {
 	tests := []struct {
 		name    string
 		source  string
 		message string
 	}{
 		{
-			name: "duplicate key",
+			name: "trail keys unsupported",
 			source: `package users
 
 import "github.com/mobiletoly/goldr"
 
-var Route = goldr.RouteDef{
-	Page: page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{"provider-search", "provider-search"},
-	},
-}
-`,
-			message: "NavTrails.Allowed contains duplicate key: provider-search",
+	var Route = goldr.RouteDef{
+		Page: page,
+		Nav: goldr.RouteNav{
+			TrailKeys: []string{"project-search"},
+		},
+	}
+	`,
+			message: "Nav.TrailKeys is not supported; declare Destination.TrailKey on live inbound destinations",
 		},
 		{
-			name: "invalid key",
+			name: "label and key",
 			source: `package users
 
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
 	Page: page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{"ProviderSearch"},
+	Nav: goldr.RouteNav{
+		Label: "Users",
+		Key: "user",
 	},
 }
 `,
-			message: "NavTrails.Allowed entries must use lowercase ASCII trail keys like \"provider-search\"",
+			message: "Nav cannot set both Label and Key",
 		},
 		{
-			name: "non literal key",
+			name: "empty label",
 			source: `package users
 
 import "github.com/mobiletoly/goldr"
 
-const TrailProviderSearch = "provider-search"
-
 var Route = goldr.RouteDef{
 	Page: page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{TrailProviderSearch},
+	Nav: goldr.RouteNav{
+		Label: "   ",
 	},
 }
 `,
-			message: "NavTrails.Allowed entry must be a string literal",
+			message: "Nav.Label must not be empty",
 		},
 		{
-			name: "non literal allowed list",
-			source: `package users
-
-import "github.com/mobiletoly/goldr"
-
-var allowed = []string{"provider-search"}
-
-var Route = goldr.RouteDef{
-	Page: page,
-	NavTrails: goldr.NavTrails{
-		Allowed: allowed,
-	},
-}
-`,
-			message: "NavTrails.Allowed must use a literal []string value",
-		},
-		{
-			name: "field name collision",
+			name: "invalid dynamic key",
 			source: `package users
 
 import "github.com/mobiletoly/goldr"
 
 var Route = goldr.RouteDef{
 	Page: page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{"id", "i-d"},
+	Nav: goldr.RouteNav{
+		Key: "WorkspaceProject",
 	},
 }
 `,
-			message: `NavTrails.Allowed keys "id" and "i-d" map to the same generated field name ID`,
+			message: `Nav.Key must use lower snake case ASCII like "workspace_project"`,
 		},
 	}
 
@@ -937,7 +957,7 @@ var Route = goldr.KitRouteMount[Kit]{
 	Name: "reports",
 }
 `,
-			message: "KitRouteMount supports only New, Mount, Routes, and Destinations route surface fields",
+			message: "KitRouteMount supports only New, Mount, and Routes route surface fields",
 		},
 		{
 			name: "kit route mount computed routes",

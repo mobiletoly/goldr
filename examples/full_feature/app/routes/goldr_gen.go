@@ -47,10 +47,10 @@ type goldrManifest struct {
 }
 
 type goldrPage struct {
-	Route     string
-	Params    []string
-	NavTrails []string
-	Unit      goldrRenderUnit
+	Route  string
+	Params []string
+	Nav    goldrRouteNav
+	Unit   goldrRenderUnit
 }
 
 type goldrLayout struct {
@@ -63,7 +63,7 @@ type goldrFragment struct {
 	Name        string
 	RoutePrefix string
 	Params      []string
-	NavTrails   []string
+	Nav         goldrRouteNav
 	Unit        goldrRenderUnit
 	Index       bool
 }
@@ -71,8 +71,9 @@ type goldrFragment struct {
 type goldrAction struct {
 	Method       string
 	Route        string
+	NavRoute     string
 	Params       []string
-	NavTrails    []string
+	Nav          goldrRouteNav
 	GoFile       string
 	SourceGoFile string
 	Function     string
@@ -92,6 +93,11 @@ type goldrRenderUnit struct {
 	TemplFile    string
 }
 
+type goldrRouteNav struct {
+	Label string
+	Key   string
+}
+
 type ErrorHandlers struct {
 	RouteNotFound         func(*http.Request) goldr.RouteResponse
 	RouteMethodNotAllowed func(*http.Request) goldr.RouteResponse
@@ -99,6 +105,7 @@ type ErrorHandlers struct {
 }
 
 type HandlerOptions struct {
+	BasePath           string
 	ErrorHandlers      ErrorHandlers
 	TemplateInspection goldr.TemplateInspectionMode
 }

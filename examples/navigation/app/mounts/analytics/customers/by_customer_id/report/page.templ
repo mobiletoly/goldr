@@ -1,0 +1,18 @@
+package report
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/store"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+)
+
+templ PageView(nav goldr.Navigation, customer store.Customer) {
+	@ui.Frame(nav, pageContent(customer))
+}
+
+templ pageContent(customer store.Customer) {
+	<main>
+		<h1>Analytics Report</h1>
+		<p>Risk: { customer.Risk }</p>
+	</main>
+}

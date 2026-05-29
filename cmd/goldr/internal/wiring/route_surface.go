@@ -34,18 +34,20 @@ type RouteSurfaceRow struct {
 }
 
 type RouteDeclarationInfo struct {
-	Source       string
-	Kind         string
-	Name         string
-	Title        string
-	Labels       []RouteDeclarationLabel
-	NavTrails    []string
-	Destinations []RouteDeclarationDestination
-	Mount        *RouteDeclarationMount
-	Kit          *RouteDeclarationKit
-	Page         *RouteDeclarationPage
-	Fragment     *RouteDeclarationFragment
-	Action       *RouteDeclarationAction
+	Source              string
+	Kind                string
+	Name                string
+	Title               string
+	Labels              []RouteDeclarationLabel
+	Nav                 RouteDeclarationNav
+	TrailKeys           []string
+	Destinations        []RouteDeclarationDestination
+	InboundDestinations []RouteDeclarationInboundDestination
+	Mount               *RouteDeclarationMount
+	Kit                 *RouteDeclarationKit
+	Page                *RouteDeclarationPage
+	Fragment            *RouteDeclarationFragment
+	Action              *RouteDeclarationAction
 }
 
 type RouteDeclarationLabel struct {
@@ -57,7 +59,19 @@ type RouteDeclarationDestination struct {
 	Name     string
 	Helper   string
 	Target   string
-	NavTrail string
+	TrailKey string
+}
+
+type RouteDeclarationInboundDestination struct {
+	Source   string
+	Name     string
+	Helper   string
+	TrailKey string
+}
+
+type RouteDeclarationNav struct {
+	Label string
+	Key   string
 }
 
 type RouteDeclarationKit struct {
@@ -110,7 +124,12 @@ func RouteSurface(manifest routing.Manifest) ([]RouteSurfaceRow, error) {
 		return nil, err
 	}
 
-	return routeSurfaceRows(manifest, routes), nil
+	inboundDestinations, err := inboundDestinationTrailEdgesByRoute(manifest.Routes)
+	if err != nil {
+		return nil, err
+	}
+
+	return routeSurfaceRows(manifest, routes, inboundDestinations), nil
 }
 
 func RouteSurfaceWithMountSelections(manifest routing.Manifest) ([]RouteSurfaceRow, error) {
@@ -123,7 +142,12 @@ func RouteSurfaceWithMountSelections(manifest routing.Manifest) ([]RouteSurfaceR
 		return nil, err
 	}
 
-	rows := routeSurfaceRows(manifest, routes)
+	inboundDestinations, err := inboundDestinationTrailEdgesByRoute(manifest.Routes)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := routeSurfaceRows(manifest, routes, inboundDestinations)
 	for index := range rows {
 		if rows[index].Declaration != nil && rows[index].Declaration.Mount != nil {
 			rows[index].Selection = RouteSurfaceSelectionIncluded
@@ -147,8 +171,10 @@ func routeSurfaceMountSelectionRow(selection routing.ManifestMountRouteSelection
 		Source:    selection.Source,
 		Selection: RouteSurfaceSelectionExcluded,
 		Declaration: &RouteDeclarationInfo{
-			Source: selection.Source,
-			Kind:   "mounted-kit",
+			Source:       selection.Source,
+			Kind:         "mounted-kit",
+			Nav:          routeDeclarationNav(selection.Nav),
+			Destinations: routeDeclarationDestinationsForRoute(selection.Route, selection.Destinations),
 			Mount: &RouteDeclarationMount{
 				Path:  selection.MountPath,
 				Owner: selection.Owner,
@@ -157,7 +183,7 @@ func routeSurfaceMountSelectionRow(selection routing.ManifestMountRouteSelection
 	}
 }
 
-func routeSurfaceRows(manifest routing.Manifest, routes []runtimeRoute) []RouteSurfaceRow {
+func routeSurfaceRows(manifest routing.Manifest, routes []runtimeRoute, inboundDestinations map[string][]destinationTrailEdge) []RouteSurfaceRow {
 	rows := make([]RouteSurfaceRow, 0, len(manifest.Layouts)+len(routes))
 	for _, layout := range manifest.Layouts {
 		rows = append(rows, RouteSurfaceRow{
@@ -168,14 +194,14 @@ func routeSurfaceRows(manifest routing.Manifest, routes []runtimeRoute) []RouteS
 		})
 	}
 	for _, route := range routes {
-		rows = append(rows, routeSurfaceRuntimeRow(route, manifest.Routes))
+		rows = append(rows, routeSurfaceRuntimeRow(route, manifest.Routes, inboundDestinations))
 	}
 	slices.SortFunc(rows, compareRouteSurfaceRows)
 	return rows
 }
 
-func routeSurfaceRuntimeRow(route runtimeRoute, declarations []routing.ManifestRouteDeclaration) RouteSurfaceRow {
-	declarationInfo := routeDeclarationInfoForRuntimeRoute(route, declarations)
+func routeSurfaceRuntimeRow(route runtimeRoute, declarations []routing.ManifestRouteDeclaration, inboundDestinations map[string][]destinationTrailEdge) RouteSurfaceRow {
+	declarationInfo := routeDeclarationInfoForRuntimeRoute(route, declarations, inboundDestinations)
 	row := RouteSurfaceRow{
 		Methods:     routeMethods(route),
 		Path:        route.route,
@@ -204,22 +230,22 @@ func routeSurfaceRuntimeRow(route runtimeRoute, declarations []routing.ManifestR
 	return row
 }
 
-func routeDeclarationInfoForRuntimeRoute(route runtimeRoute, declarations []routing.ManifestRouteDeclaration) *RouteDeclarationInfo {
+func routeDeclarationInfoForRuntimeRoute(route runtimeRoute, declarations []routing.ManifestRouteDeclaration, inboundDestinations map[string][]destinationTrailEdge) *RouteDeclarationInfo {
 	for _, declaration := range declarations {
 		if route.page != nil {
-			if info := routeDeclarationInfoForPage(route, declaration); info != nil {
+			if info := routeDeclarationInfoForPage(route, declaration, inboundDestinations[route.navRoute]); info != nil {
 				return info
 			}
 			continue
 		}
 		if route.fragment != nil {
-			if info := routeDeclarationInfoForFragment(route, declaration); info != nil {
+			if info := routeDeclarationInfoForFragment(route, declaration, inboundDestinations[route.navRoute]); info != nil {
 				return info
 			}
 			continue
 		}
 		if route.action != nil {
-			if info := routeDeclarationInfoForAction(route, declaration); info != nil {
+			if info := routeDeclarationInfoForAction(route, declaration, inboundDestinations[route.navRoute]); info != nil {
 				return info
 			}
 		}
@@ -227,11 +253,11 @@ func routeDeclarationInfoForRuntimeRoute(route runtimeRoute, declarations []rout
 	return nil
 }
 
-func routeDeclarationInfoForPage(route runtimeRoute, declaration routing.ManifestRouteDeclaration) *RouteDeclarationInfo {
+func routeDeclarationInfoForPage(route runtimeRoute, declaration routing.ManifestRouteDeclaration, inboundDestinations []destinationTrailEdge) *RouteDeclarationInfo {
 	if route.page.page.Unit.GoFile != declaration.GoFile || route.page.page.Route != declaration.Route || declaration.Page == nil {
 		return nil
 	}
-	info := baseRouteDeclarationInfo(declaration)
+	info := baseRouteDeclarationInfo(declaration, route.trailKeys, inboundDestinations)
 	info.Page = &RouteDeclarationPage{
 		Handler: declaration.Page.Handler,
 		Adapter: routePageAdapterName(declaration),
@@ -239,7 +265,7 @@ func routeDeclarationInfoForPage(route runtimeRoute, declaration routing.Manifes
 	return info
 }
 
-func routeDeclarationInfoForFragment(route runtimeRoute, declaration routing.ManifestRouteDeclaration) *RouteDeclarationInfo {
+func routeDeclarationInfoForFragment(route runtimeRoute, declaration routing.ManifestRouteDeclaration, inboundDestinations []destinationTrailEdge) *RouteDeclarationInfo {
 	fragment := route.fragment.fragment
 	if fragment.Unit.GoFile != declaration.GoFile || fragment.RoutePrefix != declaration.Route {
 		return nil
@@ -248,7 +274,7 @@ func routeDeclarationInfoForFragment(route runtimeRoute, declaration routing.Man
 		if fragment.Name != declarationFragment.Name || fragment.Segment != declarationFragment.Segment || fragment.Index != declarationFragment.Index {
 			continue
 		}
-		info := baseRouteDeclarationInfo(declaration)
+		info := baseRouteDeclarationInfo(declaration, route.trailKeys, inboundDestinations)
 		info.Fragment = &RouteDeclarationFragment{
 			Name:    declarationFragment.Name,
 			Segment: declarationFragment.Segment,
@@ -261,7 +287,7 @@ func routeDeclarationInfoForFragment(route runtimeRoute, declaration routing.Man
 	return nil
 }
 
-func routeDeclarationInfoForAction(route runtimeRoute, declaration routing.ManifestRouteDeclaration) *RouteDeclarationInfo {
+func routeDeclarationInfoForAction(route runtimeRoute, declaration routing.ManifestRouteDeclaration, inboundDestinations []destinationTrailEdge) *RouteDeclarationInfo {
 	action := route.action.action
 	if action.GoFile != declaration.GoFile {
 		return nil
@@ -270,7 +296,7 @@ func routeDeclarationInfoForAction(route runtimeRoute, declaration routing.Manif
 		if action.Method != declarationAction.Method || action.Route != routeDeclarationActionPath(declaration.Route, declarationAction) {
 			continue
 		}
-		info := baseRouteDeclarationInfo(declaration)
+		info := baseRouteDeclarationInfo(declaration, route.trailKeys, inboundDestinations)
 		info.Action = &RouteDeclarationAction{
 			Method:  declarationAction.Method,
 			Name:    declarationAction.Name,
@@ -285,15 +311,17 @@ func routeDeclarationInfoForAction(route runtimeRoute, declaration routing.Manif
 	return nil
 }
 
-func baseRouteDeclarationInfo(declaration routing.ManifestRouteDeclaration) *RouteDeclarationInfo {
+func baseRouteDeclarationInfo(declaration routing.ManifestRouteDeclaration, trailKeys []string, inboundDestinations []destinationTrailEdge) *RouteDeclarationInfo {
 	info := &RouteDeclarationInfo{
-		Source:       routeDeclarationSource(declaration),
-		Kind:         declaration.Kind,
-		Name:         declaration.Name,
-		Title:        declaration.Title,
-		Labels:       routeDeclarationLabels(declaration.Meta),
-		NavTrails:    slices.Clone(declaration.NavTrails),
-		Destinations: routeDeclarationDestinations(declaration),
+		Source:              routeDeclarationSource(declaration),
+		Kind:                declaration.Kind,
+		Name:                declaration.Name,
+		Title:               declaration.Title,
+		Labels:              routeDeclarationLabels(declaration.Meta),
+		Nav:                 routeDeclarationNav(declaration.Nav),
+		TrailKeys:           slices.Clone(trailKeys),
+		Destinations:        routeDeclarationDestinations(declaration),
+		InboundDestinations: routeDeclarationInboundDestinations(inboundDestinations),
 	}
 	if declaration.Kit != nil {
 		info.Kit = &RouteDeclarationKit{
@@ -311,22 +339,58 @@ func baseRouteDeclarationInfo(declaration routing.ManifestRouteDeclaration) *Rou
 }
 
 func routeDeclarationDestinations(declaration routing.ManifestRouteDeclaration) []RouteDeclarationDestination {
-	if len(declaration.Destinations) == 0 {
+	return routeDeclarationDestinationsForRoute(declaration.Route, declaration.Destinations)
+}
+
+func routeDeclarationDestinationsForRoute(route string, destinations []routing.RouteDestinationDeclaration) []RouteDeclarationDestination {
+	if len(destinations) == 0 {
 		return nil
 	}
-	result := make([]RouteDeclarationDestination, len(declaration.Destinations))
-	for index, destination := range declaration.Destinations {
+	result := make([]RouteDeclarationDestination, len(destinations))
+	for index, destination := range destinations {
 		result[index] = RouteDeclarationDestination{
 			Name:     destination.Name,
-			Helper:   routeSurfaceDestinationHelper(declaration.Route, destination.SymbolName),
+			Helper:   routeSurfaceDestinationHelper(route, destination.SymbolName),
 			Target:   "urls." + strings.Join(destination.Target, "."),
-			NavTrail: destination.NavTrail,
+			TrailKey: destination.TrailKey,
 		}
 	}
 	slices.SortFunc(result, func(a, b RouteDeclarationDestination) int {
 		return strings.Compare(a.Name, b.Name)
 	})
 	return result
+}
+
+func routeDeclarationInboundDestinations(edges []destinationTrailEdge) []RouteDeclarationInboundDestination {
+	if len(edges) == 0 {
+		return nil
+	}
+	result := make([]RouteDeclarationInboundDestination, len(edges))
+	for index, edge := range edges {
+		result[index] = RouteDeclarationInboundDestination{
+			Source:   edge.sourceRoute,
+			Name:     edge.name,
+			Helper:   routeSurfaceDestinationHelper(edge.sourceRoute, edge.symbolName),
+			TrailKey: edge.trailKey,
+		}
+	}
+	slices.SortFunc(result, func(a, b RouteDeclarationInboundDestination) int {
+		if a.Source != b.Source {
+			return strings.Compare(a.Source, b.Source)
+		}
+		if a.TrailKey != b.TrailKey {
+			return strings.Compare(a.TrailKey, b.TrailKey)
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	return result
+}
+
+func routeDeclarationNav(nav routing.RouteNavDeclaration) RouteDeclarationNav {
+	return RouteDeclarationNav{
+		Label: nav.Label,
+		Key:   nav.Key,
+	}
 }
 
 func routeSurfaceDestinationHelper(route string, destination string) string {

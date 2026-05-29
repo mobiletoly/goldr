@@ -110,23 +110,21 @@ func TestGenerateURLHelpersUsesRoutePathForIndexFragments(t *testing.T) {
 	}
 }
 
-func TestGenerateURLHelpersWritesRouteScopedNavTrails(t *testing.T) {
+func TestGenerateURLHelpersWritesRouteScopedTrailKeys(t *testing.T) {
 	source := generateURLHelpersOK(t, routing.Manifest{
 		Routes: []routing.ManifestRouteDeclaration{
 			{
-				Route:     "/dashboard",
-				GoFile:    "dashboard/route.go",
-				Kind:      "local",
-				NavTrails: []string{"attention-center"},
-				Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Route:  "/dashboard",
+				GoFile: "dashboard/route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 			},
 			{
-				Route:     "/users/{id}/profile",
-				Params:    []string{"id"},
-				GoFile:    "users/by_id/profile/route.go",
-				Kind:      "local",
-				NavTrails: []string{"provider-search", "attention-center"},
-				Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Route:  "/users/{id}/profile",
+				Params: []string{"id"},
+				GoFile: "users/by_id/profile/route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 			},
 			{
 				Route:  "/users/{id}/settings",
@@ -135,17 +133,35 @@ func TestGenerateURLHelpersWritesRouteScopedNavTrails(t *testing.T) {
 				Kind:   "local",
 				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 			},
+			{
+				Route:  "/workflow",
+				GoFile: "workflow/route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Destinations: []routing.RouteDestinationDeclaration{
+					{Name: "dashboard", SymbolName: "Dashboard", Target: []string{"Dashboard"}, TrailKey: "workflow-a"},
+					{Name: "profile-workflow", SymbolName: "ProfileWorkflow", Target: []string{"Users", "ByID", "Profile"}, TrailKey: "workflow-a"},
+				},
+			},
+			{
+				Route:  "/workspaces",
+				GoFile: "workspaces/route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Destinations: []routing.RouteDestinationDeclaration{
+					{Name: "profile", SymbolName: "Profile", Target: []string{"Users", "ByID", "Profile"}, TrailKey: "project-search"},
+				},
+			},
 		},
 	})
 
 	for _, want := range []string{
-		"type dashboardRouteNavTrails struct {\n\tAttentionCenter string\n}",
-		"type usersByIDProfileRouteNavTrails struct {\n\tAttentionCenter string\n\tProviderSearch  string\n}",
-		"type dashboardRoute struct {\n\tgoldrURLPath\n\tNavTrails dashboardRouteNavTrails\n}",
-		"type usersByIDProfileRoute struct {\n\tgoldrURLPath\n\tid        string\n\tNavTrails usersByIDProfileRouteNavTrails\n}",
-		"type usersByIDProfileRouteRef struct {\n\tNavTrails usersByIDProfileRouteNavTrails\n}",
-		`NavTrails:    dashboardRouteNavTrails{AttentionCenter: "attention-center"}`,
-		`NavTrails:    usersByIDProfileRouteNavTrails{AttentionCenter: "attention-center", ProviderSearch: "provider-search"}`,
+		"type dashboardRouteTrailKeys struct {\n\tWorkflowA string\n}",
+		"type usersByIDProfileRouteTrailKeys struct {\n\tProjectSearch string\n\tWorkflowA     string\n}",
+		"type dashboardRoute struct {\n\tgoldrURLPath\n\tTrailKeys dashboardRouteTrailKeys\n}",
+		"type usersByIDProfileRouteRef struct {\n\tTrailKeys usersByIDProfileRouteTrailKeys\n}",
+		`TrailKeys:    dashboardRouteTrailKeys{WorkflowA: "workflow-a"}`,
+		`TrailKeys: usersByIDProfileRouteTrailKeys{ProjectSearch: "project-search", WorkflowA: "workflow-a"}`,
 		"Profile  usersByIDProfileRouteRef",
 		"Settings usersByIDSettingsRouteRef",
 	} {
@@ -153,39 +169,50 @@ func TestGenerateURLHelpersWritesRouteScopedNavTrails(t *testing.T) {
 			t.Fatalf("generated URL helper source missing %q:\n%s", want, source)
 		}
 	}
-	if strings.Contains(source, "type usersByIDSettingsRouteNavTrails") {
-		t.Fatalf("generated URL helper source emits NavTrails for route without allowed keys:\n%s", source)
+	if strings.Contains(source, "type usersByIDSettingsRouteTrailKeys") {
+		t.Fatalf("generated URL helper source emits TrailKeys for route without accepted keys:\n%s", source)
 	}
-	if strings.Contains(source, "const AttentionCenter") {
+	if strings.Contains(source, "usersByIDProfileRoute struct {\n\tgoldrURLPath\n\tid        string\n\tTrailKeys") {
+		t.Fatalf("generated URL helper source emits duplicate TrailKeys on bound route type:\n%s", source)
+	}
+	if strings.Contains(source, "const WorkflowA") {
 		t.Fatalf("generated URL helper source emits global nav trail constants:\n%s", source)
 	}
 }
 
-func TestGenerateURLHelpersCompileRouteScopedNavTrails(t *testing.T) {
+func TestGenerateURLHelpersCompileRouteScopedTrailKeys(t *testing.T) {
 	manifest := routing.Manifest{
 		Routes: []routing.ManifestRouteDeclaration{
 			{
-				Route:     "/users/{id}/profile",
-				Params:    []string{"id"},
-				GoFile:    "users/by_id/profile/route.go",
-				Kind:      "local",
-				NavTrails: []string{"provider-search"},
-				Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Route:  "/users/{id}/profile",
+				Params: []string{"id"},
+				GoFile: "users/by_id/profile/route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+			},
+			{
+				Route:  "/workspaces",
+				GoFile: "workspaces/route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Destinations: []routing.RouteDestinationDeclaration{{
+					Name:       "profile",
+					SymbolName: "Profile",
+					Target:     []string{"Users", "ByID", "Profile"},
+					TrailKey:   "project-search",
+				}},
 			},
 		},
 	}
 	tempDir := tempGoldrModule(t)
 	writeTempFile(t, tempDir, "urls/goldr_gen.go", generateURLHelpersOK(t, manifest))
-	writeTempFile(t, tempDir, "urls/nav_trails_test.go", `package urls
+	writeTempFile(t, tempDir, "urls/trail_keys_test.go", `package urls
 
 import "testing"
 
-func TestRouteScopedNavTrails(t *testing.T) {
-	if got, want := Users.ByID.Profile.NavTrails.ProviderSearch, "provider-search"; got != want {
-		t.Fatalf("Users.ByID.Profile.NavTrails.ProviderSearch = %q, want %q", got, want)
-	}
-	if got, want := Users.ByID.Bind("42").Profile.NavTrails.ProviderSearch, "provider-search"; got != want {
-		t.Fatalf("Users.ByID.Bind(...).Profile.NavTrails.ProviderSearch = %q, want %q", got, want)
+func TestRouteScopedTrailKeys(t *testing.T) {
+	if got, want := Users.ByID.Profile.TrailKeys.ProjectSearch, "project-search"; got != want {
+		t.Fatalf("Users.ByID.Profile.TrailKeys.ProjectSearch = %q, want %q", got, want)
 	}
 	if got, want := Users.ByID.Profile.GoldrRoutePattern(), "/users/{id}/profile"; got != want {
 		t.Fatalf("Users.ByID.Profile.GoldrRoutePattern() = %q, want %q", got, want)
@@ -196,16 +223,15 @@ func TestRouteScopedNavTrails(t *testing.T) {
 	runGoTest(t, filepath.Join(tempDir, "urls"))
 }
 
-func TestGenerateURLHelpersWritesMountedOwnerNavTrails(t *testing.T) {
+func TestGenerateURLHelpersWritesMountedOwnerTrailKeys(t *testing.T) {
 	source := generateURLHelpersOK(t, routing.Manifest{
 		Routes: []routing.ManifestRouteDeclaration{
 			{
-				Route:     "/admin/reports/audit",
-				GoFile:    "admin/reports/route.go",
-				Kind:      "mounted-kit",
-				Source:    "../mounts/reports/audit/route.go",
-				NavTrails: []string{"attention-center"},
-				Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Route:  "/admin/reports/audit",
+				GoFile: "admin/reports/route.go",
+				Kind:   "mounted-kit",
+				Source: "../mounts/reports/audit/route.go",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 				Mount: &routing.RouteMountDeclaration{
 					Path:       "reports",
 					Owner:      "admin/reports/route.go",
@@ -224,14 +250,26 @@ func TestGenerateURLHelpersWritesMountedOwnerNavTrails(t *testing.T) {
 					OwnerRoute: "/user/reports",
 				},
 			},
+			{
+				Route:  "/workflow",
+				GoFile: "workflow/route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Destinations: []routing.RouteDestinationDeclaration{{
+					Name:       "audit",
+					SymbolName: "Audit",
+					Target:     []string{"Admin", "Reports", "Audit"},
+					TrailKey:   "workflow-a",
+				}},
+			},
 		},
 	})
 
-	if !strings.Contains(source, "type adminReportsAuditRouteNavTrails struct {\n\tAttentionCenter string\n}") {
-		t.Fatalf("generated URL helper source missing mounted owner nav trail constants:\n%s", source)
+	if !strings.Contains(source, "type adminReportsAuditRouteTrailKeys struct {\n\tWorkflowA string\n}") {
+		t.Fatalf("generated URL helper source missing mounted owner trail key constants:\n%s", source)
 	}
-	if strings.Contains(source, "User.Reports.NavTrails") {
-		t.Fatalf("generated URL helper source emits nav trails for mounted owner without metadata:\n%s", source)
+	if strings.Contains(source, "User.Reports.TrailKeys") {
+		t.Fatalf("generated URL helper source emits trail keys for mounted owner without metadata:\n%s", source)
 	}
 }
 
@@ -245,31 +283,30 @@ func TestGenerateURLHelpersWritesDestinations(t *testing.T) {
 				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 				Destinations: []routing.RouteDestinationDeclaration{
 					{
-						Name:       "customer-daytempo",
-						SymbolName: "CustomerDaytempo",
-						Target:     []string{"Provider", "Customers", "ByID", "Daytempo"},
-						NavTrail:   "attention-center",
+						Name:       "project-report",
+						SymbolName: "ProjectReport",
+						Target:     []string{"Workspace", "Projects", "ByID", "Report"},
+						TrailKey:   "workflow-a",
 					},
 					{
-						Name:       "customers",
-						SymbolName: "Customers",
-						Target:     []string{"Provider", "Customers"},
+						Name:       "projects",
+						SymbolName: "Projects",
+						Target:     []string{"Workspace", "Projects"},
 					},
 				},
 			},
 			{
-				Route:  "/provider/customers",
-				GoFile: "provider/customers/route.go",
+				Route:  "/workspace/projects",
+				GoFile: "workspace/projects/route.go",
 				Kind:   "local",
 				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 			},
 			{
-				Route:     "/provider/customers/{id}/daytempo",
-				Params:    []string{"id"},
-				GoFile:    "provider/customers/by_id/daytempo/route.go",
-				Kind:      "local",
-				NavTrails: []string{"attention-center"},
-				Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Route:  "/workspace/projects/{id}/report",
+				Params: []string{"id"},
+				GoFile: "workspace/projects/by_id/report/route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 			},
 		},
 	}
@@ -277,26 +314,33 @@ func TestGenerateURLHelpersWritesDestinations(t *testing.T) {
 
 	for _, want := range []string{
 		"type analyticsRouteDestinations struct",
-		"CustomerDaytempo analyticsRouteCustomerDaytempoDestination",
-		"Customers        analyticsRouteCustomersDestination",
-		"type analyticsRouteCustomerDaytempoDestination struct",
-		"func (d analyticsRouteCustomerDaytempoDestination) Bind(id string) analyticsRouteCustomerDaytempoDestinationBound1",
-		"func (d analyticsRouteCustomerDaytempoDestinationBound1) Href() string",
-		"func (d analyticsRouteCustomerDaytempoDestinationBound1) HrefWithQuery(values url.Values) string",
-		`return goldrURLWithQuery(path, "attention-center", values)`,
-		"func (d analyticsRouteCustomersDestination) Href() string",
-		"func (d analyticsRouteCustomersDestination) HrefWithQuery(values url.Values) string",
-		`return goldrURLWithQuery(path, "", values)`,
+		"ProjectReport analyticsRouteProjectReportDestination",
+		"Projects      analyticsRouteProjectsDestination",
+		"type analyticsRouteProjectReportDestination struct",
+		"func (d analyticsRouteProjectReportDestination) Bind(id string) analyticsRouteProjectReportDestinationBound1",
+		"func (d analyticsRouteProjectReportDestinationBound1) Href() string",
+		`return goldrURLWithTrail(path, "workflow-a")`,
+		"func (d analyticsRouteProjectReportDestinationBound1) NavigationHref(nav goldr.Navigation) string",
+		`return goldr.NavigationHref(path, "workflow-a", nav)`,
+		"func (d analyticsRouteProjectsDestination) Href() string",
 		"func goldrURLWithTrail(path string, trail string) string",
-		"func goldrURLWithQuery(path string, trail string, values url.Values) string",
 		"func goldrDestinationBasePath(sourcePath string, sourcePattern string) string",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated URL helper source missing %q:\n%s", want, source)
 		}
 	}
+	if strings.Contains(source, "HrefWithQuery") {
+		t.Fatalf("generated destination exposes removed HrefWithQuery helper:\n%s", source)
+	}
+	if strings.Contains(source, "HrefWithRequestQuery") {
+		t.Fatalf("generated destination exposes removed HrefWithRequestQuery helper:\n%s", source)
+	}
 	if strings.Contains(source, "func (p goldrURLPath) Href() string") {
 		t.Fatalf("generated route helpers expose Href on Path carrier:\n%s", source)
+	}
+	if strings.Contains(source, "func (d analyticsRouteProjectsDestination) NavigationHref") {
+		t.Fatalf("generated destination without trail key exposes NavigationHref:\n%s", source)
 	}
 }
 
@@ -310,31 +354,30 @@ func TestGenerateURLHelpersCompileDestinations(t *testing.T) {
 				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 				Destinations: []routing.RouteDestinationDeclaration{
 					{
-						Name:       "customer-daytempo",
-						SymbolName: "CustomerDaytempo",
-						Target:     []string{"Provider", "Customers", "ByID", "Daytempo"},
-						NavTrail:   "attention-center",
+						Name:       "project-report",
+						SymbolName: "ProjectReport",
+						Target:     []string{"Workspace", "Projects", "ByID", "Report"},
+						TrailKey:   "workflow-a",
 					},
 					{
-						Name:       "customers",
-						SymbolName: "Customers",
-						Target:     []string{"Provider", "Customers"},
+						Name:       "projects",
+						SymbolName: "Projects",
+						Target:     []string{"Workspace", "Projects"},
 					},
 				},
 			},
 			{
-				Route:  "/provider/customers",
-				GoFile: "provider/customers/route.go",
+				Route:  "/workspace/projects",
+				GoFile: "workspace/projects/route.go",
 				Kind:   "local",
 				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 			},
 			{
-				Route:     "/provider/customers/{id}/daytempo",
-				Params:    []string{"id"},
-				GoFile:    "provider/customers/by_id/daytempo/route.go",
-				Kind:      "local",
-				NavTrails: []string{"attention-center"},
-				Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Route:  "/workspace/projects/{id}/report",
+				Params: []string{"id"},
+				GoFile: "workspace/projects/by_id/report/route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 			},
 		},
 	}
@@ -343,58 +386,29 @@ func TestGenerateURLHelpersCompileDestinations(t *testing.T) {
 	writeTempFile(t, tempDir, "urls/destinations_test.go", `package urls
 
 import (
-	"net/url"
 	"testing"
+
+	"github.com/mobiletoly/goldr"
 )
 
 func TestDestinations(t *testing.T) {
-	if got, want := Analytics.Destinations.CustomerDaytempo.Bind("a/b").Href(), "/provider/customers/a%2Fb/daytempo?_goldr_trail=attention-center"; got != want {
+	if got, want := Analytics.Destinations.ProjectReport.Bind("a/b").Href(), "/workspace/projects/a%2Fb/report?_goldr_nav_trail_key=workflow-a"; got != want {
 		t.Fatalf("contextual href = %q, want %q", got, want)
 	}
-	if got, want := Analytics.Destinations.CustomerDaytempo.Bind("a/b").HrefWithQuery(nil), "/provider/customers/a%2Fb/daytempo?_goldr_trail=attention-center"; got != want {
-		t.Fatalf("nil query contextual href = %q, want %q", got, want)
+	if got, want := Analytics.Destinations.ProjectReport.Bind("a/b").NavigationHref(goldr.Navigation{}), "/workspace/projects/a%2Fb/report?_goldr_nav_trail_key=workflow-a"; got != want {
+		t.Fatalf("zero-navigation href = %q, want %q", got, want)
 	}
-	if got, want := Analytics.Destinations.CustomerDaytempo.Bind("a/b").HrefWithQuery(url.Values{}), "/provider/customers/a%2Fb/daytempo?_goldr_trail=attention-center"; got != want {
-		t.Fatalf("empty query contextual href = %q, want %q", got, want)
-	}
-	if got, want := Analytics.Destinations.Customers.Href(), "/provider/customers"; got != want {
+	if got, want := Analytics.Destinations.Projects.Href(), "/workspace/projects"; got != want {
 		t.Fatalf("clean destination href = %q, want %q", got, want)
-	}
-	if got, want := Analytics.Destinations.Customers.HrefWithQuery(url.Values{"tag": {"a", "b"}}), "/provider/customers?tag=a&tag=b"; got != want {
-		t.Fatalf("multi-value clean destination href = %q, want %q", got, want)
 	}
 	if got, want := Analytics.Path(), "/analytics"; got != want {
 		t.Fatalf("route Path() = %q, want %q", got, want)
 	}
-	if got, want := WithBasePath("/webapp").Analytics.Destinations.CustomerDaytempo.Bind("42").Href(), "/webapp/provider/customers/42/daytempo?_goldr_trail=attention-center"; got != want {
+	if got, want := WithBasePath("/webapp").Analytics.Destinations.ProjectReport.Bind("42").Href(), "/webapp/workspace/projects/42/report?_goldr_nav_trail_key=workflow-a"; got != want {
 		t.Fatalf("base-path contextual href = %q, want %q", got, want)
 	}
-	if got, want := WithBasePath("/webapp").Analytics.Destinations.CustomerDaytempo.Bind("42").HrefWithQuery(url.Values{"tab": {"active"}}), "/webapp/provider/customers/42/daytempo?tab=active&_goldr_trail=attention-center"; got != want {
-		t.Fatalf("base-path query contextual href = %q, want %q", got, want)
-	}
-	if got, want := goldrURLWithTrail("/provider/customers?tab=active", "attention-center"), "/provider/customers?tab=active&_goldr_trail=attention-center"; got != want {
+	if got, want := goldrURLWithTrail("/workspace/projects?tab=active", "workflow-a"), "/workspace/projects?tab=active&_goldr_nav_trail_key=workflow-a"; got != want {
 		t.Fatalf("query-preserving trail href = %q, want %q", got, want)
-	}
-	values := url.Values{}
-	values.Set("tab", "active")
-	values.Set("page", "2")
-	if got, want := Analytics.Destinations.CustomerDaytempo.Bind("42").HrefWithQuery(values), "/provider/customers/42/daytempo?page=2&tab=active&_goldr_trail=attention-center"; got != want {
-		t.Fatalf("app-query contextual href = %q, want %q", got, want)
-	}
-	if got := values.Get("_goldr_trail"); got != "" {
-		t.Fatalf("HrefWithQuery mutated app query _goldr_trail to %q", got)
-	}
-	valuesWithTrail := url.Values{}
-	valuesWithTrail.Set("_goldr_trail", "app-owned")
-	valuesWithTrail.Set("tab", "active")
-	if got, want := Analytics.Destinations.CustomerDaytempo.Bind("42").HrefWithQuery(valuesWithTrail), "/provider/customers/42/daytempo?tab=active&_goldr_trail=attention-center"; got != want {
-		t.Fatalf("destination trail ownership href = %q, want %q", got, want)
-	}
-	if got, want := Analytics.Destinations.Customers.HrefWithQuery(valuesWithTrail), "/provider/customers?tab=active"; got != want {
-		t.Fatalf("clean destination ignores app trail href = %q, want %q", got, want)
-	}
-	if got, want := goldrURLWithQuery("/provider/customers?tab=old&keep=1", "attention-center", url.Values{"tab": {"new"}}), "/provider/customers?keep=1&tab=new&_goldr_trail=attention-center"; got != want {
-		t.Fatalf("existing query replacement href = %q, want %q", got, want)
 	}
 }
 `)
@@ -413,16 +427,16 @@ func TestGenerateURLHelpersCompileRouteRefDestinationsWithBasePath(t *testing.T)
 				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 				Destinations: []routing.RouteDestinationDeclaration{
 					{
-						Name:       "customer-report",
-						SymbolName: "CustomerReport",
-						Target:     []string{"Main", "Reports", "ByCustomerID"},
+						Name:       "project-report",
+						SymbolName: "ProjectReport",
+						Target:     []string{"Main", "Reports", "ByProjectID"},
 					},
 				},
 			},
 			{
-				Route:  "/main/reports/{customer_id}",
-				Params: []string{"customer_id"},
-				GoFile: "main/reports/by_customer_id/route.go",
+				Route:  "/main/reports/{project_id}",
+				Params: []string{"project_id"},
+				GoFile: "main/reports/by_project_id/route.go",
 				Kind:   "local",
 				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 			},
@@ -435,7 +449,7 @@ func TestGenerateURLHelpersCompileRouteRefDestinationsWithBasePath(t *testing.T)
 import "testing"
 
 func TestRouteRefDestinationsKeepBasePath(t *testing.T) {
-	if got, want := WithBasePath("/webapp").Main.Hq.Teams.ByTeamID.Analytics.Destinations.CustomerReport.Bind("c/1").Href(), "/webapp/main/reports/c%2F1"; got != want {
+	if got, want := WithBasePath("/webapp").Main.Hq.Teams.ByTeamID.Analytics.Destinations.ProjectReport.Bind("c/1").Href(), "/webapp/main/reports/c%2F1"; got != want {
 		t.Fatalf("route-ref destination href = %q, want %q", got, want)
 	}
 }
@@ -510,33 +524,6 @@ func TestGenerateURLHelpersRejectsInvalidDestinations(t *testing.T) {
 			want: `destination "missing" targets unknown route helper Missing`,
 		},
 		{
-			name: "unknown trail",
-			manifest: routing.Manifest{
-				Routes: []routing.ManifestRouteDeclaration{
-					{
-						Route:  "/analytics",
-						GoFile: "analytics/route.go",
-						Kind:   "local",
-						Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
-						Destinations: []routing.RouteDestinationDeclaration{{
-							Name:       "customers",
-							SymbolName: "Customers",
-							Target:     []string{"Customers"},
-							NavTrail:   "provider-search",
-						}},
-					},
-					{
-						Route:     "/customers",
-						GoFile:    "customers/route.go",
-						Kind:      "local",
-						NavTrails: []string{"attention-center"},
-						Page:      &routing.RouteHandlerDeclaration{Handler: "Page"},
-					},
-				},
-			},
-			want: `destination "customers" selects nav trail "provider-search" that is not allowed by /customers`,
-		},
-		{
 			name: "owner-excluded mounted target",
 			manifest: routing.Manifest{
 				Routes: []routing.ManifestRouteDeclaration{
@@ -549,7 +536,7 @@ func TestGenerateURLHelpersRejectsInvalidDestinations(t *testing.T) {
 							Name:       "audit",
 							SymbolName: "Audit",
 							Target:     []string{"Admin", "Reports", "Audit"},
-							NavTrail:   "admin-reports",
+							TrailKey:   "admin-reports",
 						}},
 					},
 				},
@@ -1053,10 +1040,10 @@ func TestGenerateURLHelpersRejectsAmbiguousNames(t *testing.T) {
 			},
 		},
 		{
-			name: "static child collides with NavTrails",
+			name: "static child collides with TrailKeys",
 			manifest: routing.Manifest{
 				Pages: []routing.ManifestPage{
-					{Route: "/users/nav-trails", Unit: completeUnit("users/nav_trails/page.go")},
+					{Route: "/users/trail-keys", Unit: completeUnit("users/trail_keys/page.go")},
 				},
 			},
 		},
@@ -1070,9 +1057,9 @@ func TestGenerateURLHelpersRejectsAmbiguousNames(t *testing.T) {
 						Kind:   "local",
 						Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 						Destinations: []routing.RouteDestinationDeclaration{{
-							Name:       "customers",
-							SymbolName: "Customers",
-							Target:     []string{"Customers"},
+							Name:       "projects",
+							SymbolName: "Projects",
+							Target:     []string{"Projects"},
 						}},
 					},
 					{
@@ -1082,8 +1069,8 @@ func TestGenerateURLHelpersRejectsAmbiguousNames(t *testing.T) {
 						Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 					},
 					{
-						Route:  "/customers",
-						GoFile: "customers/route.go",
+						Route:  "/projects",
+						GoFile: "projects/route.go",
 						Kind:   "local",
 						Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
 					},
@@ -1128,13 +1115,38 @@ func TestGenerateURLHelpersRejectsAmbiguousNames(t *testing.T) {
 			},
 		},
 		{
-			name: "nav trail keys normalize to same field",
+			name: "trail keys normalize to same field",
 			manifest: routing.Manifest{
-				Pages: []routing.ManifestPage{
+				Routes: []routing.ManifestRouteDeclaration{
 					{
-						Route:     "/users",
-						Unit:      completeUnit("users/page.go"),
-						NavTrails: []string{"id", "i-d"},
+						Route:  "/users",
+						GoFile: "users/route.go",
+						Kind:   "local",
+						Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+					},
+					{
+						Route:  "/a",
+						GoFile: "a/route.go",
+						Kind:   "local",
+						Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+						Destinations: []routing.RouteDestinationDeclaration{{
+							Name:       "users-id",
+							SymbolName: "UsersID",
+							Target:     []string{"Users"},
+							TrailKey:   "id",
+						}},
+					},
+					{
+						Route:  "/b",
+						GoFile: "b/route.go",
+						Kind:   "local",
+						Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+						Destinations: []routing.RouteDestinationDeclaration{{
+							Name:       "users-i-d",
+							SymbolName: "UsersID",
+							Target:     []string{"Users"},
+							TrailKey:   "i-d",
+						}},
 					},
 				},
 			},

@@ -109,7 +109,7 @@ func filterRouteSurfaceRowsByMount(rows []wiring.RouteSurfaceRow, mount string) 
 func renderRouteSurfaceTable(writer io.Writer, rows []wiring.RouteSurfaceRow) error {
 	table := tabwriter.NewWriter(writer, 0, 0, 2, ' ', 0)
 	showStatus := routeSurfaceRowsHaveStatus(rows)
-	header := "KIND\tMETHOD\tPATH\tPARAMS\tSOURCE\tOWNER\tDECL\tNAME\tTITLE\tLABELS\tHELPER"
+	header := "KIND\tMETHOD\tPATH\tPARAMS\tSOURCE\tOWNER\tDECL\tNAME\tTITLE\tLABELS\tNAV\tTRAIL_KEYS\tHELPER"
 	if showStatus {
 		header += "\tSTATUS"
 	}
@@ -117,7 +117,7 @@ func renderRouteSurfaceTable(writer io.Writer, rows []wiring.RouteSurfaceRow) er
 		return err
 	}
 	for _, row := range rows {
-		line := "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"
+		line := "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"
 		values := []any{
 			row.Kind,
 			wiring.FormatRouteSurfaceList(row.Methods),
@@ -129,6 +129,8 @@ func renderRouteSurfaceTable(writer io.Writer, rows []wiring.RouteSurfaceRow) er
 			routeSurfaceDeclarationNameText(row.Declaration),
 			routeSurfaceDeclarationTitleText(row.Declaration),
 			routeSurfaceDeclarationLabelsText(row.Declaration),
+			routeSurfaceDeclarationNavText(row.Declaration),
+			routeSurfaceDeclarationTrailKeysText(row.Declaration),
 			routeSurfaceHelperText(row.Helper),
 		}
 		if showStatus {
@@ -165,18 +167,20 @@ type routeSurfaceJSONRow struct {
 }
 
 type routeSurfaceJSONDeclaration struct {
-	Source       string                        `json:"source"`
-	Kind         string                        `json:"kind"`
-	Name         string                        `json:"name"`
-	Title        string                        `json:"title"`
-	Labels       []routeSurfaceJSONLabel       `json:"labels"`
-	NavTrails    []string                      `json:"nav_trails,omitempty"`
-	Destinations []routeSurfaceJSONDestination `json:"destinations,omitempty"`
-	Mount        *routeSurfaceJSONMount        `json:"mount,omitempty"`
-	Kit          *routeSurfaceJSONKit          `json:"kit,omitempty"`
-	Page         *routeSurfaceJSONPage         `json:"page,omitempty"`
-	Fragment     *routeSurfaceJSONFragment     `json:"fragment,omitempty"`
-	Action       *routeSurfaceJSONAction       `json:"action,omitempty"`
+	Source              string                               `json:"source"`
+	Kind                string                               `json:"kind"`
+	Name                string                               `json:"name"`
+	Title               string                               `json:"title"`
+	Labels              []routeSurfaceJSONLabel              `json:"labels"`
+	Nav                 *routeSurfaceJSONNav                 `json:"nav,omitempty"`
+	TrailKeys           []string                             `json:"trail_keys,omitempty"`
+	Destinations        []routeSurfaceJSONDestination        `json:"destinations,omitempty"`
+	InboundDestinations []routeSurfaceJSONInboundDestination `json:"inbound_destinations,omitempty"`
+	Mount               *routeSurfaceJSONMount               `json:"mount,omitempty"`
+	Kit                 *routeSurfaceJSONKit                 `json:"kit,omitempty"`
+	Page                *routeSurfaceJSONPage                `json:"page,omitempty"`
+	Fragment            *routeSurfaceJSONFragment            `json:"fragment,omitempty"`
+	Action              *routeSurfaceJSONAction              `json:"action,omitempty"`
 }
 
 type routeSurfaceJSONLabel struct {
@@ -188,7 +192,19 @@ type routeSurfaceJSONDestination struct {
 	Name     string `json:"name"`
 	Helper   string `json:"helper"`
 	Target   string `json:"target"`
-	NavTrail string `json:"nav_trail"`
+	TrailKey string `json:"trail_key,omitempty"`
+}
+
+type routeSurfaceJSONInboundDestination struct {
+	Source   string `json:"source"`
+	Name     string `json:"name"`
+	Helper   string `json:"helper"`
+	TrailKey string `json:"trail_key"`
+}
+
+type routeSurfaceJSONNav struct {
+	Label string `json:"label,omitempty"`
+	Key   string `json:"key,omitempty"`
 }
 
 type routeSurfaceJSONKit struct {
@@ -302,11 +318,24 @@ func routeSurfaceDeclarationLabelsText(declaration *wiring.RouteDeclarationInfo)
 	return strings.Join(parts, ",")
 }
 
-func routeSurfaceDeclarationNavTrailsText(declaration *wiring.RouteDeclarationInfo) string {
-	if declaration == nil || len(declaration.NavTrails) == 0 {
+func routeSurfaceDeclarationNavText(declaration *wiring.RouteDeclarationInfo) string {
+	if declaration == nil {
 		return "-"
 	}
-	return strings.Join(declaration.NavTrails, ",")
+	if declaration.Nav.Label != "" {
+		return "label=" + strconv.Quote(declaration.Nav.Label)
+	}
+	if declaration.Nav.Key != "" {
+		return "key=" + declaration.Nav.Key
+	}
+	return "-"
+}
+
+func routeSurfaceDeclarationTrailKeysText(declaration *wiring.RouteDeclarationInfo) string {
+	if declaration == nil || len(declaration.TrailKeys) == 0 {
+		return "-"
+	}
+	return strings.Join(declaration.TrailKeys, ",")
 }
 
 func routeSurfaceDeclarationOwnerText(declaration *wiring.RouteDeclarationInfo) string {
@@ -328,13 +357,20 @@ func routeSurfaceJSONDeclarationFrom(declaration *wiring.RouteDeclarationInfo) *
 		return nil
 	}
 	result := &routeSurfaceJSONDeclaration{
-		Source:       declaration.Source,
-		Kind:         declaration.Kind,
-		Name:         declaration.Name,
-		Title:        declaration.Title,
-		Labels:       routeSurfaceJSONLabels(declaration.Labels),
-		NavTrails:    routeSurfaceJSONStrings(declaration.NavTrails),
-		Destinations: routeSurfaceJSONDestinations(declaration.Destinations),
+		Source:              declaration.Source,
+		Kind:                declaration.Kind,
+		Name:                declaration.Name,
+		Title:               declaration.Title,
+		Labels:              routeSurfaceJSONLabels(declaration.Labels),
+		TrailKeys:           routeSurfaceJSONStrings(declaration.TrailKeys),
+		Destinations:        routeSurfaceJSONDestinations(declaration.Destinations),
+		InboundDestinations: routeSurfaceJSONInboundDestinations(declaration.InboundDestinations),
+	}
+	if declaration.Nav.Label != "" || declaration.Nav.Key != "" {
+		result.Nav = &routeSurfaceJSONNav{
+			Label: declaration.Nav.Label,
+			Key:   declaration.Nav.Key,
+		}
 	}
 	if declaration.Kit != nil {
 		result.Kit = &routeSurfaceJSONKit{
@@ -401,7 +437,23 @@ func routeSurfaceJSONDestinations(destinations []wiring.RouteDeclarationDestinat
 			Name:     destination.Name,
 			Helper:   destination.Helper,
 			Target:   destination.Target,
-			NavTrail: destination.NavTrail,
+			TrailKey: destination.TrailKey,
+		}
+	}
+	return result
+}
+
+func routeSurfaceJSONInboundDestinations(destinations []wiring.RouteDeclarationInboundDestination) []routeSurfaceJSONInboundDestination {
+	if len(destinations) == 0 {
+		return []routeSurfaceJSONInboundDestination{}
+	}
+	result := make([]routeSurfaceJSONInboundDestination, len(destinations))
+	for index, destination := range destinations {
+		result[index] = routeSurfaceJSONInboundDestination{
+			Source:   destination.Source,
+			Name:     destination.Name,
+			Helper:   destination.Helper,
+			TrailKey: destination.TrailKey,
 		}
 	}
 	return result

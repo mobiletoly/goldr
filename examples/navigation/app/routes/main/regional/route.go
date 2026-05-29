@@ -5,21 +5,15 @@ import (
 
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/examples/navigation/app/store"
-	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
-	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
 )
 
 var Route = goldr.RouteDef{
 	Page: Page,
+	Nav:  goldr.RouteNav{Label: "Regional"},
 }
 
-func Page(_ *http.Request) goldr.PageRouteResponse {
+func Page(r *http.Request) goldr.PageRouteResponse {
 	office := store.Default.Office("sea")
-	trail := goldr.NavTrail{
-		goldr.NavStep("Home", urls.Root.Path()),
-		goldr.CurrentNavStep("Regional"),
-	}
-	return goldr.NewPage(ui.Page("Regional", trail, []ui.Link{
-		{Label: office.Name, Href: urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Path()},
-	}, "Regional owns an office-aware trail prefix."), goldr.PageMetadata{Title: "Regional"})
+	nav := goldr.Nav(r).Navigation()
+	return goldr.NewPage(PageView(nav, office), goldr.PageMetadata{Title: "Regional"})
 }

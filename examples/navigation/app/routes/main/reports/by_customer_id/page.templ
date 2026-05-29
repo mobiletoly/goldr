@@ -1,0 +1,17 @@
+package by_customer_id
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+)
+
+templ PageView(nav goldr.Navigation) {
+	@ui.Frame(nav, pageContent())
+}
+
+templ pageContent() {
+	<main>
+		<h1>Shared Report</h1>
+		<p>Shared target selected by destination trail.</p>
+	</main>
+}

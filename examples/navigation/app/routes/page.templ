@@ -1,0 +1,22 @@
+package routes
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
+)
+
+templ PageView(nav goldr.Navigation) {
+	@ui.Frame(nav, pageContent())
+}
+
+templ pageContent() {
+	<main>
+		<h1>Home</h1>
+		<p>Start at Main to choose a route owner.</p>
+		<ul>
+			<li><a href={ urls.Main.Path() }>Main</a></li>
+			<li><a href={ urls.About.Path() }>About</a></li>
+		</ul>
+	</main>
+}

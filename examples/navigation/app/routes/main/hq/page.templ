@@ -1,0 +1,22 @@
+package hq
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/store"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
+)
+
+templ PageView(nav goldr.Navigation, team store.Team) {
+	@ui.Frame(nav, pageContent(team))
+}
+
+templ pageContent(team store.Team) {
+	<main>
+		<h1>HQ</h1>
+		<p>HQ owns a shorter analytics trail prefix.</p>
+		<ul>
+			<li><a href={ urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Path() }>{ team.Name }</a></li>
+		</ul>
+	</main>
+}

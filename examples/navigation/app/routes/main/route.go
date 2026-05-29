@@ -4,21 +4,14 @@ import (
 	"net/http"
 
 	"github.com/mobiletoly/goldr"
-	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
-	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
 )
 
 var Route = goldr.RouteDef{
 	Page: Page,
+	Nav:  goldr.RouteNav{Label: "Main"},
 }
 
-func Page(_ *http.Request) goldr.PageRouteResponse {
-	trail := goldr.NavTrail{
-		goldr.NavStep("Home", urls.Root.Path()),
-		goldr.CurrentNavStep("Main"),
-	}
-	return goldr.NewPage(ui.Page("Main", trail, []ui.Link{
-		{Label: "HQ", Href: urls.Main.Hq.Path()},
-		{Label: "Regional", Href: urls.Main.Regional.Path()},
-	}, "Top-level sections use different trail defaults."), goldr.PageMetadata{Title: "Main"})
+func Page(r *http.Request) goldr.PageRouteResponse {
+	nav := goldr.Nav(r).Navigation()
+	return goldr.NewPage(PageView(nav), goldr.PageMetadata{Title: "Main"})
 }

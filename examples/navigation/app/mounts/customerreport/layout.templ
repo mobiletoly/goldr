@@ -1,0 +1,29 @@
+package customerreport
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/store"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+)
+
+templ LayoutView(nav goldr.Navigation, urls GoldrMountURLs, child templ.Component) {
+	@ui.Frame(nav, reportLayoutContent(urls, child))
+}
+
+templ reportLayoutContent(urls GoldrMountURLs, child templ.Component) {
+	<nav aria-label="Report views">
+		<ul>
+			<li><a href={ urls.Path() }>Customer report</a></li>
+			<li><a href={ urls.Brief.Path() }>Brief customer report</a></li>
+			<li><a href={ urls.Detailed.Path() }>Detailed customer report</a></li>
+		</ul>
+	</nav>
+	@child
+}
+
+templ PageView(customer store.Customer) {
+	<main>
+		<h1>Customer Report</h1>
+		<p>Customer: { customer.Name }</p>
+	</main>
+}

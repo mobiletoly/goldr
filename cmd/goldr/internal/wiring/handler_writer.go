@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -149,17 +150,60 @@ func goldrPathParam(segment string) (string, bool) {
 `)
 	}
 
-	if hasNavTrailRoutes(routes) {
+	if hasRequestNavRoutes(routes) {
 		buffer.WriteString(`
-func goldrWithNavTrailKey(r *http.Request, allowed []string) *http.Request {
-	key := r.URL.Query().Get("_goldr_trail")
+func goldrRequestTrailKey(r *http.Request, allowed []string) string {
+	key := r.URL.Query().Get("_goldr_nav_trail_key")
 	if key == "" {
-		return r
+		return ""
 	}
 	if slices.Contains(allowed, key) {
-		return goldr.WithNavTrailKey(r, key)
+		return key
 	}
-	return r
+	return ""
+}
+
+func goldrNavHref(basePath string, segments ...string) string {
+	basePath = goldrNormalizeBasePath(basePath)
+	if len(segments) == 0 {
+		if basePath == "" {
+			return "/"
+		}
+		return basePath + "/"
+	}
+
+	size := len(basePath)
+	for _, segment := range segments {
+		if segment == "" {
+			return ""
+		}
+		size += 1 + len(segment)
+	}
+
+	var builder strings.Builder
+	builder.Grow(size)
+	builder.WriteString(basePath)
+	for _, segment := range segments {
+		builder.WriteByte('/')
+		builder.WriteString(segment)
+	}
+	return builder.String()
+}
+
+func goldrNormalizeBasePath(basePath string) string {
+	if basePath == "" || basePath == "/" {
+		return ""
+	}
+	if basePath[0] != '/' {
+		basePath = "/" + basePath
+	}
+	for len(basePath) > 1 && basePath[len(basePath)-1] == '/' {
+		basePath = basePath[:len(basePath)-1]
+	}
+	if basePath == "/" {
+		return ""
+	}
+	return basePath
 }
 `)
 	}
@@ -659,7 +703,7 @@ func writeMethodDispatch(buffer *bytes.Buffer, route runtimeRoute, helpers handl
 }
 
 func writeEndpointDispatch(buffer *bytes.Buffer, route runtimeRoute, helpers handlerHelperPlan, indent string, writeEndpoint func(*bytes.Buffer, runtimeRoute, handlerHelperPlan, string)) {
-	writeNavTrailKeyAssignment(buffer, route, indent)
+	writeRequestNavAssignment(buffer, route, indent)
 	middlewares := routeMiddlewares(route)
 	if len(middlewares) == 0 {
 		writeEndpoint(buffer, route, helpers, indent)
@@ -702,18 +746,85 @@ func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, helpers handlerH
 	fmt.Fprintf(buffer, "%sreturn\n", indent)
 }
 
-func writeNavTrailKeyAssignment(buffer *bytes.Buffer, route runtimeRoute, indent string) {
-	if len(route.navTrails) == 0 {
+func writeRequestNavAssignment(buffer *bytes.Buffer, route runtimeRoute, indent string) {
+	if len(route.navTrail) == 0 && len(route.trailKeys) == 0 {
 		return
 	}
-	fmt.Fprintf(buffer, "%sr = goldrWithNavTrailKey(r, []string{", indent)
-	for index, key := range route.navTrails {
-		if index > 0 {
-			buffer.WriteString(", ")
+	trailKey := strconv.Quote("")
+	if len(route.trailKeys) > 0 {
+		trailKey = "goldrRequestTrailKey(r, []string{"
+		for index, key := range route.trailKeys {
+			if index > 0 {
+				trailKey += ", "
+			}
+			trailKey += strconv.Quote(key)
 		}
-		buffer.WriteString(strconv.Quote(key))
+		trailKey += "})"
 	}
-	buffer.WriteString("})\n")
+	fmt.Fprintf(buffer, "%sr = goldr.WithRequestNav(r, %s, ", indent, trailKey)
+	writeRouteNavLiteral(buffer, route.navTrail)
+	buffer.WriteString(", ")
+	writeRouteNavHrefsLiteral(buffer, route.navTrail)
+	fmt.Fprintf(buffer, ", %d)\n", currentRouteNavIndex(route.navTrail))
+}
+
+func writeRouteNavLiteral(buffer *bytes.Buffer, steps []runtimeNavStep) {
+	if len(steps) == 0 {
+		buffer.WriteString("nil")
+		return
+	}
+	buffer.WriteString("[]goldr.RouteNav{")
+	for _, step := range steps {
+		buffer.WriteString("{")
+		if step.nav.Label != "" {
+			fmt.Fprintf(buffer, "Label: %s, ", strconv.Quote(step.nav.Label))
+		}
+		if step.nav.Key != "" {
+			fmt.Fprintf(buffer, "Key: %s, ", strconv.Quote(step.nav.Key))
+		}
+		buffer.WriteString("}, ")
+	}
+	buffer.WriteString("}")
+}
+
+func writeRouteNavHrefsLiteral(buffer *bytes.Buffer, steps []runtimeNavStep) {
+	if len(steps) == 0 {
+		buffer.WriteString("nil")
+		return
+	}
+	buffer.WriteString("[]string{")
+	for _, step := range steps {
+		buffer.WriteString(routeNavHrefExpression(step))
+		buffer.WriteString(", ")
+	}
+	buffer.WriteString("}")
+}
+
+func currentRouteNavIndex(steps []runtimeNavStep) int {
+	for index, step := range steps {
+		if step.current {
+			return index
+		}
+	}
+	return -1
+}
+
+func routeNavHrefExpression(step runtimeNavStep) string {
+	if step.route == "/" {
+		return `goldrNavHref(options.BasePath)`
+	}
+	var parts []string
+	for _, segment := range routeSegments(step.route) {
+		if paramName, ok := paramSegmentName(segment); ok {
+			if !slices.Contains(step.params, paramName) {
+				return strconv.Quote("")
+			}
+			parts = append(parts, "url.PathEscape(r.PathValue("+strconv.Quote(paramName)+"))")
+			continue
+		}
+		parts = append(parts, strconv.Quote(segment))
+	}
+	return "goldrNavHref(options.BasePath, " + strings.Join(parts, ", ") + ")"
 }
 
 func writeRootErrorRoutePageRenderer(buffer *bytes.Buffer, layouts []routing.ManifestLayout, helpers handlerHelperPlan) {

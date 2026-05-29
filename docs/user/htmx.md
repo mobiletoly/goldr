@@ -63,6 +63,15 @@ href := urls.Regional.Analytics.Destinations.CustomerReport.
 	Href()
 ```
 
+When link-based Back should return to the exact current page URL, build that
+same link from a `goldr.Navigation` value:
+
+```go
+href := urls.Regional.Analytics.Destinations.CustomerReport.
+	Bind(customer.ID).
+	NavigationHref(nav)
+```
+
 Do not hide HTMX behind a Goldr navigation component. Goldr only generates the
 URL; the template keeps the HTMX attributes visible.
 

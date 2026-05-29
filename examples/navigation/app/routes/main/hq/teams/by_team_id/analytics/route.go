@@ -11,19 +11,20 @@ import (
 
 var Route = goldr.KitRouteMount[analyticskit.Kit]{
 	New:   newKit,
-	Mount: "analytics",
+	Mount: "analytics", // mounted route app/mounts/analytics
 	Routes: goldr.MountRoutes{
-		{Path: "/"},
 		{
-			Path: "/customers/{customer_id}/report",
-			NavTrails: goldr.NavTrails{
-				Allowed: []string{"hq-analytics"},
+			Path: "/",
+			Destinations: goldr.Destinations{
+				// The destination selects the breadcrumb shape the report page should use
+				// when a user enters it from this HQ analytics workflow.
+				"customer-report": goldr.To(urls.Main.Hq.Teams.ByTeamID.Analytics.Customers.ByCustomerID.Report).
+					TrailKey("hq-analytics"),
 			},
 		},
-	},
-	Destinations: goldr.Destinations{
-		"customer-report": goldr.To(urls.Main.Hq.Teams.ByTeamID.Analytics.Customers.ByCustomerID.Report).
-			NavTrail("hq-analytics"),
+		{
+			Path: "/customers/{customer_id}/report",
+		},
 	},
 }
 
@@ -31,21 +32,14 @@ func newKit(r *http.Request) analyticskit.Kit {
 	team := store.Default.Team(r.PathValue("team_id"))
 	return analyticskit.Kit{
 		Store: store.Default,
-		TrailBase: func(*http.Request) goldr.NavTrail {
-			return goldr.NavTrail{
-				goldr.NavStep("Home", urls.Root.Path()),
-				goldr.NavStep("HQ", urls.Main.Hq.Path()),
-				goldr.NavStep(team.Name, urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Path()),
-			}
-		},
 		AnalyticsURL: func() string {
 			return urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Analytics.Path()
 		},
 		CustomerURL: func(customerID string) string {
 			return urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Customers.ByCustomerID.Bind(customerID).Path()
 		},
-		CustomerReportHref: func(customerID string) string {
-			return urls.Main.Hq.Teams.ByTeamID.Analytics.Destinations.CustomerReport.Bind(team.ID).Bind(customerID).Href()
+		CustomerReportHref: func(nav goldr.Navigation, customerID string) string {
+			return urls.Main.Hq.Teams.ByTeamID.Analytics.Destinations.CustomerReport.Bind(team.ID).Bind(customerID).NavigationHref(nav)
 		},
 	}
 }

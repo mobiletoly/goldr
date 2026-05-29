@@ -3,9 +3,10 @@
 goldr is a server-first Go framework for building web/HTMX applications.
 
 It gives Go projects a predictable filesystem route tree, page layouts,
-fragments, action handlers, generated route wiring, and generated URL helpers.
-It also includes small helpers for CSRF tokens, HTMX headers, server-sent event
-wire formatting, named SSE browser swaps, and final-file asset fingerprinting.
+fragments, action handlers, route-derived navigation trails, generated route
+wiring, and generated URL helpers. It also includes small helpers for CSRF
+tokens, HTMX headers, server-sent event wire formatting, named SSE browser
+swaps, and final-file asset fingerprinting.
 The application still owns its `net/http` server, middleware, static asset
 handlers, auth, sessions, request parsing, validation, data access, and
 deployment.
@@ -56,6 +57,7 @@ With goldr:
 - HTMX attributes stay visible in templates
 - forms and mutations use ordinary Go handlers
 - CSRF protection stays explicit and middleware-friendly
+- route metadata can prepare breadcrumb-style UI and app-level Back links
 - generated URL helpers remove hard-coded paths
 - generated route wiring stays inspectable
 - final static files can be fingerprinted without adopting an asset pipeline

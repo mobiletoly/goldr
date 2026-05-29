@@ -1,6 +1,7 @@
 package wiring
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -317,19 +318,29 @@ func TestHandlerHeadAndErrors(t *testing.T) {
 	runGoTest(t, tempDir)
 }
 
-func TestGenerateManifestDispatchValidatesNavTrailKey(t *testing.T) {
+func TestGenerateManifestDispatchValidatesTrailKey(t *testing.T) {
 	tempDir := tempGoldrModule(t)
 	manifest := routing.Manifest{
-		Pages: []routing.ManifestPage{
+		Routes: []routing.ManifestRouteDeclaration{
 			{
-				Route:     "/",
-				NavTrails: []string{"provider-search", "attention-center"},
-				Unit:      completeUnit("page.go"),
+				Route:  "/",
+				GoFile: "route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+			},
+			{
+				Route:  "/source",
+				GoFile: "source/route.go",
+				Kind:   "local",
+				Destinations: []routing.RouteDestinationDeclaration{
+					{Name: "root-workspace", SymbolName: "RootWorkspace", Target: []string{"Root"}, TrailKey: "project-search"},
+					{Name: "root-workflow", SymbolName: "RootWorkflow", Target: []string{"Root"}, TrailKey: "workflow-a"},
+				},
 			},
 		},
 	}
 	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
-	writeTempFile(t, tempDir, "routes/page.go", `package routes
+	writeTempFile(t, tempDir, "routes/route.go", `package routes
 
 import (
 	"net/http"
@@ -338,10 +349,12 @@ import (
 )
 
 func Page(r *http.Request) goldr.PageRouteResponse {
-	return goldr.Text{Body: goldr.NavTrailKey(r)}
+	return goldr.Text{Body: goldr.Nav(r).TrailKey()}
 }
+
+var Route = goldr.RouteDef{Page: Page}
 `)
-	writeTempFile(t, tempDir, "routes/nav_trail_test.go", `package routes
+	writeTempFile(t, tempDir, "routes/trail_key_test.go", `package routes
 
 import (
 	"net/http"
@@ -349,13 +362,13 @@ import (
 	"testing"
 )
 
-func TestNavTrailKey(t *testing.T) {
+func TestTrailKey(t *testing.T) {
 	tests := []struct {
 		path string
 		want string
 	}{
-		{"/?_goldr_trail=provider-search", "provider-search"},
-		{"/?_goldr_trail=missing", ""},
+		{"/?_goldr_nav_trail_key=project-search", "project-search"},
+		{"/?_goldr_nav_trail_key=missing", ""},
 		{"/", ""},
 	}
 	for _, test := range tests {
@@ -372,6 +385,306 @@ func TestNavTrailKey(t *testing.T) {
 `)
 
 	runGoTest(t, tempDir)
+}
+
+func TestGenerateManifestDispatchBuildsCanonicalRouteNav(t *testing.T) {
+	tempDir := tempGoldrModule(t)
+	manifest := routing.Manifest{
+		Routes: []routing.ManifestRouteDeclaration{
+			{
+				Route:  "/devices",
+				GoFile: "devices/route.go",
+				Kind:   "local",
+				Nav:    routing.RouteNavDeclaration{Label: "Devices"},
+				Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+			},
+			{
+				Route:  "/devices/{device_id}",
+				Params: []string{"device_id"},
+				GoFile: "devices/by_device_id/route.go",
+				Kind:   "local",
+				Nav:    routing.RouteNavDeclaration{Key: "device"},
+				Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+			},
+			{
+				Route:  "/devices/{device_id}/firmware",
+				Params: []string{"device_id"},
+				GoFile: "devices/by_device_id/firmware/route.go",
+				Kind:   "local",
+				Nav:    routing.RouteNavDeclaration{Label: "Firmware"},
+				Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+			},
+			{
+				Route:  "/inventory",
+				GoFile: "inventory/route.go",
+				Kind:   "local",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+				Destinations: []routing.RouteDestinationDeclaration{{
+					Name:       "firmware",
+					SymbolName: "Firmware",
+					Target:     []string{"Devices", "ByDeviceID", "Firmware"},
+					TrailKey:   "from-inventory",
+				}},
+			},
+		},
+	}
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
+	writeTempFile(t, tempDir, "routes/devices/route.go", `package devices
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Nav:  goldr.RouteNav{Label: "Devices"},
+}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "devices"}
+}
+`)
+	writeTempFile(t, tempDir, "routes/devices/by_device_id/route.go", `package by_device_id
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Nav:  goldr.RouteNav{Key: "device"},
+}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "device"}
+}
+`)
+	writeTempFile(t, tempDir, "routes/devices/by_device_id/firmware/route.go", `package firmware
+
+import (
+	"net/http"
+	"strings"
+
+	"github.com/mobiletoly/goldr"
+)
+
+	var Route = goldr.RouteDef{
+		Page: page,
+		Nav: goldr.RouteNav{
+			Label: "Firmware",
+		},
+	}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	nav := goldr.Nav(r)
+	label := "Device " + r.PathValue("device_id")
+	if r.URL.Query().Get("override") == "1" {
+		nav.ResolveHref("device", label, "/devices/custom?tab=nav")
+	} else {
+		nav.Resolve("device", label)
+	}
+	return goldr.Text{Body: nav.TrailKey() + "|" + formatTrail(nav.Trail())}
+}
+
+func formatTrail(trail goldr.NavTrail) string {
+	var builder strings.Builder
+	for _, step := range trail {
+		builder.WriteString(step.Label)
+		builder.WriteByte('=')
+		builder.WriteString(step.Href)
+		if step.Current {
+			builder.WriteString("#current")
+		}
+		builder.WriteByte(';')
+	}
+	return builder.String()
+}
+`)
+	writeTempFile(t, tempDir, "routes/inventory/route.go", `package inventory
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.RouteDef{Page: page}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "inventory"}
+}
+`)
+	writeGeneratedRoutePackageFiles(t, tempDir, manifest)
+	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestRouteNav(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{
+			path: "/devices/a%2Fb/firmware?_goldr_nav_trail_key=from-inventory",
+			want: "from-inventory|Devices=/webapp/devices;Device a/b=/webapp/devices/a%2Fb;Firmware=#current;",
+		},
+		{
+			path: "/devices/a%2Fb/firmware?_goldr_nav_trail_key=missing",
+			want: "|Devices=/webapp/devices;Device a/b=/webapp/devices/a%2Fb;Firmware=#current;",
+		},
+		{
+			path: "/devices/a%2Fb/firmware?override=1",
+			want: "|Devices=/webapp/devices;Device a/b=/devices/custom?tab=nav;Firmware=#current;",
+		},
+	}
+	for _, test := range tests {
+		recorder := httptest.NewRecorder()
+		HandlerWithOptions(HandlerOptions{BasePath: "webapp/"}).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, test.path, nil))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d", test.path, recorder.Code, http.StatusOK)
+		}
+		if recorder.Body.String() != test.want {
+			t.Fatalf("%s body = %q, want %q", test.path, recorder.Body.String(), test.want)
+		}
+	}
+}
+`)
+
+	runGoTest(t, tempDir)
+}
+
+func TestGenerateManifestDispatchUsesMountedRouteNavSelections(t *testing.T) {
+	tests := []struct {
+		name     string
+		manifest routing.Manifest
+		want     string
+	}{
+		{
+			name: "included mounted ancestor participates",
+			manifest: routing.Manifest{
+				Routes: []routing.ManifestRouteDeclaration{
+					{
+						Route:  "/admin/reports",
+						GoFile: "admin/reports/route.go",
+						Kind:   "mounted-kit",
+						Nav:    routing.RouteNavDeclaration{Label: "Reports"},
+						Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+						Mount:  &routing.RouteMountDeclaration{Path: "reports", Owner: "admin/reports/route.go"},
+					},
+					{
+						Route:  "/admin/reports/audit",
+						GoFile: "admin/reports/audit/route.go",
+						Kind:   "mounted-kit",
+						Nav:    routing.RouteNavDeclaration{Label: "Audit"},
+						Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+						Mount:  &routing.RouteMountDeclaration{Path: "reports", Owner: "admin/reports/route.go"},
+					},
+				},
+			},
+			want: "Reports=/admin/reports;Audit=#current;",
+		},
+		{
+			name: "child-only selection omits excluded mount root",
+			manifest: routing.Manifest{
+				Routes: []routing.ManifestRouteDeclaration{
+					{
+						Route:  "/admin/reports/audit",
+						GoFile: "admin/reports/audit/route.go",
+						Kind:   "mounted-kit",
+						Nav:    routing.RouteNavDeclaration{Label: "Audit"},
+						Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+						Mount:  &routing.RouteMountDeclaration{Path: "reports", Owner: "admin/reports/route.go"},
+					},
+				},
+			},
+			want: "Audit=#current;",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tempDir := tempGoldrModule(t)
+			writeGeneratedRoutes(t, tempDir, generateOK(t, test.manifest))
+			writeTempFile(t, tempDir, "routes/admin/reports/route.go", `package reports
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Nav:  goldr.RouteNav{Label: "Reports"},
+}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "reports"}
+}
+`)
+			writeTempFile(t, tempDir, "routes/admin/reports/audit/route.go", `package audit
+
+import (
+	"net/http"
+	"strings"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+	Nav:  goldr.RouteNav{Label: "Audit"},
+}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: formatTrail(goldr.Nav(r).Trail())}
+}
+
+func formatTrail(trail goldr.NavTrail) string {
+	var builder strings.Builder
+	for _, step := range trail {
+		builder.WriteString(step.Label)
+		builder.WriteByte('=')
+		builder.WriteString(step.Href)
+		if step.Current {
+			builder.WriteString("#current")
+		}
+		builder.WriteByte(';')
+	}
+	return builder.String()
+}
+`)
+			writeGeneratedRoutePackageFiles(t, tempDir, test.manifest)
+			writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestMountedRouteNav(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/admin/reports/audit", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if recorder.Body.String() != `+strconv.Quote(test.want)+` {
+		t.Fatalf("body = %q, want %q", recorder.Body.String(), `+strconv.Quote(test.want)+`)
+	}
+}
+`)
+			runGoTest(t, tempDir)
+		})
+	}
 }
 
 func TestGenerateManifestDeclarationRoutesDispatch(t *testing.T) {

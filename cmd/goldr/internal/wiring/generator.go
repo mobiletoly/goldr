@@ -69,12 +69,16 @@ func GenerateManifest(manifest routing.Manifest, options GenerateOptions) ([]byt
 	if inspectorImportPath == "" && len(routes) > 0 {
 		return nil, ErrInvalidRouteRootImportPath
 	}
+	inboundDestinations, err := inboundDestinationTrailEdgesByRoute(manifest.Routes)
+	if err != nil {
+		return nil, err
+	}
 
 	var buffer bytes.Buffer
-	writeGeneratedFileHeader(&buffer, routeSurfaceRows(manifest, routes))
+	writeGeneratedFileHeader(&buffer, routeSurfaceRows(manifest, routes, inboundDestinations))
 	fmt.Fprintf(&buffer, "package %s\n\n", options.PackageName)
 	needsRouteRenderer := len(routes) > 0
-	writeImports(&buffer, imports, adapterImports, inspectorImportPath, hasDynamicRoutes(routes), len(routes) > 0, needsRouteRenderer, hasSegmentRoutes(routes), hasNavTrailRoutes(routes), len(routes) > 0)
+	writeImports(&buffer, imports, adapterImports, inspectorImportPath, hasDynamicRoutes(routes), len(routes) > 0, needsRouteRenderer, hasSegmentRoutes(routes) || hasRequestNavRoutes(routes), hasRequestNavRoutes(routes), len(routes) > 0)
 	writeTypes(&buffer, len(routes) > 0)
 	writeManifestValue(&buffer, manifest)
 	if len(routes) > 0 {

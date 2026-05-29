@@ -2,49 +2,47 @@ package by_customer_id
 
 import (
 	"net/http"
+	"slices"
 
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/examples/navigation/app/store"
-	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
 	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
 )
 
 var Route = goldr.RouteDef{
 	Page: Page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{"hq-customer", "regional-customer"},
-	},
+	Nav:  goldr.RouteNav{Label: "Report"},
 }
 
 func Page(r *http.Request) goldr.PageRouteResponse {
 	customer := store.Default.Customer(r.PathValue("customer_id"))
 	team := store.Default.Team(customer.TeamID)
 
-	trail := goldr.NavTrail{
-		goldr.NavStep("Home", urls.Root.Path()),
-		goldr.NavStep("Reports", urls.Main.Path()),
-		goldr.CurrentNavStep(customer.Name),
-	}
-	switch goldr.NavTrailKey(r) {
-	case urls.Main.Reports.ByCustomerID.NavTrails.HqCustomer:
-		trail = goldr.NavTrail{
-			goldr.NavStep("Home", urls.Root.Path()),
-			goldr.NavStep("HQ", urls.Main.Hq.Path()),
-			goldr.NavStep(team.Name, urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Path()),
-			goldr.NavStep(customer.Name, urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Customers.ByCustomerID.Bind(customer.ID).Path()),
-			goldr.CurrentNavStep("Report"),
+	nav := goldr.Nav(r)
+	trail := nav.Trail()
+	// A route may use the generated trail key constants instead of raw query
+	// values when it needs workflow-specific navigation state.
+	switch nav.TrailKey() {
+	case urls.Main.Reports.ByCustomerID.TrailKeys.HqCustomer:
+		if len(trail) > 0 {
+			trail = slices.Insert(trail, len(trail)-1,
+				goldr.NavStep("HQ", urls.Main.Hq.Path()),
+				goldr.NavStep(team.Name, urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Path()),
+				goldr.NavStep(customer.Name, urls.Main.Hq.Teams.ByTeamID.Bind(team.ID).Customers.ByCustomerID.Bind(customer.ID).Path()),
+			)
 		}
-	case urls.Main.Reports.ByCustomerID.NavTrails.RegionalCustomer:
+	case urls.Main.Reports.ByCustomerID.TrailKeys.RegionalCustomer:
 		office := store.Default.Office(team.OfficeID)
-		trail = goldr.NavTrail{
-			goldr.NavStep("Home", urls.Root.Path()),
-			goldr.NavStep("Regional", urls.Main.Regional.Path()),
-			goldr.NavStep(office.Name, urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Path()),
-			goldr.NavStep(team.Name, urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Teams.ByTeamID.Bind(team.ID).Path()),
-			goldr.NavStep(customer.Name, urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Teams.ByTeamID.Bind(team.ID).Customers.ByCustomerID.Bind(customer.ID).Path()),
-			goldr.CurrentNavStep("Report"),
+		if len(trail) > 0 {
+			trail = slices.Insert(trail, len(trail)-1,
+				goldr.NavStep("Regional", urls.Main.Regional.Path()),
+				goldr.NavStep(office.Name, urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Path()),
+				goldr.NavStep(team.Name, urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Teams.ByTeamID.Bind(team.ID).Path()),
+				goldr.NavStep(customer.Name, urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Teams.ByTeamID.Bind(team.ID).Customers.ByCustomerID.Bind(customer.ID).Path()),
+			)
 		}
 	}
 
-	return goldr.NewPage(ui.Page("Shared Report", trail, nil, "Shared target selected by destination trail."), goldr.PageMetadata{Title: "Shared Report"})
+	navigation := nav.NavigationWithTrail(trail)
+	return goldr.NewPage(PageView(navigation), goldr.PageMetadata{Title: "Shared Report"})
 }

@@ -156,6 +156,37 @@ func TestGenerateManifestRejectsDeclarationEndpointCollisions(t *testing.T) {
 	}
 }
 
+func TestGenerateManifestRejectsDuplicateNavKeyInCanonicalTrail(t *testing.T) {
+	manifest := routing.Manifest{
+		Routes: []routing.ManifestRouteDeclaration{
+			{
+				Route:  "/device-models/{model_id}",
+				Params: []string{"model_id"},
+				GoFile: "device_models/by_model_id/route.go",
+				Kind:   "local",
+				Nav:    routing.RouteNavDeclaration{Key: "model"},
+				Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+			},
+			{
+				Route:  "/device-models/{model_id}/firmware-models/{firmware_model_id}",
+				Params: []string{"model_id", "firmware_model_id"},
+				GoFile: "device_models/by_model_id/firmware_models/by_firmware_model_id/route.go",
+				Kind:   "local",
+				Nav:    routing.RouteNavDeclaration{Key: "model"},
+				Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+			},
+		},
+	}
+
+	_, err := GenerateManifest(manifest, GenerateOptions{PackageName: "routes", RouteRootImportPath: "example.com/app/routes"})
+	if !errors.Is(err, ErrAmbiguousRuntimeRoute) {
+		t.Fatalf("GenerateManifest() error = %v, want ErrAmbiguousRuntimeRoute", err)
+	}
+	if !strings.Contains(err.Error(), `duplicate Nav.Key "model"`) {
+		t.Fatalf("GenerateManifest() error = %v, want duplicate Nav.Key detail", err)
+	}
+}
+
 func TestGenerateManifestDoesNotRejectURLHelperCollisions(t *testing.T) {
 	manifest := routing.Manifest{
 		Actions: []routing.ManifestAction{

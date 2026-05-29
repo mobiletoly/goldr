@@ -177,7 +177,8 @@ func routeExplainSupportsMethod(route runtimeRoute, method string) bool {
 }
 
 func routeExplainMatch(route runtimeRoute, params []RouteExplanationParam, declarations []routing.ManifestRouteDeclaration) RouteExplanationMatch {
-	declarationInfo := routeDeclarationInfoForRuntimeRoute(route, declarations)
+	inboundDestinations, _ := inboundDestinationTrailEdgesByRoute(declarations)
+	declarationInfo := routeDeclarationInfoForRuntimeRoute(route, declarations, inboundDestinations)
 	match := RouteExplanationMatch{
 		Methods:     routeMethods(route),
 		Route:       route.route,

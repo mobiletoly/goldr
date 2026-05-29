@@ -1,14 +1,17 @@
 package ui
 
-import "github.com/mobiletoly/goldr"
+import (
+	ahtempl "github.com/a-h/templ"
+	"github.com/mobiletoly/goldr"
+)
 
-templ Page(title string, trail goldr.NavTrail, links []Link, body string) {
+templ Frame(nav goldr.Navigation, content ahtempl.Component) {
 	<!doctype html>
 	<html>
 		<body>
 			<nav aria-label="Breadcrumb">
 				<ol>
-					for _, step := range trail {
+					for _, step := range nav.Trail {
 						<li>
 							if step.Current {
 								<span aria-current="page">{ step.Label }</span>
@@ -19,20 +22,11 @@ templ Page(title string, trail goldr.NavTrail, links []Link, body string) {
 					}
 				</ol>
 			</nav>
-			if back, ok := goldr.BackHref(trail); ok {
-				<a class="back" href={ back }>Back</a>
+			if nav.Back.OK {
+				<a class="back" href={ nav.Back.Href }>Back</a>
 			}
-			<main>
-				<h1>{ title }</h1>
-				<p>{ body }</p>
-				<ul>
-					for _, link := range links {
-						<li>
-							<a href={ link.Href }>{ link.Label }</a>
-						</li>
-					}
-				</ul>
-			</main>
+			@content
+			@goldr.TemplateInspector()
 		</body>
 	</html>
 }

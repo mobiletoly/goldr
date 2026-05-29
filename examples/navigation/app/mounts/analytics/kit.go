@@ -5,35 +5,49 @@ import (
 
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/examples/navigation/app/store"
-	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
 )
 
 type Kit struct {
 	Store              store.Store
-	TrailBase          func(*http.Request) goldr.NavTrail
 	AnalyticsURL       func() string
 	CustomerURL        func(string) string
-	CustomerReportHref func(string) string
+	CustomerReportHref func(goldr.Navigation, string) string
 }
 
 func (kit Kit) Page(r *http.Request) goldr.PageRouteResponse {
-	trail := append(kit.TrailBase(r), goldr.CurrentNavStep("Analytics"))
-	var links []ui.Link
-	for _, customer := range kit.Store.TeamCustomers(r.PathValue("team_id")) {
-		links = append(links, ui.Link{
-			Label: customer.Name + " report",
-			Href:  kit.CustomerReportHref(customer.ID),
-		})
+	nav := goldr.Nav(r)
+	// The route tree provides key placeholders such as "office" and "team";
+	// the mounted kit resolves those keys after loading real labels.
+	kit.ResolveNav(r, nav)
+	navigation := nav.Navigation()
+	risk := r.URL.Query().Get("risk")
+	customers := filterCustomersByRisk(kit.Store.TeamCustomers(r.PathValue("team_id")), risk)
+	customerReportHref := func(customerID string) string {
+		return kit.CustomerReportHref(navigation, customerID)
 	}
-	return goldr.NewPage(ui.Page("Analytics", trail, links, "Shared analytics root uses owner-provided links."), goldr.PageMetadata{Title: "Analytics"})
+	return goldr.NewPage(PageView(navigation, kit.AnalyticsURL(), risk, customers, customerReportHref), goldr.PageMetadata{Title: "Analytics"})
 }
 
-func (kit Kit) CustomerReport(r *http.Request) goldr.PageRouteResponse {
-	customer := kit.Store.Customer(r.PathValue("customer_id"))
-	trail := append(kit.TrailBase(r),
-		goldr.NavStep("Analytics", kit.AnalyticsURL()),
-		goldr.NavStep(customer.Name, kit.CustomerURL(customer.ID)),
-		goldr.CurrentNavStep("Report"),
-	)
-	return goldr.NewPage(ui.Page("Analytics Report", trail, nil, "Risk: "+customer.Risk), goldr.PageMetadata{Title: "Analytics Report"})
+func (kit Kit) ResolveNav(r *http.Request, nav goldr.RequestNav) {
+	if officeID := r.PathValue("office_id"); officeID != "" {
+		office := kit.Store.Office(officeID)
+		nav.Resolve("office", office.Name)
+	}
+	if teamID := r.PathValue("team_id"); teamID != "" {
+		team := kit.Store.Team(teamID)
+		nav.Resolve("team", team.Name)
+	}
+}
+
+func filterCustomersByRisk(customers []store.Customer, risk string) []store.Customer {
+	if risk == "" {
+		return customers
+	}
+	var filtered []store.Customer
+	for _, customer := range customers {
+		if customer.Risk == risk {
+			filtered = append(filtered, customer)
+		}
+	}
+	return filtered
 }

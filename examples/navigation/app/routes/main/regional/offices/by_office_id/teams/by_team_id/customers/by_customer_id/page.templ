@@ -1,0 +1,23 @@
+package by_id
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/store"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
+)
+
+templ PageView(nav goldr.Navigation, office store.Office, team store.Team, customer store.Customer) {
+	@ui.Frame(nav, pageContent(office, team, customer))
+}
+
+templ pageContent(office store.Office, team store.Team, customer store.Customer) {
+	<main>
+		<h1>{ customer.Name }</h1>
+		<p>Regional customer context is loaded from IDs in the path.</p>
+		<ul>
+			<li><a href={ urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Teams.ByTeamID.Bind(team.ID).Customers.ByCustomerID.Bind(customer.ID).Report.Path() }>Report</a></li>
+			<li><a href={ urls.Main.Regional.Offices.ByOfficeID.Teams.ByTeamID.Customers.ByCustomerID.Destinations.SharedReport.Bind(customer.ID).Href() }>Shared report</a></li>
+		</ul>
+	</main>
+}

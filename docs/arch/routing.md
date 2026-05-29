@@ -196,63 +196,87 @@ package name differs from the final import path segment, the application must
 use an explicit import alias in `route.go` so the generated adapter can import
 the same selector name.
 
-## Navigation Trail Keys
+## Route Navigation
 
-Route declarations may allow app-owned navigation trail keys:
+Route declarations may contribute one canonical route navigation step:
 
 ```go
 var Route = goldr.RouteDef{
 	Page: Page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{"provider-search", "attention-center"},
+	Nav: goldr.RouteNav{
+		Label: "Customers",
 	},
 }
 ```
 
-The declaration parser accepts only literal
-`goldr.NavTrails{Allowed: []string{...}}` values. Keys must be lowercase ASCII
-trail keys such as `provider-search`. Duplicate keys, non-literal entries,
-invalid syntax, and generated Go field-name collisions are scan errors.
+Dynamic labels use semantic keys that handlers resolve from app data:
 
-`NavTrails` is valid on live `goldr.RouteDef` and live
-`goldr.KitRouteDef[K]` declarations under `app/routes`. Mounted source
-`KitRouteDef[K]` declarations under `app/mounts` cannot declare navigation
-trail keys because the live owner route decides which contextual trails are
-valid after mount expansion. `goldr.KitRouteMount[K]` has no top-level
-`NavTrails` field; owner-specific mounted child keys live on structured
-`MountRoute.NavTrails` entries inside `KitRouteMount.Routes`.
+```go
+var Route = goldr.RouteDef{
+	Page: Page,
+	Nav:  goldr.RouteNav{Key: "customer"},
+}
+```
 
-Manifest and runtime route data carry the allowed keys for each generated page,
-fragment, and action endpoint. Generated dispatch reads `_goldr_trail` after a
-route has matched and before the endpoint handler or middleware stack runs. If
-the value is allowed for that matched route, dispatch stores it on the request
-context with `goldr.WithNavTrailKey`; otherwise it is ignored without logging.
-Application code reads the validated value with `goldr.NavTrailKey(r)` and
-falls back to the default trail when it returns `""`. For one-off checks,
-`goldr.NavTrailSelected(r, key)` compares a non-empty expected key with the
-validated request key.
+The declaration parser accepts only literal `goldr.RouteNav` values. `Label`
+and `Key` are mutually exclusive. `Label` must not be empty after trimming.
+`Key` values must use lower snake case ASCII. `RouteNav` supports only
+canonical route-step metadata; alternate workflow keys are declared on inbound
+destinations.
 
-Generated `app/urls` route nodes expose route-scoped `NavTrails` fields only
-when the route has allowed keys. Constants are generated as fields on the
-target route helper, not as global package constants. Unbound route-reference
-nodes under dynamic routes also expose those fields so handler code can compare
-against `urls.Users.ByID.Report.NavTrails.AttentionCenter` without binding path
-values.
+Manifest and runtime route data carry canonical nav metadata for each live
+route declaration. Generated dispatch builds a canonical ordered plan from the
+matched route's live ancestors that declare `Nav.Label` or `Nav.Key`, rejects
+duplicate `Nav.Key` values in one canonical trail, binds canonical hrefs from
+the matched request path values, and stores the request-scoped state before the
+endpoint handler or middleware stack runs. Application code reads that state
+with `goldr.Nav(r)`, resolves dynamic keys, and renders the resulting
+`goldr.Navigation`.
+
+Generated handler `HandlerOptions.BasePath` prefixes only canonical nav hrefs.
+It does not affect route matching. App-provided hrefs passed to
+`RequestNav.ResolveHref` are used as-is.
+
+Alternate workflow selectors are derived from inbound destinations:
+
+```go
+var Route = goldr.RouteDef{
+	Page: Page,
+	Nav:  goldr.RouteNav{Label: "Report"},
+}
+
+var SourceRoute = goldr.RouteDef{
+	Page: SourcePage,
+	Destinations: goldr.Destinations{
+		"model-report": goldr.To(urls.Admin.Models.ByModelID.Report).
+			TrailKey("from-inventory"),
+	},
+}
+```
+
+Generated `app/urls` route nodes expose route-scoped `TrailKeys` fields only
+when live inbound destinations select keys for that target. Constants are
+generated as fields on the target route helper, not as global package
+constants. Bound dynamic route helpers do not expose duplicate `TrailKeys`
+fields.
 
 Destination declarations are parsed from literal `goldr.Destinations` maps on
-`RouteDef`, `KitRouteDef`, and `KitRouteMount`. Values must use
-`goldr.To(generatedRouteNode)` and may call `.NavTrail("key")` with a string
+`RouteDef`, `KitRouteDef`, and selected `MountRoute` entries. Values must use
+`goldr.To(generatedRouteNode)` and may call `.TrailKey("key")` with a string
 literal. URL helper generation resolves each target against the live generated
-route graph and rejects unknown targets, destination helper-name collisions,
-and selected trail keys not allowed by the target route. Generated destination
-helpers expose `Href()` and `HrefWithQuery(url.Values)`, bind target params
-with `Bind(...)`, append `_goldr_trail` only for destination-selected trails,
-ignore app-supplied `_goldr_trail` values, and preserve clean `Path()` output
-on normal route helpers. App workflow state stays in app-owned query
-parameters; destination declarations do not declare static query strings.
-`goldr.QueryValues(r, keys...)` copies named app-owned query keys from the
-current request into fresh `url.Values` for `HrefWithQuery` call sites and
-always excludes `_goldr_trail`.
+route graph and rejects unknown targets, destination helper-name collisions, and
+generated trail-key field-name collisions on each target route. Generated
+destination helpers always expose `Href()`, bind target params with `Bind(...)`,
+append `_goldr_nav_trail_key` only for destination-selected trail keys, and
+preserve clean `Path()` output on normal route helpers. Goldr does not copy
+request query parameters or expose query-forwarding destination helpers. Target
+route query strings are app-owned URL composition.
+
+Destination helpers that select a trail key also expose
+`NavigationHref(goldr.Navigation)`. That helper appends `_goldr_nav_trail_key`
+and preserves the current relative URL in `_goldr_return_to` for link-based
+Back. The target honors `_goldr_return_to` only when route dispatch validated a
+selected trail key for the matched route.
 
 ## Mounted Kit Route Subtrees
 
@@ -281,8 +305,10 @@ var Route = goldr.KitRouteDef[reports.Kit]{
 Live `KitRouteDef[K]` declarations under `app/routes` require `New`.
 Mounted `KitRouteDef[K]` declarations under `app/mounts` must omit `New`
 because the `KitRouteMount[K]` owner supplies the request-scoped kit
-constructor. They must also omit `NavTrails` and `Destinations`; live owners
-declare owner-specific navigation metadata and destination edges.
+constructor. They must also omit `Destinations`; live owners declare
+owner-specific destination edges. Mounted source routes may declare default
+`Nav` metadata, and included live mounted routes inherit it when the owning
+`MountRoute` entry does not provide `Nav`.
 
 Mount expansion happens after the live route tree scan. The mount path must be
 a clean relative slash path under `app/mounts`, and each component must be a
@@ -299,8 +325,9 @@ present, entries are structured `goldr.MountRoute` values with mount-relative
 browser route patterns such as `/`, `/audit`, or `/{id}`. Missing, duplicate,
 or malformed entries are scan problems. Excluded mounted children are not added
 to dispatch, live URL helpers, route inventory, or middleware composition for
-that owner. `MountRoute.NavTrails` metadata is copied only onto the included
-live mounted child selected by that owner.
+that owner. `MountRoute.Nav` metadata overrides the mounted source route
+default only for the included live mounted child selected by that owner. A
+child-only selection does not synthesize mount-root nav metadata.
 
 Mounted middleware is rejected. Middleware remains owned by the live
 `app/routes` tree. Mounted layouts are allowed and are rebased under the mount
@@ -313,11 +340,11 @@ for which subset is public.
 
 Generated mount-relative helpers under `app/mounts/<mount>/goldr_gen.go` stay
 path helpers. They do not expose owner-specific trail constants or destination
-state. Shared mounted code receives owner-specific navigation behavior through
-the kit value `K`, usually as a trail base and URL callbacks. When a shared kit
-needs app query state, the kit-owned callback shape should accept explicit
-`url.Values`; the mounted implementation chooses the keys and the live owner
-composes the destination-aware href.
+state. Shared mounted code may resolve live owner nav keys with `goldr.Nav(r)`
+when the live mounted route inherited or overrode matching `Nav` keys. When
+alternate trail shape or app query state is owner-specific, pass trail builders
+or URL callbacks through the kit value `K`; the mounted implementation chooses
+the app-owned keys and the live owner composes the destination-aware href.
 
 ## Determinism
 

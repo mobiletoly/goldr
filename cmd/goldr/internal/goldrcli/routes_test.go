@@ -22,13 +22,13 @@ func TestRunRoutesPrintsRouteTable(t *testing.T) {
 	}
 
 	want := [][]string{
-		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER"},
-		{"layout", "-", "/", "-", "layout.go", "-", "-", "-", "-", "-", "-"},
-		{"page", "GET,HEAD", "/", "-", "route.go", "-", "local", "-", "-", "-", "urls.Root.Path()"},
-		{"action", "POST", "/users/create", "-", "users/route.go:GoldrRoutePostCreate", "-", "local", "users.index", "Users", "app.nav=\"users\",app.permission=\"view\"", "urls.Users.Create.Path()"},
-		{"fragment", "GET,HEAD", "/users/table", "-", "users/route.go", "-", "local", "users.index", "Users", "app.nav=\"users\",app.permission=\"view\"", "urls.Users.Table.Path()"},
-		{"page", "GET,HEAD", "/users", "-", "users/route.go", "-", "local", "users.index", "Users", "app.nav=\"users\",app.permission=\"view\"", "urls.Users.Path()"},
-		{"page", "GET,HEAD", "/users/{id}", "id", "users/by_id/route.go", "-", "local", "-", "-", "-", "urls.Users.ByID.Bind(id).Path()"},
+		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "NAV", "TRAIL_KEYS", "HELPER"},
+		{"layout", "-", "/", "-", "layout.go", "-", "-", "-", "-", "-", "-", "-", "-"},
+		{"page", "GET,HEAD", "/", "-", "route.go", "-", "local", "-", "-", "-", "-", "-", "urls.Root.Path()"},
+		{"action", "POST", "/users/create", "-", "users/route.go:GoldrRoutePostCreate", "-", "local", "users.index", "Users", "app.nav=\"users\",app.permission=\"view\"", "-", "-", "urls.Users.Create.Path()"},
+		{"fragment", "GET,HEAD", "/users/table", "-", "users/route.go", "-", "local", "users.index", "Users", "app.nav=\"users\",app.permission=\"view\"", "-", "-", "urls.Users.Table.Path()"},
+		{"page", "GET,HEAD", "/users", "-", "users/route.go", "-", "local", "users.index", "Users", "app.nav=\"users\",app.permission=\"view\"", "-", "-", "urls.Users.Path()"},
+		{"page", "GET,HEAD", "/users/{id}", "id", "users/by_id/route.go", "-", "local", "-", "-", "-", "-", "-", "urls.Users.ByID.Bind(id).Path()"},
 	}
 	requireRouteTableRows(t, stdout, want)
 	requireMissingFile(t, filepath.Join(root, "app", "routes", "goldr_gen.go"))
@@ -68,6 +68,9 @@ func TestRunRoutesPrintsJSON(t *testing.T) {
 	}
 	if strings.Contains(stdout, "null") {
 		t.Fatalf("stdout = %q, must not contain null arrays", stdout)
+	}
+	if strings.Contains(stdout, `"nav"`) {
+		t.Fatalf("stdout = %q, must omit nav when route declarations have no nav metadata", stdout)
 	}
 
 	var rows []routeSurfaceJSONRow
@@ -151,8 +154,8 @@ func TestRunRoutesInspectIndexFragment(t *testing.T) {
 		t.Fatalf("Run(routes list) exit code = %d, want 0; stderr = %q", code, listErr)
 	}
 	requireRouteTableRows(t, listOut, [][]string{
-		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER"},
-		{"fragment", "GET,HEAD", "/users/status-options", "-", "users/status_options/route.go", "-", "local", "-", "-", "-", "urls.Users.StatusOptions.Path()"},
+		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "NAV", "TRAIL_KEYS", "HELPER"},
+		{"fragment", "GET,HEAD", "/users/status-options", "-", "users/status_options/route.go", "-", "local", "-", "-", "-", "-", "-", "urls.Users.StatusOptions.Path()"},
 	})
 
 	jsonOut := runGoldrDeterministic(t, "routes list --json", "routes", "list", "--app-root", root, "--json")
@@ -210,21 +213,19 @@ import (
 	"example.com/app/urls"
 )
 
-var Route = goldr.RouteDef{
-	Page: page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{"attention-center"},
-	},
-	Destinations: goldr.Destinations{
-		"customer": goldr.To(urls.Customers.ByID).NavTrail("attention-center"),
-	},
-}
+		var Route = goldr.RouteDef{
+			Page: page,
+			Nav:  goldr.RouteNav{Label: "Analytics"},
+			Destinations: goldr.Destinations{
+				"project": goldr.To(urls.Projects.ByID).TrailKey("workflow-a"),
+			},
+	}
 
 func page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Body: "analytics"}
 }
 `)
-	writeFile(t, root, "app/routes/customers/by_id/route.go", `package by_id
+	writeFile(t, root, "app/routes/projects/by_id/route.go", `package by_id
 
 import (
 	"net/http"
@@ -232,15 +233,13 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-var Route = goldr.RouteDef{
-	Page: page,
-	NavTrails: goldr.NavTrails{
-		Allowed: []string{"attention-center"},
-	},
-}
+	var Route = goldr.RouteDef{
+		Page: page,
+		Nav:  goldr.RouteNav{Key: "project"},
+	}
 
 func page(r *http.Request) goldr.PageRouteResponse {
-	return goldr.Text{Body: "customer"}
+	return goldr.Text{Body: "project"}
 }
 `)
 
@@ -249,14 +248,63 @@ func page(r *http.Request) goldr.PageRouteResponse {
 		t.Fatalf("Run(routes explain) exit code = %d, want 0; stderr = %q", code, explainErr)
 	}
 	for _, want := range []string{
-		"  trails   attention-center",
+		"  nav      label=\"Analytics\"",
 		"DESTINATIONS",
-		"  customer           urls.Analytics.Destinations.Customer -> urls.Customers.ByID trail=attention-center",
+		"  project            urls.Analytics.Destinations.Project -> urls.Projects.ByID trail_key=workflow-a",
 	} {
 		if !strings.Contains(explainOut, want) {
 			t.Fatalf("routes explain output = %q, want %q", explainOut, want)
 		}
 	}
+
+	jsonOut := runGoldrDeterministic(t, "routes list --json", "routes", "list", "--app-root", root, "--json")
+	var rows []routeSurfaceJSONRow
+	if err := json.Unmarshal([]byte(jsonOut), &rows); err != nil {
+		t.Fatalf("Unmarshal(routes list --json) error = %v; stdout = %q", err, jsonOut)
+	}
+	requireRouteJSONContainsRow(t, rows, routeSurfaceJSONRow{
+		Kind:    "page",
+		Methods: []string{"GET", "HEAD"},
+		Path:    "/analytics",
+		Params:  []string{},
+		Source:  "analytics/route.go",
+		Helper:  "urls.Analytics.Path()",
+		Declaration: &routeSurfaceJSONDeclaration{
+			Source: "analytics/route.go",
+			Kind:   "local",
+			Labels: []routeSurfaceJSONLabel{},
+			Nav:    &routeSurfaceJSONNav{Label: "Analytics"},
+			Destinations: []routeSurfaceJSONDestination{{
+				Name:     "project",
+				Helper:   "urls.Analytics.Destinations.Project",
+				Target:   "urls.Projects.ByID",
+				TrailKey: "workflow-a",
+			}},
+			Page: &routeSurfaceJSONPage{Handler: "page", Adapter: "GoldrRoutePage"},
+		},
+	})
+	requireRouteJSONContainsRow(t, rows, routeSurfaceJSONRow{
+		Kind:    "page",
+		Methods: []string{"GET", "HEAD"},
+		Path:    "/projects/{id}",
+		Params:  []string{"id"},
+		Source:  "projects/by_id/route.go",
+		Helper:  "urls.Projects.ByID.Bind(id).Path()",
+		Declaration: &routeSurfaceJSONDeclaration{
+			Source:    "projects/by_id/route.go",
+			Kind:      "local",
+			Labels:    []routeSurfaceJSONLabel{},
+			Nav:       &routeSurfaceJSONNav{Key: "project"},
+			TrailKeys: []string{"workflow-a"},
+			InboundDestinations: []routeSurfaceJSONInboundDestination{{
+				Source:   "/analytics",
+				Name:     "project",
+				Helper:   "urls.Analytics.Destinations.Project",
+				TrailKey: "workflow-a",
+			}},
+			Page: &routeSurfaceJSONPage{Handler: "page", Adapter: "GoldrRoutePage"},
+		},
+	})
 }
 
 func TestRunRoutesExplainMountedNavigationDeclaration(t *testing.T) {
@@ -276,18 +324,17 @@ var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	New: newKit,
 	Mount: "reports",
 	Routes: goldr.MountRoutes{
-		{Path: "/"},
 		{
-			Path: "/audit",
-			NavTrails: goldr.NavTrails{
-				Allowed: []string{"admin-reports"},
+				Path: "/",
+				Destinations: goldr.Destinations{
+					"audit": goldr.To(urls.Admin.Reports.Audit).TrailKey("admin-reports"),
+				},
+		},
+			{
+				Path: "/audit",
 			},
 		},
-	},
-	Destinations: goldr.Destinations{
-		"audit": goldr.To(urls.Admin.Reports.Audit).NavTrail("admin-reports"),
-	},
-}
+	}
 
 func newKit(_ *http.Request) sharedreports.Kit {
 	return sharedreports.Kit{}
@@ -320,9 +367,10 @@ import (
 	sharedreports "example.com/mountednavapp/app/mounts/reports"
 )
 
-var Route = goldr.KitRouteDef[sharedreports.Kit]{
-	Page: sharedreports.Kit.Audit,
-}
+	var Route = goldr.KitRouteDef[sharedreports.Kit]{
+		Nav:  goldr.RouteNav{Label: "Audit"},
+		Page: sharedreports.Kit.Audit,
+	}
 
 func (kit sharedreports.Kit) Audit(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Body: "ok"}
@@ -335,7 +383,7 @@ func (kit sharedreports.Kit) Audit(_ *http.Request) goldr.PageRouteResponse {
 	}
 	for _, want := range []string{
 		"DESTINATIONS",
-		"  audit              urls.Admin.Reports.Destinations.Audit -> urls.Admin.Reports.Audit trail=admin-reports",
+		"  audit              urls.Admin.Reports.Destinations.Audit -> urls.Admin.Reports.Audit trail_key=admin-reports",
 	} {
 		if !strings.Contains(rootOut, want) {
 			t.Fatalf("routes explain root output = %q, want %q", rootOut, want)
@@ -348,7 +396,10 @@ func (kit sharedreports.Kit) Audit(_ *http.Request) goldr.PageRouteResponse {
 	}
 	for _, want := range []string{
 		"/admin/reports/audit  GET",
-		"  trails   admin-reports",
+		"  nav      label=\"Audit\"",
+		"  trailkey admin-reports",
+		"INBOUND DESTINATIONS",
+		"  audit              urls.Admin.Reports.Destinations.Audit -> /admin/reports trail_key=admin-reports",
 		"app/mounts/reports/audit/route.go",
 	} {
 		if !strings.Contains(auditOut, want) {
@@ -407,9 +458,9 @@ func TestRunRoutesListFiltersMountedRoutes(t *testing.T) {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
 	requireRouteTableRows(t, stdout, [][]string{
-		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER", "STATUS"},
-		{"fragment", "GET,HEAD", "/admin/reports/table", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "urls.Admin.Reports.Table.Path()", "included"},
-		{"page", "GET,HEAD", "/admin/reports", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "urls.Admin.Reports.Path()", "included"},
+		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "NAV", "TRAIL_KEYS", "HELPER", "STATUS"},
+		{"fragment", "GET,HEAD", "/admin/reports/table", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "-", "-", "urls.Admin.Reports.Table.Path()", "included"},
+		{"page", "GET,HEAD", "/admin/reports", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "-", "-", "urls.Admin.Reports.Path()", "included"},
 	})
 }
 
@@ -425,7 +476,7 @@ func TestRunRoutesListMountFilterPrintsEmptyInventory(t *testing.T) {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
 	requireRouteTableRows(t, stdout, [][]string{
-		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER"},
+		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "NAV", "TRAIL_KEYS", "HELPER"},
 	})
 }
 
@@ -441,9 +492,9 @@ func TestRunRoutesListMountFilterShowsExcludedMountedRoutes(t *testing.T) {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
 	requireRouteTableRows(t, stdout, [][]string{
-		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER", "STATUS"},
-		{"route", "-", "/admin/reports/audit", "-", "../mounts/reports/audit/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "-", "excluded"},
-		{"page", "GET,HEAD", "/admin/reports", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "urls.Admin.Reports.Path()", "included"},
+		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "NAV", "TRAIL_KEYS", "HELPER", "STATUS"},
+		{"route", "-", "/admin/reports/audit", "-", "../mounts/reports/audit/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "-", "-", "-", "excluded"},
+		{"page", "GET,HEAD", "/admin/reports", "-", "../mounts/reports/route.go", "admin/reports/route.go", "mounted-kit", "-", "-", "-", "-", "-", "urls.Admin.Reports.Path()", "included"},
 	})
 }
 
@@ -512,8 +563,8 @@ func page(_ *http.Request) goldr.PageRouteResponse {
 		t.Fatalf("routes list stderr = %q, want empty", listErr)
 	}
 	requireRouteTableRows(t, listOut, [][]string{
-		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "HELPER"},
-		{"page", "GET,HEAD", "/", "-", "route.go", "-", "local", `"home\nroot"`, `"Home\nBad"`, `"app\nnav"="home"`, "urls.Root.Path()"},
+		{"KIND", "METHOD", "PATH", "PARAMS", "SOURCE", "OWNER", "DECL", "NAME", "TITLE", "LABELS", "NAV", "TRAIL_KEYS", "HELPER"},
+		{"page", "GET,HEAD", "/", "-", "route.go", "-", "local", `"home\nroot"`, `"Home\nBad"`, `"app\nnav"="home"`, "-", "-", "urls.Root.Path()"},
 	})
 
 	code, explainOut, explainErr := runGoldr(t, "routes", "explain", "--app-root", root, "/")
@@ -584,13 +635,13 @@ func TestRunRoutesFullFeatureOutputIsDeterministic(t *testing.T) {
 
 	rows := routeTableRows(t, stdout)
 	for _, want := range [][]string{
-		{"layout", "-", "/", "-", "layout.go", "-", "-", "-", "-", "-", "-"},
-		{"page", "GET,HEAD", "/", "-", "route.go", "-", "local", "-", "-", "-", "urls.Root.Path()"},
-		{"page", "GET,HEAD", "/settings", "-", "settings/route.go", "-", "local", "-", "-", "-", "urls.Settings.Path()"},
-		{"layout", "-", "/users", "-", "users/layout.go", "-", "-", "-", "-", "-", "-"},
-		{"page", "GET,HEAD", "/users/{id}", "id", "users/by_id/route.go", "-", "local", "-", "-", "-", "urls.Users.ByID.Bind(id).Path()"},
-		{"action", "POST", "/users/create", "-", "users/route.go:GoldrRoutePostCreate", "-", "local", "-", "-", "-", "urls.Users.Create.Path()"},
-		{"action", "POST", "/users/save-preview", "-", "users/route.go:GoldrRoutePostSavePreview", "-", "local", "-", "-", "-", "urls.Users.SavePreview.Path()"},
+		{"layout", "-", "/", "-", "layout.go", "-", "-", "-", "-", "-", "-", "-", "-"},
+		{"page", "GET,HEAD", "/", "-", "route.go", "-", "local", "-", "-", "-", "-", "-", "urls.Root.Path()"},
+		{"page", "GET,HEAD", "/settings", "-", "settings/route.go", "-", "local", "-", "-", "-", "-", "-", "urls.Settings.Path()"},
+		{"layout", "-", "/users", "-", "users/layout.go", "-", "-", "-", "-", "-", "-", "-", "-"},
+		{"page", "GET,HEAD", "/users/{id}", "id", "users/by_id/route.go", "-", "local", "-", "-", "-", "-", "-", "urls.Users.ByID.Bind(id).Path()"},
+		{"action", "POST", "/users/create", "-", "users/route.go:GoldrRoutePostCreate", "-", "local", "-", "-", "-", "-", "-", "urls.Users.Create.Path()"},
+		{"action", "POST", "/users/save-preview", "-", "users/route.go:GoldrRoutePostSavePreview", "-", "local", "-", "-", "-", "-", "-", "urls.Users.SavePreview.Path()"},
 	} {
 		requireRouteTableContainsRow(t, rows, want)
 	}
@@ -939,21 +990,44 @@ type routeSurfaceJSONRow struct {
 }
 
 type routeSurfaceJSONDeclaration struct {
-	Source   string                    `json:"source"`
-	Kind     string                    `json:"kind"`
-	Name     string                    `json:"name"`
-	Title    string                    `json:"title"`
-	Labels   []routeSurfaceJSONLabel   `json:"labels"`
-	Mount    *routeSurfaceJSONMount    `json:"mount,omitempty"`
-	Kit      *routeSurfaceJSONKit      `json:"kit,omitempty"`
-	Page     *routeSurfaceJSONPage     `json:"page,omitempty"`
-	Fragment *routeSurfaceJSONFragment `json:"fragment,omitempty"`
-	Action   *routeSurfaceJSONAction   `json:"action,omitempty"`
+	Source              string                               `json:"source"`
+	Kind                string                               `json:"kind"`
+	Name                string                               `json:"name"`
+	Title               string                               `json:"title"`
+	Labels              []routeSurfaceJSONLabel              `json:"labels"`
+	Nav                 *routeSurfaceJSONNav                 `json:"nav,omitempty"`
+	TrailKeys           []string                             `json:"trail_keys,omitempty"`
+	Destinations        []routeSurfaceJSONDestination        `json:"destinations,omitempty"`
+	InboundDestinations []routeSurfaceJSONInboundDestination `json:"inbound_destinations,omitempty"`
+	Mount               *routeSurfaceJSONMount               `json:"mount,omitempty"`
+	Kit                 *routeSurfaceJSONKit                 `json:"kit,omitempty"`
+	Page                *routeSurfaceJSONPage                `json:"page,omitempty"`
+	Fragment            *routeSurfaceJSONFragment            `json:"fragment,omitempty"`
+	Action              *routeSurfaceJSONAction              `json:"action,omitempty"`
 }
 
 type routeSurfaceJSONLabel struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+type routeSurfaceJSONNav struct {
+	Label string `json:"label,omitempty"`
+	Key   string `json:"key,omitempty"`
+}
+
+type routeSurfaceJSONDestination struct {
+	Name     string `json:"name"`
+	Helper   string `json:"helper"`
+	Target   string `json:"target"`
+	TrailKey string `json:"trail_key,omitempty"`
+}
+
+type routeSurfaceJSONInboundDestination struct {
+	Source   string `json:"source"`
+	Name     string `json:"name"`
+	Helper   string `json:"helper"`
+	TrailKey string `json:"trail_key"`
 }
 
 type routeSurfaceJSONKit struct {

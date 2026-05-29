@@ -77,24 +77,38 @@ in the mounted subtree. When present, it is an explicit allowlist of
 `/`, `/audit`, or `/{id}`. Missing, duplicate, or malformed entries fail
 generation and checking.
 
-An owner can attach navigation trail keys to selected mounted children:
+Mounted source routes can declare default navigation labels or keys:
 
 ```go
-Routes: goldr.MountRoutes{
-	{Path: "/"},
-	{
-		Path: "/customers/{customer_id}/report",
-		NavTrails: goldr.NavTrails{
-			Allowed: []string{"team-analytics"},
-		},
-	},
+// app/mounts/analytics/route.go
+var Route = goldr.KitRouteDef[Kit]{
+	Nav:  goldr.RouteNav{Label: "Analytics"},
+	Page: Kit.Page,
 }
 ```
 
-Mounted source routes under `app/mounts` cannot declare live `NavTrails` or
-`Destinations`. Generated mount helpers stay path-only. Pass owner-specific
-navigation behavior through `K`, usually as a trail base and owner URL
-callbacks. The mounted page then appends local suffix steps to the owner base:
+The live owner can override those defaults and declare live destinations:
+
+```go
+Routes: goldr.MountRoutes{
+	{
+			Path: "/customers/{customer_id}/report",
+			Destinations: goldr.Destinations{
+				"customer": goldr.To(urls.Admin.Customers.ByID).
+					TrailKey("team-analytics"),
+			},
+		},
+	}
+```
+
+Mounted source routes under `app/mounts` cannot declare live `Destinations`.
+Generated mount helpers stay path-only. Mounted handlers may call
+`goldr.Nav(r).Resolve(...)` for keys declared by the mounted source or
+overridden by the live owner. Pass owner-specific alternate trail behavior
+through `K` when the workflow shape is not the canonical route ancestry.
+
+For explicit alternate trails, the mounted page can still append local suffix
+steps to an owner-provided base:
 
 ```go
 trail := append(kit.TrailBase(r),
@@ -104,21 +118,27 @@ trail := append(kit.TrailBase(r),
 )
 ```
 
-When shared mounted code needs to carry app query state, keep that policy in
-the mounted code and pass the selected values into owner callbacks:
+When shared mounted code links to a target route with target-owned query inputs,
+keep that policy explicit and pass the selected values into owner callbacks:
 
 ```go
-query := goldr.QueryValues(r, "view", "sort", "page")
-href := kit.CustomerReportHref(customer.ID, query)
+href := kit.CustomerReportHref(customer.ID, reportView)
 ```
 
-The live owner callback can then use a destination-aware helper:
+The live owner callback can then compose the target URL explicitly:
 
 ```go
-CustomerReportHref: func(customerID string, query url.Values) string {
-	return urls.Admin.Analytics.Destinations.CustomerReport.
+CustomerReportHref: func(customerID string, reportView string) string {
+	href, err := url.Parse(urls.Admin.Analytics.Destinations.CustomerReport.
 		Bind(customerID).
-		HrefWithQuery(query)
+		Href())
+	if err != nil {
+		return ""
+	}
+	query := href.Query()
+	query.Set("view", reportView)
+	href.RawQuery = query.Encode()
+	return href.String()
 }
 ```
 
@@ -223,7 +243,8 @@ reportURL, ok := goldr.BindFromRequest(r, reportURLs.ByID)
 
 That is only a request path-value binding shortcut. It does not prove that a
 live owner exposes a mounted child, and it does not carry owner-specific
-navigation context. Keep those decisions in the live owner and in the kit value.
+navigation decisions. Keep those decisions in the live owner and in the kit
+value.
 
 Mount-relative helpers include every route declaration from the mounted source
 subtree, including children that only some live owners expose. They are subtree

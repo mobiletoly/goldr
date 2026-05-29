@@ -53,6 +53,31 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 	}
 }
 
+func TestGenerateManifestWritesRequestNavHrefWithoutConcatLoop(t *testing.T) {
+	manifest := routing.Manifest{
+		Routes: []routing.ManifestRouteDeclaration{
+			{
+				Route:  "/devices",
+				GoFile: "devices/route.go",
+				Nav:    routing.RouteNavDeclaration{Label: "Devices"},
+				Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+			},
+			{
+				Route:  "/devices/{id}/firmware",
+				Params: []string{"id"},
+				GoFile: "devices/by_id/firmware/route.go",
+				Nav:    routing.RouteNavDeclaration{Label: "Firmware"},
+				Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+			},
+		},
+	}
+
+	source := generateOK(t, manifest)
+	if strings.Contains(source, `path += "/" + segment`) {
+		t.Fatalf("generated request nav href uses string concatenation loop")
+	}
+}
+
 func TestGenerateManifestWritesRouteSurfaceComment(t *testing.T) {
 	source := generateOK(t, routing.Manifest{
 		Pages: []routing.ManifestPage{

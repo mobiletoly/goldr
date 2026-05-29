@@ -1,0 +1,11 @@
+package brief
+
+import "github.com/mobiletoly/goldr/examples/navigation/app/store"
+
+templ PageView(customer store.Customer) {
+	<main>
+		<h1>Brief Customer Report</h1>
+		<p>Customer: { customer.Name }</p>
+		<p>Status summary and recent activity.</p>
+	</main>
+}

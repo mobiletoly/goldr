@@ -177,22 +177,21 @@ live owner still gets a mount-base `Path()` helper so mounted helpers can be
 bound from the owner route. That helper does not make the mount root
 dispatchable.
 
-Mounted owners may attach owner-specific navigation trail metadata to selected
-children:
+Mounted source routes may own default navigation metadata. Mounted owners can
+override it on selected children:
 
 ```go
 Routes: goldr.MountRoutes{
 	{
 		Path: "/customers/{customer_id}/report",
-		NavTrails: goldr.NavTrails{
-			Allowed: []string{"team-analytics"},
-		},
+		Nav:  goldr.RouteNav{Label: "Team Report"},
 	},
 }
 ```
 
-See [Navigation Trails And Destinations](navigation.md) for destination
-`Href()`, route-scoped `NavTrails` constants, and mounted owner trail patterns.
+See [Route Navigation Trails](navigation.md) for canonical route nav,
+destination `Href()`, derived route-scoped `TrailKeys` constants, and mounted
+owner trail patterns.
 
 ```go
 var Route = goldr.KitRouteDef[reports.Kit]{

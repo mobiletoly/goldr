@@ -1,0 +1,34 @@
+package analytics
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/store"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+)
+
+templ PageView(nav goldr.Navigation, analyticsURL string, risk string, customers []store.Customer, customerReportHref func(string) string) {
+	@ui.Frame(nav, pageContent(analyticsURL, risk, customers, customerReportHref))
+}
+
+templ pageContent(analyticsURL string, risk string, customers []store.Customer, customerReportHref func(string) string) {
+	<main>
+		<h1>Analytics</h1>
+		<p>Shared analytics root uses owner-provided links.</p>
+		<form method="get" action={ analyticsURL } hx-get={ analyticsURL } hx-target="body" hx-replace-url="true" hx-trigger="change">
+			<label for="risk-filter">Risk</label>
+			<select id="risk-filter" name="risk">
+				<option value="" selected?={ risk == "" }>All risks</option>
+				<option value="high" selected?={ risk == "high" }>High</option>
+				<option value="medium" selected?={ risk == "medium" }>Medium</option>
+			</select>
+			<button type="submit">Apply</button>
+		</form>
+		<div id="customer-list">
+			<ul>
+				for _, customer := range customers {
+					<li><a href={ customerReportHref(customer.ID) }>{ customer.Name } report</a></li>
+				}
+			</ul>
+		</div>
+	</main>
+}

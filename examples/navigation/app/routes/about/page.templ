@@ -1,0 +1,21 @@
+package about
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
+	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
+)
+
+templ PageView(nav goldr.Navigation) {
+	@ui.Frame(nav, pageContent())
+}
+
+templ pageContent() {
+	<main>
+		<h1>About</h1>
+		<p>This example shows route-derived navigation, alternate destination trails, and app-owned Back links.</p>
+		<ul>
+			<li><a href={ urls.Main.Path() }>Main</a></li>
+		</ul>
+	</main>
+}

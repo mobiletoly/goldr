@@ -5,15 +5,17 @@ import (
 
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/examples/navigation/app/store"
-	"github.com/mobiletoly/goldr/examples/navigation/app/ui"
 	"github.com/mobiletoly/goldr/examples/navigation/app/urls"
 )
 
 var Route = goldr.RouteDef{
 	Page: Page,
+	Nav:  goldr.RouteNav{Key: "customer"},
 	Destinations: goldr.Destinations{
+		// The shared report route has no parent path context, so the source route
+		// chooses the destination trail key that lets it rebuild the regional breadcrumb.
 		"shared-report": goldr.To(urls.Main.Reports.ByCustomerID).
-			NavTrail("regional-customer"),
+			TrailKey("regional-customer"),
 	},
 }
 
@@ -21,15 +23,10 @@ func Page(r *http.Request) goldr.PageRouteResponse {
 	office := store.Default.Office(r.PathValue("office_id"))
 	team := store.Default.Team(r.PathValue("team_id"))
 	customer := store.Default.Customer(r.PathValue("customer_id"))
-	trail := goldr.NavTrail{
-		goldr.NavStep("Home", urls.Root.Path()),
-		goldr.NavStep("Regional", urls.Main.Regional.Path()),
-		goldr.NavStep(office.Name, urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Path()),
-		goldr.NavStep(team.Name, urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Teams.ByTeamID.Bind(team.ID).Path()),
-		goldr.CurrentNavStep(customer.Name),
-	}
-	return goldr.NewPage(ui.Page(customer.Name, trail, []ui.Link{
-		{Label: "Report", Href: urls.Main.Regional.Offices.ByOfficeID.Bind(office.ID).Teams.ByTeamID.Bind(team.ID).Customers.ByCustomerID.Bind(customer.ID).Report.Path()},
-		{Label: "Shared report", Href: urls.Main.Regional.Offices.ByOfficeID.Teams.ByTeamID.Customers.ByCustomerID.Destinations.SharedReport.Bind(customer.ID).Href()},
-	}, "Regional customer context is loaded from IDs in the path."), goldr.PageMetadata{Title: customer.Name})
+	nav := goldr.Nav(r)
+	nav.Resolve("office", office.Name)
+	nav.Resolve("team", team.Name)
+	nav.Resolve("customer", customer.Name)
+	navigation := nav.Navigation()
+	return goldr.NewPage(PageView(navigation, office, team, customer), goldr.PageMetadata{Title: customer.Name})
 }

@@ -44,7 +44,7 @@ type urlHelperNode struct {
 	param           urlHelperParam
 	params          []urlHelperParam
 	segments        []string
-	navTrails       []string
+	trailKeys       []string
 	destinations    []urlHelperDestination
 	staticChildren  []*urlHelperNode
 	dynamicChildren []*urlHelperNode
@@ -61,7 +61,7 @@ type urlHelperDestination struct {
 	apiName    string
 	typeName   string
 	target     *urlHelperNode
-	navTrail   string
+	trailKey   string
 	paramNames []string
 }
 
@@ -89,7 +89,7 @@ func GenerateURLHelpers(manifest routing.Manifest, options GenerateURLOptions) (
 	writeURLVars(&buffer, root)
 	writeURLPathCarrier(&buffer, root)
 	writeURLMountedRoutes(&buffer, root)
-	writeURLNavTrailTypes(&buffer, root)
+	writeURLTrailKeyTypes(&buffer, root)
 	writeURLDestinationTypes(&buffer, root)
 	writeURLTypes(&buffer, root)
 	writeURLRouteRefTypes(&buffer, root)
@@ -157,7 +157,7 @@ func GenerateMountURLHelpers(manifest routing.Manifest, options GenerateMountURL
 	writeURLImports(&buffer, root)
 	writeMountURLSet(&buffer, root)
 	writeURLPathCarrier(&buffer, root)
-	writeURLNavTrailTypes(&buffer, root)
+	writeURLTrailKeyTypes(&buffer, root)
 	writeMountURLTypes(&buffer, root)
 	writeURLRouteRefTypes(&buffer, root)
 	writeMountURLDynamicNodeTypes(&buffer, root)
@@ -233,7 +233,7 @@ func buildURLHelperTreeWithOptions(paths []runtimePath, options urlHelperTreeOpt
 		if routePath.route == "/" {
 			root.isPath = true
 			var err error
-			root.navTrails, err = mergeURLNavTrailKeys(root.navTrails, runtimePathNavTrailKeys(routePath))
+			root.trailKeys, err = mergeDestinationTrailKeys(root.trailKeys, runtimePathTrailKeys(routePath))
 			if err != nil {
 				return nil, err
 			}
@@ -254,7 +254,7 @@ func buildURLHelperTreeWithOptions(paths []runtimePath, options urlHelperTreeOpt
 		}
 		node.isPath = true
 		var err error
-		node.navTrails, err = mergeURLNavTrailKeys(node.navTrails, runtimePathNavTrailKeys(routePath))
+		node.trailKeys, err = mergeDestinationTrailKeys(node.trailKeys, runtimePathTrailKeys(routePath))
 		if err != nil {
 			return nil, err
 		}
@@ -278,15 +278,15 @@ func applyURLHelperDestinations(root *urlHelperNode, routes []routing.ManifestRo
 			if target == nil || !target.isPath {
 				return fmt.Errorf("%w: destination %q targets unknown route helper %s", ErrAmbiguousURLHelper, destination.Name, strings.Join(destination.Target, "."))
 			}
-			if destination.NavTrail != "" && !slices.Contains(target.navTrails, destination.NavTrail) {
-				return fmt.Errorf("%w: destination %q selects nav trail %q that is not allowed by %s", ErrAmbiguousURLHelper, destination.Name, destination.NavTrail, urlRoutePattern(target))
+			if destination.TrailKey != "" && !slices.Contains(target.trailKeys, destination.TrailKey) {
+				return fmt.Errorf("%w: destination %q selects trail key %q that is not allowed by %s", ErrAmbiguousURLHelper, destination.Name, destination.TrailKey, urlRoutePattern(target))
 			}
 			source.destinations = append(source.destinations, urlHelperDestination{
 				name:       destination.Name,
 				apiName:    destination.SymbolName,
 				typeName:   source.typeName + destination.SymbolName + "Destination",
 				target:     target,
-				navTrail:   destination.NavTrail,
+				trailKey:   destination.TrailKey,
 				paramNames: slices.Clone(targetParams(target)),
 			})
 		}
@@ -352,8 +352,8 @@ func urlStaticChild(parent *urlHelperNode, segment string, options urlHelperTree
 	if apiName == "Path" {
 		return nil, fmt.Errorf("%w %q: route segment collides with Path method", ErrAmbiguousURLHelper, segment)
 	}
-	if apiName == "NavTrails" {
-		return nil, fmt.Errorf("%w %q: route segment collides with NavTrails field", ErrAmbiguousURLHelper, segment)
+	if apiName == "TrailKeys" {
+		return nil, fmt.Errorf("%w %q: route segment collides with TrailKeys field", ErrAmbiguousURLHelper, segment)
 	}
 	if apiName == "Destinations" {
 		return nil, fmt.Errorf("%w %q: route segment collides with Destinations field", ErrAmbiguousURLHelper, segment)
@@ -441,6 +441,9 @@ func sortURLHelperTree(node *urlHelperNode) {
 
 func writeURLImports(buffer *bytes.Buffer, root *urlHelperNode) {
 	var imports []string
+	if urlHelperTreeHasTrailKeyDestinations(root) {
+		imports = append(imports, "github.com/mobiletoly/goldr")
+	}
 	if urlTreeHasDynamic(root) || urlHelperTreeHasDestinations(root) {
 		imports = append(imports, "net/url")
 	}
@@ -547,14 +550,14 @@ func writeMountURLDynamicNodeTypes(buffer *bytes.Buffer, root *urlHelperNode) {
 	writeURLDynamicNodeTypeSet(buffer, collectURLHelperNodes(root, true))
 }
 
-func writeURLNavTrailTypes(buffer *bytes.Buffer, root *urlHelperNode) {
+func writeURLTrailKeyTypes(buffer *bytes.Buffer, root *urlHelperNode) {
 	for _, node := range collectURLHelperNodes(root, true) {
-		if len(node.navTrails) == 0 {
+		if len(node.trailKeys) == 0 {
 			continue
 		}
-		fmt.Fprintf(buffer, "type %s struct {\n", urlNavTrailsTypeName(node))
-		for _, key := range node.navTrails {
-			fmt.Fprintf(buffer, "\t%s string\n", urlNavTrailFieldName(key))
+		fmt.Fprintf(buffer, "type %s struct {\n", urlTrailKeysTypeName(node))
+		for _, key := range node.trailKeys {
+			fmt.Fprintf(buffer, "\t%s string\n", urlTrailKeyFieldName(key))
 		}
 		buffer.WriteString("}\n\n")
 	}
@@ -601,8 +604,8 @@ func writeURLTypeSet(buffer *bytes.Buffer, nodes []*urlHelperNode) {
 		for _, param := range node.params {
 			fmt.Fprintf(buffer, "\t%s string\n", param.field)
 		}
-		if len(node.navTrails) > 0 {
-			fmt.Fprintf(buffer, "\tNavTrails %s\n", urlNavTrailsTypeName(node))
+		if urlTypeExposesTrailKeys(node) {
+			fmt.Fprintf(buffer, "\tTrailKeys %s\n", urlTrailKeysTypeName(node))
 		}
 		if len(node.destinations) > 0 {
 			fmt.Fprintf(buffer, "\tDestinations %s\n", urlDestinationsTypeName(node))
@@ -618,8 +621,8 @@ func writeURLRouteRefTypes(buffer *bytes.Buffer, root *urlHelperNode) {
 	for _, node := range urlRouteRefNodes(root) {
 		fields := urlRouteRefChildFields(node, nil)
 		fmt.Fprintf(buffer, "type %s struct {\n", urlRouteRefTypeName(node))
-		if len(node.navTrails) > 0 {
-			fmt.Fprintf(buffer, "\tNavTrails %s\n", urlNavTrailsTypeName(node))
+		if len(node.trailKeys) > 0 {
+			fmt.Fprintf(buffer, "\tTrailKeys %s\n", urlTrailKeysTypeName(node))
 		}
 		if len(node.destinations) > 0 {
 			fmt.Fprintf(buffer, "\tDestinations %s\n", urlDestinationsTypeName(node))
@@ -639,8 +642,8 @@ func writeURLDynamicNodeTypeSet(buffer *bytes.Buffer, nodes []*urlHelperNode) {
 			for _, param := range node.params {
 				fmt.Fprintf(buffer, "\t%s string\n", param.field)
 			}
-			if len(child.navTrails) > 0 {
-				fmt.Fprintf(buffer, "\tNavTrails %s\n", urlNavTrailsTypeName(child))
+			if len(child.trailKeys) > 0 {
+				fmt.Fprintf(buffer, "\tTrailKeys %s\n", urlTrailKeysTypeName(child))
 			}
 			if len(child.destinations) > 0 {
 				fmt.Fprintf(buffer, "\tDestinations %s\n", urlDestinationsTypeName(child))
@@ -681,8 +684,8 @@ func writeURLConstructorSet(buffer *bytes.Buffer, nodes []*urlHelperNode, constr
 		for _, param := range node.params {
 			fmt.Fprintf(buffer, "\t\t%s: %s,\n", param.field, param.field)
 		}
-		if len(node.navTrails) > 0 {
-			fmt.Fprintf(buffer, "\t\tNavTrails: %s,\n", urlNavTrailsLiteral(node))
+		if urlTypeExposesTrailKeys(node) {
+			fmt.Fprintf(buffer, "\t\tTrailKeys: %s,\n", urlTrailKeysLiteral(node))
 		}
 		if len(node.destinations) > 0 {
 			fmt.Fprintf(buffer, "\t\tDestinations: %s,\n", urlDestinationsLiteral(node, "path"))
@@ -760,8 +763,8 @@ func writeURLRouteRefConstructors(buffer *bytes.Buffer, root *urlHelperNode) {
 		})
 		fmt.Fprintf(buffer, "func %s(basePath string) %s {\n", urlRouteRefConstructorName(node), urlRouteRefTypeName(node))
 		fmt.Fprintf(buffer, "\treturn %s{\n", urlRouteRefTypeName(node))
-		if len(node.navTrails) > 0 {
-			fmt.Fprintf(buffer, "\t\tNavTrails: %s,\n", urlNavTrailsLiteral(node))
+		if len(node.trailKeys) > 0 {
+			fmt.Fprintf(buffer, "\t\tTrailKeys: %s,\n", urlTrailKeysLiteral(node))
 		}
 		if len(node.destinations) > 0 {
 			fmt.Fprintf(buffer, "\t\tDestinations: %s,\n", urlDestinationsLiteralWithBasePath(node, "basePath"))
@@ -788,8 +791,8 @@ func writeURLDynamicNodeConstructors(buffer *bytes.Buffer, root *urlHelperNode) 
 			for _, param := range node.params {
 				fmt.Fprintf(buffer, "\t\t%s: %s,\n", param.field, param.field)
 			}
-			if len(child.navTrails) > 0 {
-				fmt.Fprintf(buffer, "\t\tNavTrails: %s,\n", urlNavTrailsLiteral(child))
+			if len(child.trailKeys) > 0 {
+				fmt.Fprintf(buffer, "\t\tTrailKeys: %s,\n", urlTrailKeysLiteral(child))
 			}
 			if len(child.destinations) > 0 {
 				fmt.Fprintf(buffer, "\t\tDestinations: %s,\n", urlDestinationsLiteralWithPattern(child, "basePath", urlRoutePattern(node)))
@@ -832,13 +835,15 @@ func writeURLDestinationMethods(buffer *bytes.Buffer, root *urlHelperNode) {
 
 			finalType := urlDestinationStageTypeName(destination, len(destination.paramNames))
 			fmt.Fprintf(buffer, "func (d %s) Href() string {\n", finalType)
-			buffer.WriteString("\treturn d.HrefWithQuery(nil)\n")
-			buffer.WriteString("}\n\n")
-
-			fmt.Fprintf(buffer, "func (d %s) HrefWithQuery(values url.Values) string {\n", finalType)
 			fmt.Fprintf(buffer, "\tpath := %s\n", urlDestinationPathExpression(destination))
-			fmt.Fprintf(buffer, "\treturn goldrURLWithQuery(path, %s, values)\n", strconv.Quote(destination.navTrail))
+			fmt.Fprintf(buffer, "\treturn goldrURLWithTrail(path, %s)\n", strconv.Quote(destination.trailKey))
 			buffer.WriteString("}\n\n")
+			if destination.trailKey != "" {
+				fmt.Fprintf(buffer, "func (d %s) NavigationHref(nav goldr.Navigation) string {\n", finalType)
+				fmt.Fprintf(buffer, "\tpath := %s\n", urlDestinationPathExpression(destination))
+				fmt.Fprintf(buffer, "\treturn goldr.NavigationHref(path, %s, nav)\n", strconv.Quote(destination.trailKey))
+				buffer.WriteString("}\n\n")
+			}
 		}
 	}
 	if urlHelperTreeHasDestinations(root) {
@@ -969,11 +974,15 @@ func writeURLRouteMetadataMethodSet(buffer *bytes.Buffer, typeName string, node 
 
 func urlAliasablePathNode(node *urlHelperNode) bool {
 	return node.isPath &&
-		len(node.navTrails) == 0 &&
+		len(node.trailKeys) == 0 &&
 		len(node.destinations) == 0 &&
 		len(node.params) == 0 &&
 		len(node.staticChildren) == 0 &&
 		len(node.dynamicChildren) == 0
+}
+
+func urlTypeExposesTrailKeys(node *urlHelperNode) bool {
+	return len(node.trailKeys) > 0 && len(node.params) == 0
 }
 
 func urlDynamicNodeTypeName(node *urlHelperNode) string {
@@ -992,20 +1001,20 @@ func urlRouteRefConstructorName(node *urlHelperNode) string {
 	return "new" + exportedWord(node.typeName) + "Ref"
 }
 
-func urlNavTrailsTypeName(node *urlHelperNode) string {
-	return node.typeName + "NavTrails"
+func urlTrailKeysTypeName(node *urlHelperNode) string {
+	return node.typeName + "TrailKeys"
 }
 
-func urlNavTrailFieldName(key string) string {
+func urlTrailKeyFieldName(key string) string {
 	return exportedSegmentName(key)
 }
 
-func urlNavTrailsLiteral(node *urlHelperNode) string {
+func urlTrailKeysLiteral(node *urlHelperNode) string {
 	var buffer strings.Builder
-	buffer.WriteString(urlNavTrailsTypeName(node))
+	buffer.WriteString(urlTrailKeysTypeName(node))
 	buffer.WriteString("{")
-	for _, key := range node.navTrails {
-		buffer.WriteString(urlNavTrailFieldName(key))
+	for _, key := range node.trailKeys {
+		buffer.WriteString(urlTrailKeyFieldName(key))
 		buffer.WriteString(": ")
 		buffer.WriteString(strconv.Quote(key))
 		buffer.WriteString(", ")
@@ -1142,17 +1151,13 @@ func writeURLNormalizeBasePath(buffer *bytes.Buffer) {
 
 func writeURLDestinationHelpers(buffer *bytes.Buffer) {
 	buffer.WriteString("func goldrURLWithTrail(path string, trail string) string {\n")
-	buffer.WriteString("\treturn goldrURLWithQuery(path, trail, nil)\n")
-	buffer.WriteString("}\n\n")
-
-	buffer.WriteString("func goldrURLWithQuery(path string, trail string, values url.Values) string {\n")
 	buffer.WriteString("\trawPath, rawQuery, hasQuery := strings.Cut(path, \"?\")\n")
 	buffer.WriteString("\tquery := url.Values{}\n")
 	buffer.WriteString("\tif hasQuery {\n")
 	buffer.WriteString("\t\tparsedQuery, err := url.ParseQuery(rawQuery)\n")
 	buffer.WriteString("\t\tif err == nil {\n")
 	buffer.WriteString("\t\t\tfor key, parsedValues := range parsedQuery {\n")
-	buffer.WriteString("\t\t\t\tif key == \"_goldr_trail\" {\n")
+	buffer.WriteString("\t\t\t\tif key == \"_goldr_nav_trail_key\" || key == \"_goldr_return_to\" {\n")
 	buffer.WriteString("\t\t\t\t\tcontinue\n")
 	buffer.WriteString("\t\t\t\t}\n")
 	buffer.WriteString("\t\t\t\tfor _, value := range parsedValues {\n")
@@ -1161,21 +1166,12 @@ func writeURLDestinationHelpers(buffer *bytes.Buffer) {
 	buffer.WriteString("\t\t\t}\n")
 	buffer.WriteString("\t\t}\n")
 	buffer.WriteString("\t}\n")
-	buffer.WriteString("\tfor key, incomingValues := range values {\n")
-	buffer.WriteString("\t\tif key == \"_goldr_trail\" {\n")
-	buffer.WriteString("\t\t\tcontinue\n")
-	buffer.WriteString("\t\t}\n")
-	buffer.WriteString("\t\tquery.Del(key)\n")
-	buffer.WriteString("\t\tfor _, value := range incomingValues {\n")
-	buffer.WriteString("\t\t\tquery.Add(key, value)\n")
-	buffer.WriteString("\t\t}\n")
-	buffer.WriteString("\t}\n")
 	buffer.WriteString("\tencodedQuery := query.Encode()\n")
 	buffer.WriteString("\tif trail != \"\" {\n")
 	buffer.WriteString("\t\tif encodedQuery == \"\" {\n")
-	buffer.WriteString("\t\t\treturn rawPath + \"?_goldr_trail=\" + url.QueryEscape(trail)\n")
+	buffer.WriteString("\t\t\treturn rawPath + \"?_goldr_nav_trail_key=\" + url.QueryEscape(trail)\n")
 	buffer.WriteString("\t\t}\n")
-	buffer.WriteString("\t\treturn rawPath + \"?\" + encodedQuery + \"&_goldr_trail=\" + url.QueryEscape(trail)\n")
+	buffer.WriteString("\t\treturn rawPath + \"?\" + encodedQuery + \"&_goldr_nav_trail_key=\" + url.QueryEscape(trail)\n")
 	buffer.WriteString("\t}\n")
 	buffer.WriteString("\tif encodedQuery == \"\" {\n")
 	buffer.WriteString("\t\treturn rawPath\n")
@@ -1365,11 +1361,21 @@ func urlHelperTreeHasDestinations(node *urlHelperNode) bool {
 		slices.ContainsFunc(node.dynamicChildren, urlHelperTreeHasDestinations)
 }
 
-func runtimePathNavTrailKeys(path runtimePath) []string {
+func urlHelperTreeHasTrailKeyDestinations(node *urlHelperNode) bool {
+	if slices.ContainsFunc(node.destinations, func(destination urlHelperDestination) bool {
+		return destination.trailKey != ""
+	}) {
+		return true
+	}
+	return slices.ContainsFunc(node.staticChildren, urlHelperTreeHasTrailKeyDestinations) ||
+		slices.ContainsFunc(node.dynamicChildren, urlHelperTreeHasTrailKeyDestinations)
+}
+
+func runtimePathTrailKeys(path runtimePath) []string {
 	var keys []string
 	seen := make(map[string]bool)
 	for _, route := range path.routes {
-		for _, key := range route.navTrails {
+		for _, key := range route.trailKeys {
 			if seen[key] {
 				continue
 			}
@@ -1379,33 +1385,6 @@ func runtimePathNavTrailKeys(path runtimePath) []string {
 	}
 	slices.Sort(keys)
 	return keys
-}
-
-func mergeURLNavTrailKeys(existing []string, incoming []string) ([]string, error) {
-	if len(incoming) == 0 {
-		return existing, nil
-	}
-	values := slices.Clone(existing)
-	seen := make(map[string]bool, len(existing)+len(incoming))
-	fieldNames := make(map[string]string, len(existing)+len(incoming))
-	for _, key := range existing {
-		seen[key] = true
-		fieldNames[urlNavTrailFieldName(key)] = key
-	}
-	for _, key := range incoming {
-		if seen[key] {
-			continue
-		}
-		fieldName := urlNavTrailFieldName(key)
-		if previous, ok := fieldNames[fieldName]; ok {
-			return nil, fmt.Errorf("%w: nav trail keys %q and %q both map to %s", ErrAmbiguousURLHelper, previous, key, fieldName)
-		}
-		seen[key] = true
-		fieldNames[fieldName] = key
-		values = append(values, key)
-	}
-	slices.Sort(values)
-	return values, nil
 }
 
 func urlAPIChain(node *urlHelperNode) []string {

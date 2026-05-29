@@ -40,12 +40,22 @@ type runtimeAction struct {
 
 type runtimeRoute struct {
 	route     string
+	navRoute  string
 	params    []string
-	navTrails []string
+	nav       routing.RouteNavDeclaration
+	navTrail  []runtimeNavStep
+	trailKeys []string
 	segments  []string
 	page      *runtimePage
 	fragment  *runtimeFragment
 	action    *runtimeAction
+}
+
+type runtimeNavStep struct {
+	route   string
+	params  []string
+	nav     routing.RouteNavDeclaration
+	current bool
 }
 
 type runtimePath struct {
@@ -76,11 +86,12 @@ func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 			middlewares: middlewareStack(middlewareGoFile, manifest.Middlewares),
 		}
 		routes = append(routes, runtimeRoute{
-			route:     page.Route,
-			params:    page.Params,
-			navTrails: slices.Clone(page.NavTrails),
-			segments:  runtimePage.segments,
-			page:      &runtimePage,
+			route:    page.Route,
+			navRoute: page.Route,
+			params:   page.Params,
+			nav:      cloneRuntimeRouteNav(page.Nav),
+			segments: runtimePage.segments,
+			page:     &runtimePage,
 		})
 	}
 	for _, fragment := range fragments {
@@ -97,11 +108,12 @@ func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 			middlewares: middlewareStack(middlewareGoFile, manifest.Middlewares),
 		}
 		routes = append(routes, runtimeRoute{
-			route:     route,
-			params:    fragment.Params,
-			navTrails: slices.Clone(fragment.NavTrails),
-			segments:  runtimeFragment.segments,
-			fragment:  &runtimeFragment,
+			route:    route,
+			navRoute: fragment.RoutePrefix,
+			params:   fragment.Params,
+			nav:      cloneRuntimeRouteNav(fragment.Nav),
+			segments: runtimeFragment.segments,
+			fragment: &runtimeFragment,
 		})
 	}
 	for _, action := range actions {
@@ -116,14 +128,21 @@ func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 			middlewares: middlewareStack(middlewareGoFile, manifest.Middlewares),
 		}
 		routes = append(routes, runtimeRoute{
-			route:     action.Route,
-			params:    action.Params,
-			navTrails: slices.Clone(action.NavTrails),
-			segments:  runtimeAction.segments,
-			action:    &runtimeAction,
+			route:    action.Route,
+			navRoute: action.NavRoute,
+			params:   action.Params,
+			nav:      cloneRuntimeRouteNav(action.Nav),
+			segments: runtimeAction.segments,
+			action:   &runtimeAction,
 		})
 	}
 
+	if err := attachRuntimeRouteNav(routes, manifest.Routes); err != nil {
+		return nil, err
+	}
+	if err := attachRuntimeRouteTrailKeys(routes, manifest.Routes); err != nil {
+		return nil, err
+	}
 	if err := validateRuntimeRoutes(routes); err != nil {
 		return nil, err
 	}
@@ -143,11 +162,11 @@ func executableRouteSurface(manifest routing.Manifest) ([]routing.ManifestPage, 
 		}
 		if route.Page != nil {
 			pages = append(pages, routing.ManifestPage{
-				Route:     route.Route,
-				Params:    slices.Clone(route.Params),
-				NavTrails: slices.Clone(route.NavTrails),
-				Unit:      unit,
-				Function:  routePageAdapterName(route),
+				Route:    route.Route,
+				Params:   slices.Clone(route.Params),
+				Nav:      cloneRuntimeRouteNav(route.Nav),
+				Unit:     unit,
+				Function: routePageAdapterName(route),
 			})
 		}
 		for _, fragment := range route.Fragments {
@@ -155,7 +174,7 @@ func executableRouteSurface(manifest routing.Manifest) ([]routing.ManifestPage, 
 				Name:        fragment.Name,
 				RoutePrefix: route.Route,
 				Params:      slices.Clone(route.Params),
-				NavTrails:   slices.Clone(route.NavTrails),
+				Nav:         cloneRuntimeRouteNav(route.Nav),
 				Unit:        unit,
 				Function:    routeFragmentAdapterName(route, fragment),
 				Segment:     fragment.Segment,
@@ -174,8 +193,9 @@ func executableRouteSurface(manifest routing.Manifest) ([]routing.ManifestPage, 
 			actions = append(actions, routing.ManifestAction{
 				Method:           action.Method,
 				Route:            actionPath,
+				NavRoute:         route.Route,
 				Params:           slices.Clone(route.Params),
-				NavTrails:        slices.Clone(route.NavTrails),
+				Nav:              cloneRuntimeRouteNav(route.Nav),
 				GoFile:           route.GoFile,
 				SourceGoFile:     route.Source,
 				MiddlewareGoFile: route.MiddlewareGoFile,
@@ -187,6 +207,68 @@ func executableRouteSurface(manifest routing.Manifest) ([]routing.ManifestPage, 
 		}
 	}
 	return pages, fragments, actions
+}
+
+func attachRuntimeRouteNav(routes []runtimeRoute, declarations []routing.ManifestRouteDeclaration) error {
+	for index := range routes {
+		steps, err := canonicalRuntimeNavSteps(routes[index].navRoute, declarations)
+		if err != nil {
+			return err
+		}
+		routes[index].navTrail = steps
+	}
+	return nil
+}
+
+func attachRuntimeRouteTrailKeys(routes []runtimeRoute, declarations []routing.ManifestRouteDeclaration) error {
+	keysByRoute, err := destinationTrailKeysByRoute(declarations)
+	if err != nil {
+		return err
+	}
+	for index := range routes {
+		routes[index].trailKeys = slices.Clone(keysByRoute[routes[index].navRoute])
+	}
+	return nil
+}
+
+func canonicalRuntimeNavSteps(route string, declarations []routing.ManifestRouteDeclaration) ([]runtimeNavStep, error) {
+	if route == "" {
+		return nil, nil
+	}
+	var steps []runtimeNavStep
+	seenKeys := make(map[string]string)
+	for _, declaration := range declarations {
+		if !routePatternAppliesTo(route, declaration.Route) {
+			continue
+		}
+		if declaration.Nav.Label == "" && declaration.Nav.Key == "" {
+			continue
+		}
+		if declaration.Nav.Key != "" {
+			if previous, ok := seenKeys[declaration.Nav.Key]; ok {
+				return nil, fmt.Errorf("%w: duplicate Nav.Key %q in canonical trail for %s between %s and %s", ErrAmbiguousRuntimeRoute, declaration.Nav.Key, route, previous, declaration.Route)
+			}
+			seenKeys[declaration.Nav.Key] = declaration.Route
+		}
+		steps = append(steps, runtimeNavStep{
+			route:   declaration.Route,
+			params:  slices.Clone(declaration.Params),
+			nav:     cloneRuntimeRouteNav(declaration.Nav),
+			current: declaration.Route == route,
+		})
+	}
+	return steps, nil
+}
+
+func cloneRuntimeRouteNav(value routing.RouteNavDeclaration) routing.RouteNavDeclaration {
+	return value
+}
+
+func routePatternAppliesTo(route string, candidate string) bool {
+	if candidate == "/" {
+		return true
+	}
+	return route == candidate || strings.HasPrefix(route, candidate+"/")
 }
 
 func renderUnitSourceGoFile(unit routing.RenderUnit) string {
@@ -518,9 +600,9 @@ func hasFragmentRoutes(routes []runtimeRoute) bool {
 	return false
 }
 
-func hasNavTrailRoutes(routes []runtimeRoute) bool {
+func hasRequestNavRoutes(routes []runtimeRoute) bool {
 	for _, route := range routes {
-		if len(route.navTrails) > 0 {
+		if len(route.navTrail) > 0 || len(route.trailKeys) > 0 {
 			return true
 		}
 	}

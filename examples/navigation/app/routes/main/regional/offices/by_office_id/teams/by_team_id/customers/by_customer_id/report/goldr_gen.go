@@ -6,15 +6,31 @@ import (
 	"net/http"
 
 	"github.com/mobiletoly/goldr"
-	goldrmount_report "github.com/mobiletoly/goldr/examples/navigation/app/mounts/report"
+	goldrmount_customerreport "github.com/mobiletoly/goldr/examples/navigation/app/mounts/customerreport"
+	goldrmount_customerreport_brief "github.com/mobiletoly/goldr/examples/navigation/app/mounts/customerreport/brief"
+	goldrmount_customerreport_detailed "github.com/mobiletoly/goldr/examples/navigation/app/mounts/customerreport/detailed"
 )
 
 // Route is read by goldr tooling; this reference keeps editors from marking it unused.
 var _ = Route
 
-var _ = goldrmount_report.Route
+var _ = goldrmount_customerreport.Route
 
-func GoldrRouteMountReportPage(r *http.Request) goldr.PageRouteResponse {
+var _ = goldrmount_customerreport_brief.Route
+
+var _ = goldrmount_customerreport_detailed.Route
+
+func GoldrRouteMountCustomerreportPage(r *http.Request) goldr.PageRouteResponse {
 	goldrKit := newKit(r)
-	return goldrmount_report.Kit.Page(goldrKit, r)
+	return goldrmount_customerreport.Kit.Page(goldrKit, r)
+}
+
+func GoldrRouteMountCustomerreportBriefPage(r *http.Request) goldr.PageRouteResponse {
+	goldrKit := newKit(r)
+	return goldrmount_customerreport_brief.Page(goldrKit, r)
+}
+
+func GoldrRouteMountCustomerreportDetailedPage(r *http.Request) goldr.PageRouteResponse {
+	goldrKit := newKit(r)
+	return goldrmount_customerreport_detailed.Page(goldrKit, r)
 }

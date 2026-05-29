@@ -63,6 +63,10 @@ func BuildRouteLayoutMap(manifest routing.Manifest) (RouteLayoutMap, error) {
 	if err != nil {
 		return RouteLayoutMap{}, err
 	}
+	inboundDestinations, err := inboundDestinationTrailEdgesByRoute(manifest.Routes)
+	if err != nil {
+		return RouteLayoutMap{}, err
+	}
 
 	builder := newRouteLayoutMapBuilder()
 	for _, layout := range manifest.Layouts {
@@ -71,7 +75,7 @@ func BuildRouteLayoutMap(manifest routing.Manifest) (RouteLayoutMap, error) {
 	}
 
 	for _, route := range routes {
-		declarationInfo := routeDeclarationInfoForRuntimeRoute(route, manifest.Routes)
+		declarationInfo := routeDeclarationInfoForRuntimeRoute(route, manifest.Routes, inboundDestinations)
 		owner := ""
 		if declarationInfo != nil && declarationInfo.Mount != nil {
 			owner = declarationInfo.Mount.Owner
