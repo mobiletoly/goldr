@@ -11,11 +11,10 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"strconv"
 
-	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/examples/chat/app/urls"
 )
 
-func PageView(name string, form bind.Form, messages []Message) templ.Component {
+func PageView(name string, form messageForm, messages []Message) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -44,7 +43,7 @@ func PageView(name string, form bind.Form, messages []Message) templ.Component {
 			var templ_7745c5c3_Var2 templ.SafeURL
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Root.Path())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 15, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 14, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -62,7 +61,7 @@ func PageView(name string, form bind.Form, messages []Message) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 22, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 21, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -75,7 +74,7 @@ func PageView(name string, form bind.Form, messages []Message) templ.Component {
 			var templ_7745c5c3_Var4 templ.SafeURL
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Chat.SignOut.Path())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 24, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 23, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -88,7 +87,7 @@ func PageView(name string, form bind.Form, messages []Message) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(eventsPath(lastMessageID(messages)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 31, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 30, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -121,7 +120,7 @@ func PageView(name string, form bind.Form, messages []Message) templ.Component {
 	})
 }
 
-func ComposerView(form bind.Form) templ.Component {
+func ComposerView(form messageForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -149,7 +148,7 @@ func ComposerView(form bind.Form) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(urls.Chat.Message.Path())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 45, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 44, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -160,9 +159,9 @@ func ComposerView(form bind.Form) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(form.Value("body"))
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(form.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 48, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 47, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -172,15 +171,15 @@ func ComposerView(form bind.Form) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if form.HasFieldError("body") {
+		if form.BodyError != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<p class=\"error\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 string
-			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(form.FieldError("body"))
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(form.BodyError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 51, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 50, Col: 36}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -227,7 +226,7 @@ func MessageView(message Message) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue("message-" + strconv.FormatInt(message.ID, 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 61, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 60, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
@@ -240,7 +239,7 @@ func MessageView(message Message) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(message.Author)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 63, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 62, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -253,7 +252,7 @@ func MessageView(message Message) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(message.CreatedAt.Format("2006-01-02T15:04:05Z07:00"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 64, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 63, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
@@ -266,7 +265,7 @@ func MessageView(message Message) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(message.CreatedAt.Format("15:04:05"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 64, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 63, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -279,7 +278,7 @@ func MessageView(message Message) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(message.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 66, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/chat/page.templ`, Line: 65, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {

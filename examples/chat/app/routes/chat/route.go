@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/mobiletoly/goldr"
-	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/examples/chat/app/session"
 	"github.com/mobiletoly/goldr/examples/chat/app/urls"
 )
@@ -14,6 +13,11 @@ import (
 const maxMessageBody = 64 << 10
 
 var sendDelay = 3 * time.Second
+
+type messageForm struct {
+	Body      string
+	BodyError string
+}
 
 var Route = goldr.RouteDef{
 	Page: Page,
@@ -26,7 +30,7 @@ var Route = goldr.RouteDef{
 func Page(r *http.Request) goldr.PageRouteResponse {
 	name := session.Name(r)
 	return goldr.NewPage(
-		PageView(name, bind.Form{}, listMessages()),
+		PageView(name, messageForm{}, listMessages()),
 		goldr.PageMetadata{
 			Title:       "Chat - Goldr Chat",
 			Description: "A small server-sent events chat example for goldr.",
@@ -42,17 +46,15 @@ func PostMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxMessageBody)
-	form, err := bind.ParseForm(r)
-	if err != nil {
+	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
-	body := strings.TrimSpace(form.Value("body"))
+	form := messageForm{Body: r.PostFormValue("body")}
+	body := strings.TrimSpace(form.Body)
 	if body == "" {
-		var errors bind.FieldErrors
-		errors.Add("body", "Enter a message.")
-		form = form.WithErrors(errors)
+		form.BodyError = "Enter a message."
 		if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, ComposerView(form)); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
@@ -66,7 +68,7 @@ func PostMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	addMessage(name, body)
-	if err := goldr.WriteComponent(w, r, http.StatusOK, ComposerView(bind.Form{})); err != nil {
+	if err := goldr.WriteComponent(w, r, http.StatusOK, ComposerView(messageForm{})); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }

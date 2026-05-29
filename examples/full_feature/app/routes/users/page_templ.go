@@ -9,12 +9,11 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
 )
 
-func PageView(form bind.Form, contacts []Contact, csrfToken string) templ.Component {
+func PageView(form contactForm, contacts []Contact, csrfToken string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -51,7 +50,7 @@ func PageView(form bind.Form, contacts []Contact, csrfToken string) templ.Compon
 	})
 }
 
-func DirectoryView(form bind.Form, contacts []Contact, csrfToken string) templ.Component {
+func DirectoryView(form contactForm, contacts []Contact, csrfToken string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -79,7 +78,7 @@ func DirectoryView(form bind.Form, contacts []Contact, csrfToken string) templ.C
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(urls.Users.Create.Path())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 18, Col: 121}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 17, Col: 121}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -98,9 +97,9 @@ func DirectoryView(form bind.Form, contacts []Contact, csrfToken string) templ.C
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(form.Value("name"))
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(form.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 22, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 21, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -110,15 +109,15 @@ func DirectoryView(form bind.Form, contacts []Contact, csrfToken string) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if form.HasFieldError("name") {
+		if form.NameError != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p id=\"contact-name-error\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(form.FieldError("name"))
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(form.NameError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 24, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 23, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -133,7 +132,7 @@ func DirectoryView(form bind.Form, contacts []Contact, csrfToken string) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if form.Value("status") == "Inactive" {
+		if form.Status == "Inactive" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<option value=\"Active\">Active</option> <option value=\"Inactive\" selected>Inactive</option>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -148,15 +147,15 @@ func DirectoryView(form bind.Form, contacts []Contact, csrfToken string) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if form.HasFieldError("status") {
+		if form.StatusError != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p id=\"contact-status-error\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(form.FieldError("status"))
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(form.StatusError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 39, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 38, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -174,7 +173,7 @@ func DirectoryView(form bind.Form, contacts []Contact, csrfToken string) templ.C
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(urls.Users.Table.Path())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 50, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 49, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -187,7 +186,7 @@ func DirectoryView(form bind.Form, contacts []Contact, csrfToken string) templ.C
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(urls.Users.Table.Path() + "?status=active")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 51, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 50, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
@@ -200,7 +199,7 @@ func DirectoryView(form bind.Form, contacts []Contact, csrfToken string) templ.C
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(urls.Users.Table.Path() + "?status=inactive")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 52, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/users/page.templ`, Line: 51, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {

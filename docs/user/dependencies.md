@@ -13,7 +13,8 @@ func PostCreate(r *http.Request) goldr.RouteResponse
 Applications still need stable dependencies such as stores, auth managers,
 configuration, redirect policy, base paths, feature flags, and CSRF guards.
 Use one app-owned typed dependency package instead of scattered context helpers
-or package globals.
+or package globals. A CSRF field can hold Goldr's optional `csrf.Guard`, a
+different library, or an app-owned guard.
 
 goldr does not generate this package. The application owns its fields, helper
 names, tests, and lifecycle.

@@ -123,7 +123,7 @@ response headers from `users.PostSavePreview` in
 
 Post to `/users/create` with the `goldr_csrf` cookie, multipart `name`,
 `status`, optional `avatar`, and matching `csrf_token` fields to see
-`hx-encoding="multipart/form-data"`, CSRF validation, form parsing, app-owned
-request-size limiting, field-error redisplay with `422`, optional upload
-filename display, and successful HTMX replacement from `users.PostCreate` in
-`app/routes/users/route.go`.
+`hx-encoding="multipart/form-data"`, CSRF validation, app-owned multipart
+parsing, app-owned request-size limiting, field-error redisplay with `422`,
+optional upload filename display, and successful HTMX replacement from
+`users.PostCreate` in `app/routes/users/route.go`.

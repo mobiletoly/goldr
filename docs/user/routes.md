@@ -583,11 +583,15 @@ for pages and fragments.
 Use `goldr.NewFragment` for fragment-style rendered action responses:
 
 ```go
-return goldr.NewFragment(UserForm(form)).
+return goldr.NewFragment(UserForm(view)).
 	WithStatus(http.StatusUnprocessableEntity).
 	WithHeader(hx.HeaderRetarget, "#user-form").
 	WithHeader(hx.HeaderReswap, "outerHTML")
 ```
+
+The handler owns request parsing and validation state. If a rendered HTMX
+response uses a non-2xx status such as `422`, configure app-owned HTMX
+response handling as described in [HTMX](htmx.md).
 
 Return a page when an action needs to render through the matched layout stack:
 

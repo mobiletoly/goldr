@@ -5,7 +5,6 @@ import (
 	"net/url"
 
 	"github.com/mobiletoly/goldr"
-	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
@@ -49,15 +48,14 @@ func Page(r *http.Request) goldr.PageRouteResponse {
 }
 
 func PostIndex(w http.ResponseWriter, r *http.Request) {
-	form, ok := parseSignInForm(w, r)
-	if !ok {
+	if !parseSignInForm(w, r) {
 		return
 	}
 
-	next := cleanReturnPath(form.Value(signInReturnPathField))
-	switch form.Value(signInCredentialField) {
+	next := cleanReturnPath(r.PostFormValue(signInReturnPathField))
+	switch r.PostFormValue(signInCredentialField) {
 	case security.RoleAdmin, security.RoleMember:
-		security.SetDemoRole(w, form.Value(signInCredentialField))
+		security.SetDemoRole(w, r.PostFormValue(signInCredentialField))
 		http.Redirect(w, r, next, http.StatusSeeOther)
 	default:
 		http.Redirect(w, r, signInErrorLocation(next), http.StatusSeeOther)
@@ -71,18 +69,17 @@ func signInReturnPath(r *http.Request) string {
 	return cleanReturnPath(r.URL.Query().Get(signInReturnPathField))
 }
 
-func parseSignInForm(w http.ResponseWriter, r *http.Request) (bind.Form, bool) {
+func parseSignInForm(w http.ResponseWriter, r *http.Request) bool {
 	appDeps := deps.From(r)
-	form, err := bind.ParseForm(r)
-	if err != nil {
+	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
-		return bind.Form{}, false
+		return false
 	}
-	if err := appDeps.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
+	if err := appDeps.CSRF.Validate(r, r.PostFormValue(csrf.FieldName)); err != nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
-		return bind.Form{}, false
+		return false
 	}
-	return form, true
+	return true
 }
 
 func cleanReturnPath(path string) string {

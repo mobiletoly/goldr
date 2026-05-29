@@ -9,7 +9,9 @@ Goldr provides two small pieces for realtime server-rendered HTML:
 
 Applications still own stream routes, subscriber state, replay policy,
 persistence, authorization, and script inclusion. Goldr does not generate SSE
-routes or hide HTMX attributes behind Go helpers.
+routes or hide HTMX attributes behind Go helpers. The `sse` and `browser`
+packages are optional; an application can write the event-stream wire format
+directly or use another SSE helper when that fits better.
 
 ## Stream Handler
 

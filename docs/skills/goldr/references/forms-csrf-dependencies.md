@@ -1,11 +1,14 @@
-# Forms, CSRF, And Dependencies
+# Request Parsing, CSRF, And Dependencies
 
-Use this reference when editing form parsing, validation redisplay, multipart
-uploads, CSRF protection, or app dependency wiring.
+Use this reference when editing route actions that parse requests, redisplay
+HTML after validation, handle multipart uploads, validate CSRF tokens, or wire
+app dependencies.
 
-## Forms
+## Request Parsing Boundary
 
-Goldr's `bind` package is a small helper. Validation rules and persistence are
+Goldr does not own form parsing or validation state. Use Go's `net/http`
+request APIs or an application-selected decoder such as `gorilla/schema`.
+Keep validation types, error messages, file policy, and persistence
 application-owned.
 
 Function names are ordinary Go names. `route.go` declares the route surface:
@@ -18,22 +21,25 @@ var Route = goldr.RouteDef{
 }
 ```
 
-For URL-encoded forms:
+For a small URL-encoded form, plain `net/http` is enough:
 
 ```go
+type userForm struct {
+	Name      string
+	NameError string
+}
+
 func postCreate(r *http.Request) goldr.RouteResponse {
-	form, err := bind.ParseForm(r)
-	if err != nil {
+	if err := r.ParseForm(); err != nil {
 		return goldr.Text{Status: http.StatusBadRequest, Body: "bad request"}
 	}
 
-	var errors bind.FieldErrors
-	if form.Value("name") == "" {
-		errors.Add("name", "Name is required.")
+	form := userForm{Name: r.PostFormValue("name")}
+	if form.Name == "" {
+		form.NameError = "Name is required."
 	}
 
-	form = form.WithErrors(errors)
-	if form.HasErrors() {
+	if form.NameError != "" {
 		return goldr.NewFragment(UserForm(form)).
 			WithStatus(http.StatusUnprocessableEntity).
 			WithHeader(hx.HeaderRetarget, "#user-form").
@@ -45,11 +51,31 @@ func postCreate(r *http.Request) goldr.RouteResponse {
 }
 ```
 
-For multipart forms:
+If a rendered HTMX response uses a non-2xx status such as `422`, the app must
+configure HTMX response handling or use an HTMX extension that swaps that
+response. Goldr does not install a global browser policy.
+
+For multipart forms, use the standard library:
 
 ```go
-r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
-form, err := bind.ParseMultipartForm(r, 1<<20)
+func postUpload(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("avatar")
+	if err != nil {
+		if errors.Is(err, http.ErrMissingFile) {
+			return
+		}
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	_ = header.Filename
+}
 ```
 
 `maxMemory` is the standard library memory threshold, not a hard request size
@@ -65,77 +91,13 @@ HTMX multipart forms need both normal HTML encoding and HTMX encoding:
 Goldr does not store uploads, validate file type, scan contents, or choose
 file-size policy.
 
-## Form Values And Files
-
-Read values explicitly:
-
-```go
-name := form.Value("name")
-tags := form.Values("tags")
-```
-
-For duplicate field names, `Value` returns the first value and `Values` returns
-a copy of all values. For both URL-encoded and multipart parsing, body values
-come before query-string values.
-
-Read validation errors explicitly:
-
-```go
-if form.HasFieldError("name") {
-	message := form.FieldError("name")
-	_ = message
-}
-
-messages := form.FieldErrors("name")
-_ = messages
-```
-
-`bind.FieldErrors` also has read helpers for form-independent validation code:
-
-```go
-var errors bind.FieldErrors
-errors.Add("name", "Name is required.")
-errors.Add("name", "Name is too short.")
-
-_ = errors.Any()
-_ = errors.Has("name")
-_ = errors.First("name")
-_ = errors.Values("name")
-```
-
-Read uploaded files with standard library types:
-
-```go
-file, header, err := form.File("avatar")
-if err != nil {
-	if errors.Is(err, http.ErrMissingFile) {
-		return
-	}
-	http.Error(w, "bad request", http.StatusBadRequest)
-	return
-}
-defer file.Close()
-_ = header.Filename
-```
-
-Read multi-file fields with `Files`:
-
-```go
-for _, header := range form.Files("attachments") {
-	file, err := header.Open()
-	if err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-}
-```
-
 ## CSRF
 
 Applications own middleware mounting, secrets, auth, sessions, request body
-limits, and error responses. Goldr's `csrf` package provides signed-cookie
-token issue and validation helpers.
+limits, request parsing, and error responses. Goldr's optional `csrf` package
+provides signed-cookie token issue and validation helpers. Applications can
+also use another CSRF library, framework-specific middleware, or browser
+cookie policy such as SameSite when that is enough for the app's threat model.
 
 Create a guard from an application secret:
 
@@ -148,8 +110,8 @@ guard, err := csrf.New(csrf.Config{
 The secret must be at least 32 bytes.
 
 `TokenMiddleware` issues or reuses a signed token and stores it on the request
-for templates. It does not reject unsafe requests. Actions still validate after
-parsing.
+for templates. It does not reject unsafe requests. Actions still validate
+after parsing.
 
 Wrap generated routes in app server setup when the CSRF guard is directly
 available there:
@@ -235,7 +197,11 @@ Validate form submissions after parsing:
 
 ```go
 appDeps := deps.From(r)
-if err := appDeps.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
+if err := r.ParseForm(); err != nil {
+	http.Error(w, "bad request", http.StatusBadRequest)
+	return
+}
+if err := appDeps.CSRF.Validate(r, r.PostFormValue(csrf.FieldName)); err != nil {
 	http.Error(w, "forbidden", http.StatusForbidden)
 	return
 }
@@ -280,6 +246,9 @@ type Dependencies struct {
 	BasePath string
 }
 ```
+
+The CSRF field can hold Goldr's optional guard, another library's guard, or an
+app-owned adapter.
 
 Wrap generated routes with middleware that stores the dependencies on the
 request context:

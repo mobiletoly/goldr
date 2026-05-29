@@ -3,7 +3,10 @@
 Goldr provides a small `csrf` package for unsafe form and HTMX requests.
 
 Applications still own middleware mounting, secrets, auth, sessions, request
-body limits, and error responses.
+body limits, request parsing, and error responses. The package is optional: an
+application can use a different CSRF library, a framework-specific middleware,
+or browser cookie policy such as SameSite when that is enough for its threat
+model.
 
 ## Guard
 
@@ -63,11 +66,10 @@ Validate after parsing form values:
 
 ```go
 func PostSave(r *http.Request) goldr.RouteResponse {
-    form, err := bind.ParseForm(r)
-    if err != nil {
+    if err := r.ParseForm(); err != nil {
         return goldr.Text{Status: http.StatusBadRequest, Body: "bad request"}
     }
-    if err := guard.Validate(r, form.Value(csrf.FieldName)); err != nil {
+    if err := guard.Validate(r, r.PostFormValue(csrf.FieldName)); err != nil {
         return goldr.Text{Status: http.StatusForbidden, Body: "forbidden"}
     }
 
@@ -76,8 +78,8 @@ func PostSave(r *http.Request) goldr.RouteResponse {
 }
 ```
 
-This action-level validation keeps multipart request-size limits and memory
-policy application-owned.
+This action-level validation keeps parsing, multipart request-size limits, and
+memory policy application-owned.
 
 ## HTMX Headers
 

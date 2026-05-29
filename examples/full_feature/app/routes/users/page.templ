@@ -1,33 +1,32 @@
 package users
 
 import (
-	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
 )
 
-templ PageView(form bind.Form, contacts []Contact, csrfToken string) {
+templ PageView(form contactForm, contacts []Contact, csrfToken string) {
 	<section>
 		<h1>User Directory</h1>
 		@DirectoryView(form, contacts, csrfToken)
 	</section>
 }
 
-	templ DirectoryView(form bind.Form, contacts []Contact, csrfToken string) {
+	templ DirectoryView(form contactForm, contacts []Contact, csrfToken string) {
 		<section id="users-directory">
 			<form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post={ urls.Users.Create.Path() } hx-target="#users-directory" hx-swap="outerHTML">
 				@csrf.Input(csrfToken)
 				<div>
 				<label for="contact-name">Name</label>
-				<input id="contact-name" name="name" value={ form.Value("name") }/>
-				if form.HasFieldError("name") {
-					<p id="contact-name-error">{ form.FieldError("name") }</p>
+				<input id="contact-name" name="name" value={ form.Name }/>
+				if form.NameError != "" {
+					<p id="contact-name-error">{ form.NameError }</p>
 				}
 			</div>
 			<div>
 				<label for="contact-status">Status</label>
 				<select id="contact-status" name="status">
-					if form.Value("status") == "Inactive" {
+					if form.Status == "Inactive" {
 						<option value="Active">Active</option>
 						<option value="Inactive" selected>Inactive</option>
 					} else {
@@ -35,8 +34,8 @@ templ PageView(form bind.Form, contacts []Contact, csrfToken string) {
 						<option value="Inactive">Inactive</option>
 					}
 				</select>
-				if form.HasFieldError("status") {
-					<p id="contact-status-error">{ form.FieldError("status") }</p>
+				if form.StatusError != "" {
+					<p id="contact-status-error">{ form.StatusError }</p>
 				}
 			</div>
 			<div>

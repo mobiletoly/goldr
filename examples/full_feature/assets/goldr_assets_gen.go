@@ -26,9 +26,9 @@ var manifest = map[string]Asset{
 	},
 	"app.js": {
 		Name: "app.js",
-		Path: "/assets/app.a0e732aa.js",
-		Hash: "a0e732aa",
-		Size: 251,
+		Path: "/assets/app.7e84fc48.js",
+		Hash: "7e84fc48",
+		Size: 506,
 	},
 }
 

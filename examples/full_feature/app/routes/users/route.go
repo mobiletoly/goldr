@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/mobiletoly/goldr"
-	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/hx"
@@ -35,7 +34,7 @@ var Route = goldr.RouteDef{
 
 func Page(r *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
-		PageView(bind.Form{}, ListContacts(), csrf.Token(r)),
+		PageView(contactForm{}, ListContacts(), csrf.Token(r)),
 		goldr.PageMetadata{
 			Title:       "Users - Goldr Example",
 			Description: "Browse and manage example contacts.",
@@ -50,27 +49,29 @@ func FragTable(r *http.Request) goldr.FragmentRouteResponse {
 func PostCreate(w http.ResponseWriter, r *http.Request) {
 	appDeps := deps.From(r)
 	r.Body = http.MaxBytesReader(w, r.Body, maxContactFormBody)
-	form, err := bind.ParseMultipartForm(r, maxContactFormMemory)
-	if err != nil {
+	if err := r.ParseMultipartForm(maxContactFormMemory); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	if err := appDeps.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
+	if err := appDeps.CSRF.Validate(r, r.PostFormValue(csrf.FieldName)); err != nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 
-	avatarFilename, err := optionalUploadFilename(form, "avatar")
+	avatarFilename, err := optionalUploadFilename(r, "avatar")
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
-	form = form.WithErrors(validateContactForm(form))
-	created := !form.HasErrors()
+	form := validateContactForm(contactForm{
+		Name:   r.PostFormValue("name"),
+		Status: r.PostFormValue("status"),
+	})
+	created := !form.hasErrors()
 	if created {
-		AddContact(form.Value("name"), form.Value("status"), avatarFilename)
-		form = bind.Form{}
+		AddContact(form.Name, form.Status, avatarFilename)
+		form = contactForm{}
 	}
 
 	if created {
@@ -78,7 +79,7 @@ func PostCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	hx.Retarget(w, "#users-directory")
 	hx.Reswap(w, "outerHTML")
-	if form.HasErrors() {
+	if form.hasErrors() {
 		if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, DirectoryView(form, ListContacts(), csrf.Token(r))); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
@@ -123,11 +124,12 @@ func contactsWithStatus(contacts []Contact, status string) []Contact {
 	return filtered
 }
 
-func optionalUploadFilename(form bind.Form, field string) (string, error) {
-	if len(form.Files(field)) == 0 {
+func optionalUploadFilename(r *http.Request, field string) (string, error) {
+	if r.MultipartForm == nil || len(r.MultipartForm.File[field]) == 0 {
 		return "", nil
 	}
-	file, header, err := form.File(field)
+	header := r.MultipartForm.File[field][0]
+	file, err := header.Open()
 	if err != nil {
 		return "", err
 	}

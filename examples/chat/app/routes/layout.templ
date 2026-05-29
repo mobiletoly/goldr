@@ -15,6 +15,20 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 				<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3" integrity="sha384-bq4nTap5u8w4XlVP8JHkDioQVZBI5wUx5PxNwlbCq27H5QJ+q0CSeJcTYU+PLdCp" crossorigin="anonymous" defer></script>
 				<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3/dist/ext/hx-sse.min.js" integrity="sha384-hjzxm/dT4rf4fNC5HtgLp0bX4O19nkAq8gt/ZGnGzyB3TuF5R1xsHV3IiN+PqDXc" crossorigin="anonymous" defer></script>
 				<script src="/goldr/goldr-sse-event.js" defer></script>
+				<script>
+					window.addEventListener("load", function () {
+						if (!window.htmx) {
+							return;
+						}
+						window.htmx.config.responseHandling = [
+							{ code: "204", swap: false },
+							{ code: "[23]..", swap: true },
+							{ code: "422", swap: true },
+							{ code: "[45]..", swap: false, error: true },
+							{ code: "...", swap: false }
+						];
+					});
+				</script>
 				<style>
 					:root { color-scheme: light; font-family: system-ui, sans-serif; background: #f6f7f9; color: #1f2937; }
 					body { margin: 0; }

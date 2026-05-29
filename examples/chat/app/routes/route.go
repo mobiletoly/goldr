@@ -5,10 +5,14 @@ import (
 	"strings"
 
 	"github.com/mobiletoly/goldr"
-	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/examples/chat/app/session"
 	"github.com/mobiletoly/goldr/examples/chat/app/urls"
 )
+
+type joinForm struct {
+	Name      string
+	NameError string
+}
 
 var Route = goldr.RouteDef{
 	Page: Page,
@@ -19,7 +23,7 @@ var Route = goldr.RouteDef{
 
 func Page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
-		PageView(bind.Form{}),
+		PageView(joinForm{}),
 		goldr.PageMetadata{
 			Title:       "Join Chat - Goldr Chat",
 			Description: "Enter a display name for the goldr SSE chat example.",
@@ -28,17 +32,15 @@ func Page(_ *http.Request) goldr.PageRouteResponse {
 }
 
 func PostJoin(w http.ResponseWriter, r *http.Request) {
-	form, err := bind.ParseForm(r)
-	if err != nil {
+	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
-	name := strings.TrimSpace(form.Value("name"))
+	form := joinForm{Name: r.PostFormValue("name")}
+	name := strings.TrimSpace(form.Name)
 	if name == "" {
-		var errors bind.FieldErrors
-		errors.Add("name", "Enter your name.")
-		form = form.WithErrors(errors)
+		form.NameError = "Enter your name."
 		if err := goldr.WriteComponent(w, r, http.StatusUnprocessableEntity, JoinForm(form)); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}

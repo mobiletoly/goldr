@@ -3,8 +3,8 @@
   "managed": [
     {
       "logical": "app.js",
-      "dist": "assets/dist/app.a0e732aa.js",
-      "hash": "a0e732aa"
+      "dist": "assets/dist/app.7e84fc48.js",
+      "hash": "7e84fc48"
     },
     {
       "logical": "app.css",

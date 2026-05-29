@@ -24,7 +24,6 @@ Then use the references:
 - [Navigation Trails](navigation.md) - app-owned contextual trails,
   breadcrumb-style rendering, and app-level Back links.
 - [HTMX](htmx.md) - visible `hx-*` attributes and response headers.
-- [Forms](forms.md) - form parsing, validation errors, and redisplay.
 - [Error Handling](error-handling.md) - route errors, custom generated error
   hooks, full-page errors, and HTMX error fragments.
 - [Assets](assets.md) - fingerprinted static files, cache headers, and
@@ -48,8 +47,8 @@ Then use the references:
 Use `getting-started.md` when you want to create the smallest working goldr app.
 
 Use `examples/full_feature/` when you want to see a larger app that combines
-pages, nested layouts, fragments, actions, forms, URL helpers, custom errors,
-middleware, CSRF, and fingerprinted static assets.
+pages, nested layouts, fragments, actions, request parsing, URL helpers,
+custom errors, middleware, CSRF, and fingerprinted static assets.
 
 From a goldr checkout:
 

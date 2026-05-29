@@ -277,8 +277,8 @@ func TestExampleAppServesRootPageOverHTTP(t *testing.T) {
 	if !strings.Contains(string(jsBody), `dataset.goldrJs = "ready"`) {
 		t.Fatalf("js body = %q", jsBody)
 	}
-	if strings.Contains(string(jsBody), "htmx:beforeSwap") {
-		t.Fatalf("js body = %q, want htmx 4 validation responses without custom swap handling", jsBody)
+	if !strings.Contains(string(jsBody), `code: "422", swap: true`) {
+		t.Fatalf("js body = %q, want 422 validation response handling", jsBody)
 	}
 
 	inspectorRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+listener.Addr().String()+"/goldr/goldr-template-inspector.js", nil)

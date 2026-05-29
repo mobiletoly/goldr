@@ -131,6 +131,41 @@ the intended status and headers. Goldr buffers the component before committing
 headers, sets `Content-Type: text/html; charset=utf-8`, writes the status, and
 skips the body for `HEAD`.
 
+## Non-2xx HTML Responses
+
+HTMX does not swap non-2xx responses with its default response handling. Goldr
+does not override that policy.
+
+When an app wants to return `422 Unprocessable Entity` for validation
+redisplay, configure HTMX in app-owned JavaScript or use an HTMX extension that
+handles that response class. The server-side handler can still return ordinary
+Goldr HTML:
+
+```js
+if (window.htmx) {
+  window.htmx.config.responseHandling = [
+    { code: "204", swap: false },
+    { code: "[23]..", swap: true },
+    { code: "422", swap: true },
+    { code: "[45]..", swap: false, error: true },
+    { code: "...", swap: false }
+  ];
+}
+```
+
+```go
+func PostCreate(r *http.Request) goldr.RouteResponse {
+	return goldr.NewFragment(UserForm(view)).
+		WithStatus(http.StatusUnprocessableEntity).
+		WithHeader(hx.HeaderRetarget, "#user-form").
+		WithHeader(hx.HeaderReswap, "outerHTML")
+}
+```
+
+If the app does not want custom HTMX response handling, return `200 OK` for
+HTML redisplay and reserve `422` for non-HTMX clients or APIs. Goldr leaves
+that status policy to the application.
+
 When an HTMX action or fragment exists only for one page workflow, keep the
 endpoint under that page route:
 
@@ -247,7 +282,8 @@ See package documentation or completion for the full list.
 - CSRF validation for unsafe HTMX requests
 - `goldr.WriteComponent` for action-owned templ HTML responses
 - fragment rendering for `/users/table`
-- form redisplay from `/users/create`
+- 422 validation redisplay from `/users/create` with app-owned HTMX response
+  handling
 
 Run it from a goldr checkout:
 

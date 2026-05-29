@@ -78,7 +78,7 @@ if err != nil {
 mux.Handle("/", guard.TokenMiddleware(routes.Handler()))
 ```
 
-Read [CSRF](csrf.md) for form and HTMX validation patterns.
+Read [CSRF](csrf.md) for unsafe request token patterns.
 
 ## Route-Tree Middleware
 

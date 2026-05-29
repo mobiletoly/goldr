@@ -24,7 +24,6 @@ the user explicitly asks for framework development.
   declarations, route responses, pages, fragments, layouts, generated handler
   options, template inspection, and HTML writing helpers.
 - `github.com/mobiletoly/goldr/hx`: HTMX request checks and response headers.
-- `github.com/mobiletoly/goldr/bind`: small form and multipart parsing helper.
 - `github.com/mobiletoly/goldr/csrf`: signed-cookie CSRF token helpers.
 - `github.com/mobiletoly/goldr/browser`: optional browser helper scripts.
 - `github.com/mobiletoly/goldr/sse`: server-sent event wire helpers.
@@ -82,7 +81,8 @@ Load only the references needed for the current request:
   filesystem-owned routes: read `references/shared-kit-routes.md`.
 - For fragments, visible HTMX attributes, action responses, `hx` headers, or
   embedded fragment wrappers: read `references/htmx-fragments-actions.md`.
-- For forms, multipart uploads, CSRF, or app dependency wiring: read
+- For request parsing boundaries, multipart uploads, CSRF, or app dependency
+  wiring: read
   `references/forms-csrf-dependencies.md`.
 - For fingerprinted assets, `goldr dev`, browser helpers, or SSE streams: read
   `references/assets-dev-sse.md`.

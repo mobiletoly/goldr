@@ -8,12 +8,9 @@ package routes
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import (
-	"github.com/mobiletoly/goldr/bind"
-	"github.com/mobiletoly/goldr/examples/chat/app/urls"
-)
+import "github.com/mobiletoly/goldr/examples/chat/app/urls"
 
-func PageView(form bind.Form) templ.Component {
+func PageView(form joinForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -50,7 +47,7 @@ func PageView(form bind.Form) templ.Component {
 	})
 }
 
-func JoinForm(form bind.Form) templ.Component {
+func JoinForm(form joinForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -78,7 +75,7 @@ func JoinForm(form bind.Form) templ.Component {
 		var templ_7745c5c3_Var3 templ.SafeURL
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(urls.Join.Path())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/page.templ`, Line: 17, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/page.templ`, Line: 14, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -89,9 +86,9 @@ func JoinForm(form bind.Form) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(form.Value("name"))
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(form.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/page.templ`, Line: 20, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/page.templ`, Line: 17, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -101,15 +98,15 @@ func JoinForm(form bind.Form) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if form.HasFieldError("name") {
+		if form.NameError != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p class=\"error\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(form.FieldError("name"))
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(form.NameError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/page.templ`, Line: 23, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/page.templ`, Line: 20, Col: 36}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {

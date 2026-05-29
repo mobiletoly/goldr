@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/mobiletoly/goldr"
-	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
@@ -30,12 +29,11 @@ func Page(r *http.Request) goldr.PageRouteResponse {
 
 func PostSignOut(w http.ResponseWriter, r *http.Request) {
 	appDeps := deps.From(r)
-	form, err := bind.ParseForm(r)
-	if err != nil {
+	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	if err := appDeps.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
+	if err := appDeps.CSRF.Validate(r, r.PostFormValue(csrf.FieldName)); err != nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -46,11 +44,10 @@ func PostSignOut(w http.ResponseWriter, r *http.Request) {
 
 func PostRevealSecret(r *http.Request) goldr.RouteResponse {
 	appDeps := deps.From(r)
-	form, err := bind.ParseForm(r)
-	if err != nil {
+	if err := r.ParseForm(); err != nil {
 		return goldr.Text{Status: http.StatusBadRequest, Body: "bad request"}
 	}
-	if err := appDeps.CSRF.Validate(r, form.Value(csrf.FieldName)); err != nil {
+	if err := appDeps.CSRF.Validate(r, r.PostFormValue(csrf.FieldName)); err != nil {
 		return goldr.Text{Status: http.StatusForbidden, Body: "forbidden"}
 	}
 

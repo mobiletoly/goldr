@@ -1,11 +1,8 @@
 package routes
 
-import (
-	"github.com/mobiletoly/goldr/bind"
-	"github.com/mobiletoly/goldr/examples/chat/app/urls"
-)
+import "github.com/mobiletoly/goldr/examples/chat/app/urls"
 
-templ PageView(form bind.Form) {
+templ PageView(form joinForm) {
 	<section class="app-card stack">
 		<h1>Goldr Chat</h1>
 		<p>Enter your name to join the shared in-memory chat room.</p>
@@ -13,14 +10,14 @@ templ PageView(form bind.Form) {
 	</section>
 }
 
-templ JoinForm(form bind.Form) {
+templ JoinForm(form joinForm) {
 	<form method="post" action={ urls.Join.Path() }>
 		<div>
 			<label for="name">Name</label>
-			<input id="name" name="name" value={ form.Value("name") } autocomplete="name"/>
+			<input id="name" name="name" value={ form.Name } autocomplete="name"/>
 		</div>
-		if form.HasFieldError("name") {
-			<p class="error">{ form.FieldError("name") }</p>
+		if form.NameError != "" {
+			<p class="error">{ form.NameError }</p>
 		}
 		<button type="submit">Enter chat</button>
 	</form>

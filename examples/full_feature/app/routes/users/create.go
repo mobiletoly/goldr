@@ -1,16 +1,24 @@
 package users
 
-import "github.com/mobiletoly/goldr/bind"
+type contactForm struct {
+	Name        string
+	Status      string
+	NameError   string
+	StatusError string
+}
 
-func validateContactForm(form bind.Form) bind.FieldErrors {
-	var errors bind.FieldErrors
-	if form.Value("name") == "" {
-		errors.Add("name", "Name is required.")
+func (form contactForm) hasErrors() bool {
+	return form.NameError != "" || form.StatusError != ""
+}
+
+func validateContactForm(form contactForm) contactForm {
+	if form.Name == "" {
+		form.NameError = "Name is required."
 	}
-	switch form.Value("status") {
+	switch form.Status {
 	case statusActive, statusInactive:
 	default:
-		errors.Add("status", "Choose a valid status.")
+		form.StatusError = "Choose a valid status."
 	}
-	return errors
+	return form
 }

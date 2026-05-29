@@ -3,11 +3,10 @@ package chat
 import (
 	"strconv"
 
-	"github.com/mobiletoly/goldr/bind"
 	"github.com/mobiletoly/goldr/examples/chat/app/urls"
 )
 
-templ PageView(name string, form bind.Form, messages []Message) {
+templ PageView(name string, form messageForm, messages []Message) {
 	if name == "" {
 		<section class="app-card stack">
 			<h1>Goldr Chat</h1>
@@ -41,14 +40,14 @@ templ PageView(name string, form bind.Form, messages []Message) {
 	}
 }
 
-templ ComposerView(form bind.Form) {
+templ ComposerView(form messageForm) {
 	<form id="composer" method="post" hx-post={ urls.Chat.Message.Path() } hx-target="#composer" hx-swap="outerHTML" hx-indicator="#send-progress">
 		<div>
 			<label for="body">Message</label>
-			<textarea id="body" name="body">{ form.Value("body") }</textarea>
+			<textarea id="body" name="body">{ form.Body }</textarea>
 		</div>
-		if form.HasFieldError("body") {
-			<p class="error">{ form.FieldError("body") }</p>
+		if form.BodyError != "" {
+			<p class="error">{ form.BodyError }</p>
 		}
 		<div class="composer-actions">
 			<button type="submit">Send</button>
