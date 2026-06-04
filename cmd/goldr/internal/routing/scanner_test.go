@@ -328,8 +328,8 @@ var Route = goldr.KitRouteMount[shared.Kit]{
 	},
 }
 
-func newKit(r *http.Request) shared.Kit {
-	return shared.New()
+func newKit(r *http.Request) (shared.Kit, error) {
+	return shared.New(), nil
 }
 `)
 	writeFile(t, routesRoot, "user/reports/route.go", routeGoKitMountRoutesSource("reports", "reports", "/"))
@@ -394,8 +394,8 @@ var Route = goldr.KitRouteMount[shared.Kit]{
 	},
 }
 
-func newKit(r *http.Request) shared.Kit {
-	return shared.Kit{}
+func newKit(r *http.Request) (shared.Kit, error) {
+	return shared.Kit{}, nil
 }
 `)
 	writeFile(t, routesRoot, "user/reports/route.go", `package reports
@@ -412,8 +412,8 @@ var Route = goldr.KitRouteMount[shared.Kit]{
 	Mount: "reports",
 }
 
-func newKit(r *http.Request) shared.Kit {
-	return shared.Kit{}
+func newKit(r *http.Request) (shared.Kit, error) {
+	return shared.Kit{}, nil
 }
 `)
 	writeFile(t, mountsRoot, "reports/route.go", `package reports
@@ -543,8 +543,8 @@ var Route = goldr.KitRouteDef[shared.Kit]{
 	Page: shared.Kit.Page,
 }
 
-func newKit(r *http.Request) shared.Kit {
-	return shared.New()
+func newKit(r *http.Request) (shared.Kit, error) {
+	return shared.New(), nil
 }
 `,
 			message: "KitRouteDef.New is not supported under app/mounts; the KitRouteMount owner supplies New",
@@ -612,8 +612,8 @@ var Route = goldr.KitRouteMount[shared.Kit]{
 	Mount: "reports",
 }
 
-func newKit(r *http.Request) shared.Kit {
-	return shared.New()
+func newKit(r *http.Request) (shared.Kit, error) {
+	return shared.New(), nil
 }
 `)
 	writeFile(t, mountsRoot, "reports/route.go", `package reports
@@ -893,8 +893,8 @@ var Route = goldr.KitRouteMount[shared.Kit]{
 	Mount: "` + mount + `",
 }
 
-func newKit(r *http.Request) shared.Kit {
-	return shared.New()
+func newKit(r *http.Request) (shared.Kit, error) {
+	return shared.New(), nil
 }
 `
 }
@@ -926,8 +926,8 @@ var Route = goldr.KitRouteMount[shared.Kit]{
 	builder.WriteString(`	},
 }
 
-func newKit(r *http.Request) shared.Kit {
-	return shared.New()
+func newKit(r *http.Request) (shared.Kit, error) {
+	return shared.New(), nil
 }
 `)
 	return builder.String()

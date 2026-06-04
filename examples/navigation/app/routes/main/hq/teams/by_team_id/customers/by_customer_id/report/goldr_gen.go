@@ -21,16 +21,25 @@ var _ = goldrmount_customerreport_brief.Route
 var _ = goldrmount_customerreport_detailed.Route
 
 func GoldrRouteMountCustomerreportPage(r *http.Request) goldr.PageRouteResponse {
-	goldrKit := newKit(r)
+	goldrKit, err := newKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return goldrmount_customerreport.Kit.Page(goldrKit, r)
 }
 
 func GoldrRouteMountCustomerreportBriefPage(r *http.Request) goldr.PageRouteResponse {
-	goldrKit := newKit(r)
+	goldrKit, err := newKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return goldrmount_customerreport_brief.Page(goldrKit, r)
 }
 
 func GoldrRouteMountCustomerreportDetailedPage(r *http.Request) goldr.PageRouteResponse {
-	goldrKit := newKit(r)
+	goldrKit, err := newKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return goldrmount_customerreport_detailed.Page(goldrKit, r)
 }

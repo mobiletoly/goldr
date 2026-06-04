@@ -118,14 +118,15 @@ var Route = goldr.KitRouteDef[reports.Kit]{
 	},
 }
 
-func newReportKit(r *http.Request) reports.Kit {
-	return reports.New(reportData(r))
+func newReportKit(r *http.Request) (reports.Kit, error) {
+	return reports.New(reportData(r)), nil
 }
 ```
 
 Goldr generates direct route-local adapters that call
-`newReportKit(r)` and then call the selected kit method. The shared package
-does not declare URLs or hidden route surface. See
+`newReportKit(r)`, route any returned error through generated route error
+handling, and then call the selected kit method. The shared package does not
+declare URLs or hidden route surface. See
 `examples/kit_routes` for a focused runnable example.
 
 ### Mounted Kit Route Subtrees
@@ -165,7 +166,7 @@ still becoming hyphens in final URL paths.
 
 `KitRouteMount.New` must be a local named function in the mount owner's route
 package. Do not use an inline function literal there, even though the Go field
-type is `func(*http.Request) K`.
+type is `func(*http.Request) (K, error)`.
 
 `KitRouteMount.Routes` is optional. Omit it to expose the full mounted
 subtree. Set it to a `goldr.MountRoutes` allowlist when one live owner should

@@ -191,18 +191,19 @@ func executableRouteSurface(manifest routing.Manifest) ([]routing.ManifestPage, 
 				}
 			}
 			actions = append(actions, routing.ManifestAction{
-				Method:           action.Method,
-				Route:            actionPath,
-				NavRoute:         route.Route,
-				Params:           slices.Clone(route.Params),
-				Nav:              cloneRuntimeRouteNav(route.Nav),
-				GoFile:           route.GoFile,
-				SourceGoFile:     route.Source,
-				MiddlewareGoFile: route.MiddlewareGoFile,
-				Function:         routeActionAdapterName(route, action),
-				Suffix:           action.SymbolName,
-				Segment:          action.Segment,
-				Writer:           action.Writer,
+				Method:              action.Method,
+				Route:               actionPath,
+				NavRoute:            route.Route,
+				Params:              slices.Clone(route.Params),
+				Nav:                 cloneRuntimeRouteNav(route.Nav),
+				GoFile:              route.GoFile,
+				SourceGoFile:        route.Source,
+				MiddlewareGoFile:    route.MiddlewareGoFile,
+				Function:            routeActionAdapterName(route, action),
+				Suffix:              action.SymbolName,
+				Segment:             action.Segment,
+				Writer:              action.Writer,
+				AdapterReturnsError: action.Writer && route.Kit != nil,
 			})
 		}
 	}

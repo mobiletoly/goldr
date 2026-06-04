@@ -23,7 +23,7 @@ type RouteDef struct {
 type KitRouteDef[K any] struct {
 	Name         string
 	Title        string
-	New          func(*http.Request) K
+	New          func(*http.Request) (K, error)
 	Page         KitPageHandler[K]
 	Fragments    KitFragments[K]
 	Actions      KitActions[K]
@@ -36,7 +36,7 @@ type KitRouteDef[K any] struct {
 // surface from app/mounts. Mount is a clean relative slash path under
 // app/mounts using lowercase Go-safe route directory names.
 type KitRouteMount[K any] struct {
-	New    func(*http.Request) K
+	New    func(*http.Request) (K, error)
 	Mount  string
 	Routes MountRoutes
 }

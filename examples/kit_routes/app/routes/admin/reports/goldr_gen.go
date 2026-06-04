@@ -20,17 +20,26 @@ var _ = goldrmount_reports.Route
 var _ = goldrmount_reports_audit.Route
 
 func GoldrRouteMountReportsPage(r *http.Request) goldr.PageRouteResponse {
-	goldrKit := newReportKit(r)
+	goldrKit, err := newReportKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return goldrmount_reports.Kit.Page(goldrKit, r)
 }
 
 func GoldrRouteMountReportsFragTable(r *http.Request) goldr.FragmentRouteResponse {
-	goldrKit := newReportKit(r)
+	goldrKit, err := newReportKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return goldrmount_reports.Kit.Table(goldrKit, r)
 }
 
 func GoldrRouteMountReportsAuditPage(r *http.Request) goldr.PageRouteResponse {
-	goldrKit := newReportKit(r)
+	goldrKit, err := newReportKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return goldrmount_reports.Kit.Audit(goldrKit, r)
 }
 

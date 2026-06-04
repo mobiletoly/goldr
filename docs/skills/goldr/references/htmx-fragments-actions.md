@@ -134,6 +134,11 @@ page-owned slot over `hx-target="body"` with `hx-swap="beforeend"`:
 The fragment renders the dialog root. Replacing the slot avoids repeated opens
 creating duplicate dialog IDs.
 
+For modal fragments inside a mounted route subtree, build `hx-get` and
+matching modal `hx-post` URLs from the bound mount helper, for example
+`kit.URLs.ResetPassword.Path()`. Do not pass separate raw URLs for same-mount
+fragment/action routes when a generated mount helper exists.
+
 ## Embedded Fragment Wrappers
 
 When embedding a first-class fragment inside a page, use the generated
@@ -228,6 +233,11 @@ func (kit Kit) PostRefresh(r *http.Request) goldr.RouteResponse {
 Use `HTTPAction` or `KitHTTPAction` only when direct `http.ResponseWriter`
 control is required, such as streaming, installing `http.MaxBytesReader`, or
 calling an API that requires the writer.
+
+For `KitHTTPAction`, the generated adapter still constructs the request-scoped
+kit first. If `KitRouteDef.New` or `KitRouteMount.New` returns an error, Goldr
+routes that error through generated route error handling before the writer
+action runs. Read `shared-kit-routes.md` when changing Kit-backed actions.
 
 ## HTMX Header Helpers
 

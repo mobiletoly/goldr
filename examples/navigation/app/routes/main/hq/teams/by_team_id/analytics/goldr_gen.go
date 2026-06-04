@@ -18,11 +18,17 @@ var _ = goldrmount_analytics.Route
 var _ = goldrmount_analytics_customers_by_customer_id_report.Route
 
 func GoldrRouteMountAnalyticsPage(r *http.Request) goldr.PageRouteResponse {
-	goldrKit := newKit(r)
+	goldrKit, err := newKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return goldrmount_analytics.Kit.Page(goldrKit, r)
 }
 
 func GoldrRouteMountAnalyticsCustomersByCustomerIDReportPage(r *http.Request) goldr.PageRouteResponse {
-	goldrKit := newKit(r)
+	goldrKit, err := newKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return goldrmount_analytics_customers_by_customer_id_report.Page(goldrKit, r)
 }

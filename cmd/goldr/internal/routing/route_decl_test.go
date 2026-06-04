@@ -144,8 +144,8 @@ var Route = goldr.KitRouteDef[cohortexplorer.Kit]{
 	},
 }
 
-func newKit(r *http.Request) cohortexplorer.Kit {
-	return cohortexplorer.New(portal(r))
+func newKit(r *http.Request) (cohortexplorer.Kit, error) {
+	return cohortexplorer.New(portal(r)), nil
 }
 
 func portal(r *http.Request) cohortexplorer.Portal {
@@ -215,8 +215,8 @@ var Route = goldr.KitRouteMount[shared.Kit]{
 	},
 }
 
-func newKit(r *http.Request) shared.Kit {
-	return shared.New()
+func newKit(r *http.Request) (shared.Kit, error) {
+	return shared.New(), nil
 }
 `)
 
@@ -272,7 +272,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 	var Route = goldr.KitRouteDef[Kit]{
 		New:  New,
@@ -582,7 +582,7 @@ import (
 
 type Kit struct{}
 
-func newKit(*http.Request) *Kit { return &Kit{} }
+func newKit(*http.Request) (*Kit, error) { return &Kit{}, nil }
 
 var Route = goldr.KitRouteDef[*Kit]{
 	New:  newKit,
@@ -653,7 +653,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteDef[Kit]{
 	New: New,
@@ -734,7 +734,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteDef[Kit]{
 	New: New,
@@ -811,7 +811,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteDef[Kit]{
 	New: New,
@@ -928,7 +928,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteMount[Kit]{
 	New: shared.New,
@@ -949,7 +949,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteMount[Kit]{
 	New: New,
@@ -971,7 +971,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteMount[Kit]{
 	New: New,
@@ -993,7 +993,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteMount[Kit]{
 	New: New,
@@ -1015,7 +1015,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteMount[Kit]{
 	New: New,
@@ -1037,7 +1037,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteMount[Kit]{
 	New: New,
@@ -1059,7 +1059,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteMount[Kit]{
 	New: New,
@@ -1132,7 +1132,7 @@ import (
 
 type Kit struct{}
 
-func New(*http.Request) Kit { return Kit{} }
+func New(*http.Request) (Kit, error) { return Kit{}, nil }
 
 var Route = goldr.KitRouteDef[Kit]{
 	New: New,

@@ -126,6 +126,11 @@ Load only the references needed for the current request:
   `reports.NewGoldrMountURLs(urls.Admin.Reports)`. Do not pass a raw path
   string. Mount helpers include mounted source routes; check app-owned owner
   state before rendering links to children that only some owners select.
+- Inside a mounted implementation, use the bound mount helper for links, HTMX
+  fragments, and actions that live inside the same mounted subtree, such as
+  `kit.URLs.ResetPassword.Path()`. Do not pass separate raw URL strings for
+  same-mount child routes; use owner callbacks only for destinations outside
+  the mounted subtree or routes with no generated helper.
 - Prefer generated helper paths for HTMX response headers too, such as
   `hx.PushURL(w, urls.Users.Path())`, unless the target is intentionally
   external or not represented by Goldr routes.

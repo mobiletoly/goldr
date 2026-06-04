@@ -803,9 +803,9 @@ func contextValue(r *http.Request) Context {
 	return Context{Value: r.URL.Query().Get("v")}
 }
 
-func New(r *http.Request) Kit {
+func New(r *http.Request) (Kit, error) {
 	ctx := contextValue(r)
-	return Kit{Value: ctx.Value}
+	return Kit{Value: ctx.Value}, nil
 }
 
 var Route = goldr.KitRouteDef[Kit]{
@@ -994,8 +994,8 @@ type Kit struct {
 	Value string
 }
 
-func New(r *http.Request) Kit {
-	return Kit{Value: r.URL.Query().Get("v")}
+func New(r *http.Request) (Kit, error) {
+	return Kit{Value: r.URL.Query().Get("v")}, nil
 }
 
 var Route = goldr.KitRouteDef[Kit]{

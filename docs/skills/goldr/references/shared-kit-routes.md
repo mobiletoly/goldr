@@ -53,12 +53,12 @@ var Route = goldr.KitRouteDef[sharedreports.Kit]{
 	},
 }
 
-func newReportKit(r *http.Request) sharedreports.Kit {
+func newReportKit(r *http.Request) (sharedreports.Kit, error) {
 	return sharedreports.New(sharedreports.ReportData{
 		Audience:  "Admin",
 		Title:     "Admin Reports",
 		TablePath: urls.Admin.Reports.Table.Path(),
-	})
+	}), nil
 }
 ```
 
@@ -80,18 +80,19 @@ var Route = goldr.KitRouteDef[sharedreports.Kit]{
 `KitRouteDef[K]` has one type parameter. `New` is:
 
 ```go
-func(*http.Request) K
+func(*http.Request) (K, error)
 ```
 
 The only supported Kit declaration shape is `goldr.KitRouteDef[K]`. Under
-`app/routes`, it must declare `New func(*http.Request) K`. Under `app/mounts`,
-it must omit `New` because the `KitRouteMount` owner supplies the constructor.
-Do not add a second type parameter or a separate framework context object.
+`app/routes`, it must declare `New func(*http.Request) (K, error)`. Under
+`app/mounts`, it must omit `New` because the `KitRouteMount` owner supplies the
+constructor. Do not add a second type parameter or a separate framework context
+object.
 
 For live `KitRouteDef` declarations under `app/routes`, `New` may be a named
-local function or method selector with type `func(*http.Request) K`. Inline
-function literals are not supported because Goldr parses `route.go` statically
-for inspection and generated adapters.
+local function or method selector with type `func(*http.Request) (K, error)`.
+Inline function literals are not supported because Goldr parses `route.go`
+statically for inspection and generated adapters.
 
 ## Mounted Route Subtrees
 
@@ -134,8 +135,9 @@ Rules:
 - A mounted source route may declare default `Nav` label or key metadata for
   its reusable page.
 - `Mount` is a clean relative path under `app/mounts`.
-- The mount owner supplies the request-scoped `New func(*http.Request) K` as a
-  local identifier in the owner route package.
+- The mount owner supplies the request-scoped
+  `New func(*http.Request) (K, error)` as a local identifier in the owner route
+  package.
 - Do not use an inline function literal for `KitRouteMount.New`; it must be a
   local named function in the live owner package.
 - `Mount` is a clean relative slash path under `app/mounts`; each component is
@@ -183,6 +185,62 @@ Mounted templates can then use `reportURLs.Path()` for the mount root and
 Use app-owned state before rendering links to owner-specific mounted children.
 A child-only owner still has the mount-base helper needed for this binding, but
 that helper does not make the root URL live.
+
+## Mounted Fragment And Action URLs
+
+When a mounted page links to a fragment or action inside the same mounted
+subtree, pass the bound `GoldrMountURLs` value into the kit and derive the
+child path inside the mounted implementation. Do not pass one raw URL string
+per mounted child route.
+
+Good:
+
+```go
+func newAccountEditKit(r *http.Request) (accountedit.Kit, error) {
+	appURLs := urls.App()
+	editRoute := appURLs.Admin.Users.ByID.Bind(r.PathValue("id")).Edit
+	editURLs := accountedit.NewGoldrMountURLs(editRoute)
+
+	return accountedit.New(accountedit.Config{
+		URLs: editURLs,
+	}), nil
+}
+```
+
+```templ
+templ Page(kit Kit) {
+	<button
+		hx-get={ kit.URLs.ResetPassword.Path() }
+		hx-target="#reset-password-dialog-slot"
+		hx-swap="innerHTML"
+	>
+		Reset password
+	</button>
+	<div id="reset-password-dialog-slot"></div>
+}
+
+templ ResetPasswordDialog(kit Kit) {
+	<form
+		hx-post={ kit.URLs.ResetPassword.Path() }
+		hx-target="#reset-password-dialog-slot"
+		hx-swap="innerHTML"
+	>
+		<!-- fields -->
+	</form>
+}
+```
+
+Avoid:
+
+```go
+return accountedit.New(accountedit.Config{
+	ResetPasswordURL: appURLs.Admin.Users.ByID.Bind(id).Edit.ResetPassword.Path(),
+})
+```
+
+Owner-provided callbacks or raw URL fields are still appropriate for
+destinations outside the mounted subtree, owner-specific external links, or
+routes that cannot be represented by generated helpers.
 
 ## Shared Package Shape
 
@@ -280,23 +338,47 @@ added.
 ## Generated Behavior
 
 Goldr generates route-local adapters. For a page, fragment, or action, the
-adapter constructs a fresh kit value for the request and then calls the selected
-method directly:
+adapter constructs a fresh kit value for the request, returns a route error if
+construction fails, and then calls the selected method directly:
 
 ```go
 func GoldrRoutePage(r *http.Request) goldr.PageRouteResponse {
-	goldrKit := newReportKit(r)
+	goldrKit, err := newReportKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return sharedreports.Kit.Page(goldrKit, r)
 }
 
 func GoldrRouteFragTable(r *http.Request) goldr.FragmentRouteResponse {
-	goldrKit := newReportKit(r)
+	goldrKit, err := newReportKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return sharedreports.Kit.Table(goldrKit, r)
 }
 
 func GoldrRoutePostRefresh(r *http.Request) goldr.RouteResponse {
-	goldrKit := newReportKit(r)
+	goldrKit, err := newReportKit(r)
+	if err != nil {
+		return goldr.RouteError{Err: err}
+	}
 	return sharedreports.Kit.PostRefresh(goldrKit, r)
+}
+```
+
+For a `KitHTTPAction`, Goldr generates a route-local writer adapter that
+returns constructor errors to the dispatcher. The dispatcher then routes that
+error through the same route error handling path before returning:
+
+```go
+func GoldrRoutePostExport(w http.ResponseWriter, r *http.Request) error {
+	goldrKit, err := newReportKit(r)
+	if err != nil {
+		return err
+	}
+	sharedreports.Kit.PostExport(goldrKit, w, r)
+	return nil
 }
 ```
 

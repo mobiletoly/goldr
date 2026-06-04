@@ -1,6 +1,7 @@
 package wiring
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/mobiletoly/goldr/cmd/goldr/internal/routing"
@@ -79,6 +80,251 @@ func TestDefaultMetadata(t *testing.T) {
 }
 `)
 
+	runGoTest(t, tempDir)
+}
+
+func TestKitConstructorErrorUsesRouteErrorHandler(t *testing.T) {
+	tempDir := tempGoldrModule(t)
+	manifest := routing.Manifest{
+		Root: tempDir + "/routes",
+		Routes: []routing.ManifestRouteDeclaration{
+			{
+				Route:  "/kit",
+				GoFile: "kit/route.go",
+				Kind:   "kit",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Kit.Page"},
+				Fragments: []routing.RouteFragmentDeclaration{
+					{Name: "panel", Segment: "panel", SymbolName: "Panel", Handler: "Kit.Panel"},
+				},
+				Actions: []routing.RouteActionDeclaration{
+					{Method: "POST", Name: "save", Segment: "save", SymbolName: "Save", Handler: "Kit.PostSave"},
+					{Method: "POST", Name: "write", Segment: "write", SymbolName: "Write", Writer: true, Handler: "Kit.PostWrite"},
+				},
+				Kit: &routing.RouteKitDeclaration{New: "New"},
+			},
+		},
+	}
+
+	source := generateOK(t, manifest)
+	for _, want := range []string{
+		"if err := goldrroute_kit.GoldrRoutePostWrite(w, r); err != nil",
+		"goldrRouteError(options, w, r, err, goldrDirectRoutePageRenderer)",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("generated source missing %q:\n%s", want, source)
+		}
+	}
+	writeGeneratedRoutes(t, tempDir, source)
+	writeTempFile(t, tempDir, "routes/kit/route.go", `package kit
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct {
+	Value string
+}
+
+func New(r *http.Request) (Kit, error) {
+	if r.URL.Query().Get("fail") == "1" {
+		return Kit{}, errors.New("kit failed")
+	}
+	return Kit{Value: "ok"}, nil
+}
+
+var Route = goldr.KitRouteDef[Kit]{
+	New:  New,
+	Page: Kit.Page,
+	Fragments: goldr.KitFragments[Kit]{
+		goldr.KitFragmentRoute("/panel", Kit.Panel),
+	},
+	Actions: goldr.KitActions[Kit]{
+		goldr.KitAction(http.MethodPost, "/save", Kit.PostSave),
+		goldr.KitHTTPAction(http.MethodPost, "/write", Kit.PostWrite),
+	},
+}
+
+func (kit Kit) Page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "page " + kit.Value}
+}
+
+func (kit Kit) Panel(r *http.Request) goldr.FragmentRouteResponse {
+	return goldr.Text{Body: "panel " + kit.Value}
+}
+
+func (kit Kit) PostSave(r *http.Request) goldr.RouteResponse {
+	return goldr.Text{Body: "save " + kit.Value}
+}
+
+func (kit Kit) PostWrite(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write([]byte("write " + kit.Value))
+}
+`)
+	writeGeneratedRoutePackageFiles(t, tempDir, manifest)
+
+	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func handledRouteError(r *http.Request, err error) goldr.RouteResponse {
+	return goldr.Text{Status: http.StatusTeapot, Body: "handled " + err.Error()}
+}
+
+func TestKitConstructorError(t *testing.T) {
+	tests := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/kit?fail=1"},
+		{http.MethodGet, "/kit/panel?fail=1"},
+		{http.MethodPost, "/kit/save?fail=1"},
+		{http.MethodPost, "/kit/write?fail=1"},
+	}
+	for _, test := range tests {
+		recorder := httptest.NewRecorder()
+		HandlerWithOptions(HandlerOptions{
+			ErrorHandlers: ErrorHandlers{RouteError: handledRouteError},
+		}).ServeHTTP(recorder, httptest.NewRequest(test.method, test.path, nil))
+		if recorder.Code != http.StatusTeapot {
+			t.Fatalf("%s %s status = %d, want %d", test.method, test.path, recorder.Code, http.StatusTeapot)
+		}
+		if recorder.Body.String() != "handled kit failed" {
+			t.Fatalf("%s %s body = %q, want handled error", test.method, test.path, recorder.Body.String())
+		}
+	}
+}
+`)
+	runGoTest(t, tempDir)
+}
+
+func TestMountedKitConstructorErrorUsesRouteErrorHandler(t *testing.T) {
+	tempDir := tempGoldrModule(t)
+	manifest := routing.Manifest{
+		Root: tempDir + "/routes",
+		Routes: []routing.ManifestRouteDeclaration{
+			{
+				Route:  "/mounted",
+				GoFile: "mounted/route.go",
+				Kind:   "mounted-kit",
+				Page:   &routing.RouteHandlerDeclaration{Handler: "Kit.Page"},
+				Fragments: []routing.RouteFragmentDeclaration{
+					{Name: "panel", Segment: "panel", SymbolName: "Panel", Handler: "Kit.Panel"},
+				},
+				Actions: []routing.RouteActionDeclaration{
+					{Method: "POST", Name: "save", Segment: "save", SymbolName: "Save", Handler: "Kit.PostSave"},
+				},
+				Kit:     &routing.RouteKitDeclaration{New: "newKit"},
+				Source:  "../mounts/shared/route.go",
+				Adapter: "MountShared",
+				Mount:   &routing.RouteMountDeclaration{Path: "shared", Owner: "mounted/route.go"},
+			},
+		},
+	}
+
+	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
+	writeTempFile(t, tempDir, "routes/mounted/route.go", `package mounted
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+	shared "example.com/app/mounts/shared"
+)
+
+var Route = goldr.KitRouteMount[shared.Kit]{
+	New:   newKit,
+	Mount: "shared",
+}
+
+func newKit(r *http.Request) (shared.Kit, error) {
+	if r.URL.Query().Get("fail") == "1" {
+		return shared.Kit{}, errors.New("mounted kit failed")
+	}
+	return shared.Kit{Value: "ok"}, nil
+}
+`)
+	writeTempFile(t, tempDir, "mounts/shared/route.go", `package shared
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct {
+	Value string
+}
+
+var Route = goldr.KitRouteDef[Kit]{
+	Page: Kit.Page,
+	Fragments: goldr.KitFragments[Kit]{
+		goldr.KitFragmentRoute("/panel", Kit.Panel),
+	},
+	Actions: goldr.KitActions[Kit]{
+		goldr.KitAction(http.MethodPost, "/save", Kit.PostSave),
+	},
+}
+
+func (kit Kit) Page(r *http.Request) goldr.PageRouteResponse {
+	return goldr.Text{Body: "page " + kit.Value}
+}
+
+func (kit Kit) Panel(r *http.Request) goldr.FragmentRouteResponse {
+	return goldr.Text{Body: "panel " + kit.Value}
+}
+
+func (kit Kit) PostSave(r *http.Request) goldr.RouteResponse {
+	return goldr.Text{Body: "save " + kit.Value}
+}
+`)
+	writeGeneratedRoutePackageFiles(t, tempDir, manifest)
+	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func handledRouteError(r *http.Request, err error) goldr.RouteResponse {
+	return goldr.Text{Status: http.StatusTeapot, Body: "handled " + err.Error()}
+}
+
+func TestMountedKitConstructorError(t *testing.T) {
+	tests := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/mounted?fail=1"},
+		{http.MethodGet, "/mounted/panel?fail=1"},
+		{http.MethodPost, "/mounted/save?fail=1"},
+	}
+	for _, test := range tests {
+		recorder := httptest.NewRecorder()
+		HandlerWithOptions(HandlerOptions{
+			ErrorHandlers: ErrorHandlers{RouteError: handledRouteError},
+		}).ServeHTTP(recorder, httptest.NewRequest(test.method, test.path, nil))
+		if recorder.Code != http.StatusTeapot {
+			t.Fatalf("%s %s status = %d, want %d", test.method, test.path, recorder.Code, http.StatusTeapot)
+		}
+		if recorder.Body.String() != "handled mounted kit failed" {
+			t.Fatalf("%s %s body = %q, want handled error", test.method, test.path, recorder.Body.String())
+		}
+	}
+}
+`)
 	runGoTest(t, tempDir)
 }
 

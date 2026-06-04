@@ -118,15 +118,16 @@ var Route = goldr.KitRouteDef[sharedreports.Kit]{
 	},
 }
 
-func newReportKit(r *http.Request) sharedreports.Kit {
-	return sharedreports.New(reportData(r))
+func newReportKit(r *http.Request) (sharedreports.Kit, error) {
+	return sharedreports.New(reportData(r)), nil
 }
 ```
 
-Generated adapters call `newReportKit(r)` for each request and then call the
-selected kit method directly. There is no runtime registry, hidden router, or
-shared URL owner. Read `shared-kit-routes.md` before introducing or changing
-Kit-backed routes.
+Generated adapters call `newReportKit(r)` for each request, route any returned
+error through generated route error handling, and then call the selected kit
+method directly. There is no runtime registry, hidden router, or shared URL
+owner. Read `shared-kit-routes.md` before introducing or changing Kit-backed
+routes.
 
 Use `goldr.KitRouteMount[K]` with `app/mounts` when the same Kit-backed route
 subtree should appear under multiple live route owners:
@@ -163,7 +164,7 @@ remain owned by the final mounted path, such as
 
 `KitRouteMount.New` must be a local named function in the live owner package.
 Do not use an inline function literal there, even though the Go field type is
-`func(*http.Request) K`.
+`func(*http.Request) (K, error)`.
 
 Use `KitRouteMount.Routes` when a live owner exposes only part of a mounted
 subtree. Omit it to expose the full mounted subtree. Entries are

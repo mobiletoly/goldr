@@ -53,8 +53,8 @@ var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	},
 }
 
-func newReportKit(r *http.Request) sharedreports.Kit {
-	return sharedreports.New(reportData(r))
+func newReportKit(r *http.Request) (sharedreports.Kit, error) {
+	return sharedreports.New(reportData(r)), nil
 }
 ```
 
@@ -63,9 +63,10 @@ be a lowercase Go-safe route directory name, so underscores are allowed and
 still become hyphens in final URL paths. It is not a Go import path and must
 not start with `/` or contain `..`.
 
-The mount owner supplies `New func(*http.Request) K` as a local identifier in
-the owner route package. Goldr calls it once per matched request and passes the
-fresh kit value to the mounted page, fragment, or action handler.
+The mount owner supplies `New func(*http.Request) (K, error)` as a local
+identifier in the owner route package. Goldr calls it once per matched request,
+routes any returned error through generated route error handling, and passes
+the fresh kit value to the mounted page, fragment, or action handler.
 
 Do not use an inline function literal for `New`. Goldr parses `route.go`
 statically for route inspection and generated adapters; a named local
@@ -180,8 +181,8 @@ there because the live `KitRouteMount` owner supplies the request-scoped kit
 constructor. Under `app/routes`, `KitRouteDef` requires `New`.
 
 For live `KitRouteDef` declarations under `app/routes`, `New` may be a named
-local function or method selector with type `func(*http.Request) K`. Inline
-function literals are not supported.
+local function or method selector with type `func(*http.Request) (K, error)`.
+Inline function literals are not supported.
 
 ## Generated Paths And Helpers
 

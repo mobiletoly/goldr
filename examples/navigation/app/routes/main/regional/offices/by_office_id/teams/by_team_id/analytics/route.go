@@ -28,7 +28,7 @@ var Route = goldr.KitRouteMount[analyticskit.Kit]{
 	},
 }
 
-func newKit(r *http.Request) analyticskit.Kit {
+func newKit(r *http.Request) (analyticskit.Kit, error) {
 	office := store.Default.Office(r.PathValue("office_id"))
 	team := store.Default.Team(r.PathValue("team_id"))
 	return analyticskit.Kit{
@@ -42,5 +42,5 @@ func newKit(r *http.Request) analyticskit.Kit {
 		CustomerReportHref: func(nav goldr.Navigation, customerID string) string {
 			return urls.Main.Regional.Offices.ByOfficeID.Teams.ByTeamID.Analytics.Destinations.CustomerReport.Bind(office.ID).Bind(team.ID).Bind(customerID).NavigationHref(nav)
 		},
-	}
+	}, nil
 }

@@ -131,8 +131,8 @@ var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	Mount: "reports",
 }
 
-func newKit(_ *http.Request) sharedreports.Kit {
-	return sharedreports.Kit{}
+func newKit(_ *http.Request) (sharedreports.Kit, error) {
+	return sharedreports.Kit{}, nil
 }
 `)
 	writeFile(t, root, "app/mounts/reports/route.go", `package reports
@@ -185,8 +185,8 @@ var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	},
 }
 
-func newKit(_ *http.Request) sharedreports.Kit {
-	return sharedreports.Kit{}
+func newKit(_ *http.Request) (sharedreports.Kit, error) {
+	return sharedreports.Kit{}, nil
 }
 `)
 	writeFile(t, root, "app/mounts/reports/route.go", `package reports

@@ -201,9 +201,16 @@ func writeRouteAdapterFunctions(buffer *bytes.Buffer, root string, routes []rout
 		}
 		for _, action := range route.Actions {
 			if action.Writer {
-				fmt.Fprintf(buffer, "func %s(w http.ResponseWriter, r *http.Request) {\n", routeActionAdapterName(route, action))
-				if err := writeRouteAdapterCall(buffer, root, routeRootImportPath, route, action.Handler, "w, r", false); err != nil {
-					return err
+				if route.Kit != nil {
+					fmt.Fprintf(buffer, "func %s(w http.ResponseWriter, r *http.Request) error {\n", routeActionAdapterName(route, action))
+					if err := writeKitWriterRouteAdapterCall(buffer, root, routeRootImportPath, route, action.Handler); err != nil {
+						return err
+					}
+				} else {
+					fmt.Fprintf(buffer, "func %s(w http.ResponseWriter, r *http.Request) {\n", routeActionAdapterName(route, action))
+					if err := writeRouteAdapterCall(buffer, root, routeRootImportPath, route, action.Handler, "w, r", false); err != nil {
+						return err
+					}
 				}
 			} else {
 				fmt.Fprintf(buffer, "func %s(r *http.Request) goldr.RouteResponse {\n", routeActionAdapterName(route, action))
@@ -247,12 +254,29 @@ func writeRouteAdapterCall(buffer *bytes.Buffer, root string, routeRootImportPat
 		return nil
 	}
 
-	fmt.Fprintf(buffer, "\tgoldrKit := %s(r)\n", route.Kit.New)
+	fmt.Fprintf(buffer, "\tgoldrKit, err := %s(r)\n", route.Kit.New)
+	buffer.WriteString("\tif err != nil {\n")
+	buffer.WriteString("\t\treturn goldr.RouteError{Err: err}\n")
+	buffer.WriteString("\t}\n")
 	if returns {
 		fmt.Fprintf(buffer, "\treturn %s(goldrKit, %s)\n", callHandler, args)
 		return nil
 	}
 	fmt.Fprintf(buffer, "\t%s(goldrKit, %s)\n", callHandler, args)
+	return nil
+}
+
+func writeKitWriterRouteAdapterCall(buffer *bytes.Buffer, root string, routeRootImportPath string, route routing.ManifestRouteDeclaration, handler string) error {
+	callHandler, err := routeAdapterCallExpression(root, routeRootImportPath, route, handler)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(buffer, "\tgoldrKit, err := %s(r)\n", route.Kit.New)
+	buffer.WriteString("\tif err != nil {\n")
+	buffer.WriteString("\t\treturn err\n")
+	buffer.WriteString("\t}\n")
+	fmt.Fprintf(buffer, "\t%s(goldrKit, w, r)\n", callHandler)
+	buffer.WriteString("\treturn nil\n")
 	return nil
 }
 

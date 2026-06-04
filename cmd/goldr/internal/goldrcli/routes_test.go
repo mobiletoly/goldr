@@ -336,8 +336,8 @@ var Route = goldr.KitRouteMount[sharedreports.Kit]{
 		},
 	}
 
-func newKit(_ *http.Request) sharedreports.Kit {
-	return sharedreports.Kit{}
+func newKit(_ *http.Request) (sharedreports.Kit, error) {
+	return sharedreports.Kit{}, nil
 }
 `)
 	writeFile(t, root, "app/mounts/reports/route.go", `package reports
@@ -602,9 +602,9 @@ import (
 type Context struct{}
 type Kit struct{}
 
-func New(r *http.Request) Kit {
+func New(r *http.Request) (Kit, error) {
 	_ = routeContext(r)
-	return Kit{}
+	return Kit{}, nil
 }
 
 func routeContext(*http.Request) Context { return Context{} }

@@ -54,18 +54,19 @@ type ManifestFragment struct {
 }
 
 type ManifestAction struct {
-	Method           string
-	Route            string
-	NavRoute         string
-	Params           []string
-	Nav              RouteNavDeclaration
-	GoFile           string
-	SourceGoFile     string
-	MiddlewareGoFile string
-	Function         string
-	Suffix           string
-	Segment          string
-	Writer           bool
+	Method              string
+	Route               string
+	NavRoute            string
+	Params              []string
+	Nav                 RouteNavDeclaration
+	GoFile              string
+	SourceGoFile        string
+	MiddlewareGoFile    string
+	Function            string
+	Suffix              string
+	Segment             string
+	Writer              bool
+	AdapterReturnsError bool
 }
 
 type ManifestMiddleware struct {

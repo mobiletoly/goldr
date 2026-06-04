@@ -13,8 +13,8 @@ var Route = goldr.KitRouteMount[reportkit.Kit]{
 	Mount: "customerreport",
 }
 
-func newKit(_ *http.Request) reportkit.Kit {
+func newKit(_ *http.Request) (reportkit.Kit, error) {
 	return reportkit.Kit{
 		Store: store.Default,
-	}
+	}, nil
 }

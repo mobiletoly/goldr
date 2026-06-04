@@ -17,8 +17,8 @@ var Route = goldr.KitRouteMount[sharedreports.Kit]{
 	},
 }
 
-func newReportKit(r *http.Request) sharedreports.Kit {
-	return sharedreports.New(reportData(r))
+func newReportKit(r *http.Request) (sharedreports.Kit, error) {
+	return sharedreports.New(reportData(r)), nil
 }
 
 func reportData(_ *http.Request) sharedreports.ReportData {

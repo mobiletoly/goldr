@@ -484,6 +484,8 @@ func endpointHandlerKey(route runtimeRoute) string {
 		builder.WriteString(route.action.action.Function)
 		builder.WriteByte('\x00')
 		builder.WriteString(strconv.FormatBool(route.action.action.Writer))
+		builder.WriteByte('\x00')
+		builder.WriteString(strconv.FormatBool(route.action.action.AdapterReturnsError))
 	}
 	return builder.String()
 }
@@ -719,7 +721,14 @@ func writeActionRoute(buffer *bytes.Buffer, route runtimeRoute, helpers handlerH
 	writeActionCallComment(buffer, indent, route.action.action)
 	writeRoutePageRendererAssignment(buffer, route.action.layouts, helpers, indent)
 	if route.action.action.Writer {
-		fmt.Fprintf(buffer, "%s%s(w, r)\n", indent, actionCall)
+		if route.action.action.AdapterReturnsError {
+			fmt.Fprintf(buffer, "%sif err := %s(w, r); err != nil {\n", indent, actionCall)
+			fmt.Fprintf(buffer, "%s\tgoldrRouteError(options, w, r, err, %s)\n", indent, helpers.routePageRendererName(route.action.layouts))
+			fmt.Fprintf(buffer, "%s\treturn\n", indent)
+			fmt.Fprintf(buffer, "%s}\n", indent)
+		} else {
+			fmt.Fprintf(buffer, "%s%s(w, r)\n", indent, actionCall)
+		}
 		fmt.Fprintf(buffer, "%sreturn\n", indent)
 		return
 	}

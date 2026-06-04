@@ -148,8 +148,8 @@ func portal(_ *http.Request) portalContext {
 	return portalContext{}
 }
 
-func newKit(_ *http.Request) Kit {
-	return Kit{}
+func newKit(_ *http.Request) (Kit, error) {
+	return Kit{}, nil
 }
 `)
 
@@ -186,7 +186,7 @@ func newKit(_ *http.Request) Kit {
 	for _, want := range []string{
 		`cohort "example.com/app/pages/cohortexplorer"`,
 		`var _ = Route`,
-		`goldrKit := newKit(r)`,
+		`goldrKit, err := newKit(r)`,
 		`return cohort.Kit.Page(goldrKit, r)`,
 		`return cohort.Kit.PostExport(goldrKit, r)`,
 	} {
@@ -221,8 +221,8 @@ import "net/http"
 
 type Kit struct{}
 
-func newKit(_ *http.Request) Kit {
-	return Kit{}
+func newKit(_ *http.Request) (Kit, error) {
+	return Kit{}, nil
 }
 `)
 	writeTempFile(t, tempDir, "mounts/reports/route.go", `package reports
