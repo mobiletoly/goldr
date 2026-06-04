@@ -78,6 +78,16 @@ func TestGenerateManifestActionWritesRouteResponseWithLayoutStack(t *testing.T) 
 
 	tempDir := tempGoldrModule(t)
 	writeGeneratedRoutes(t, tempDir, generateOK(t, manifest))
+	writeTempFile(t, tempDir, "routes/internal/layoutstate/state.go", `package layoutstate
+
+import "github.com/mobiletoly/goldr"
+
+var Key = goldr.NewLayoutKey[State]("test.layout")
+
+type State struct {
+	Active string
+}
+`)
 	writeTempFile(t, tempDir, "routes/layout.go", `package routes
 
 import (
@@ -87,11 +97,13 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
+	"example.com/app/routes/internal/layoutstate"
 )
 
 func Layout(r *http.Request, layout goldr.LayoutContext) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
-		if _, err := io.WriteString(writer, "<root title=\""+layout.Metadata.Title+"\">"); err != nil {
+		state, _ := goldr.LayoutValue(layout, layoutstate.Key)
+		if _, err := io.WriteString(writer, "<root title=\""+layout.Metadata.Title+"\" active=\""+state.Active+"\">"); err != nil {
 			return err
 		}
 		if err := layout.Child.Render(ctx, writer); err != nil {
@@ -159,6 +171,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
+	"example.com/app/routes/internal/layoutstate"
 )
 
 func PostCreate(r *http.Request) goldr.RouteResponse {
@@ -167,10 +180,14 @@ func PostCreate(r *http.Request) goldr.RouteResponse {
 		_, err := io.WriteString(writer, "<p>created "+id+"</p>")
 		return err
 	})
-	return goldr.NewPage(
-		component,
-		goldr.PageMetadata{Title: "Created " + id, Description: "keys"},
-	).WithStatus(http.StatusCreated).WithHeader("Cache-Control", "no-store")
+	return goldr.WithLayoutValue(
+		goldr.NewPage(
+			component,
+			goldr.PageMetadata{Title: "Created " + id, Description: "keys"},
+		).WithStatus(http.StatusCreated).WithHeader("Cache-Control", "no-store"),
+		layoutstate.Key,
+		layoutstate.State{Active: "keys"},
+	)
 }
 `)
 	writeTempFile(t, tempDir, "routes/handler_test.go", `package routes
@@ -194,7 +211,7 @@ func TestActionRouteResponseUsesLayoutStack(t *testing.T) {
 	if recorder.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("Cache-Control = %q", recorder.Header().Get("Cache-Control"))
 	}
-	want := "<root title=\"Created 42\"><users section=\"keys\"><user id=\"42\"><p>created 42</p></user></users></root>"
+	want := "<root title=\"Created 42\" active=\"keys\"><users section=\"keys\"><user id=\"42\"><p>created 42</p></user></users></root>"
 	if recorder.Body.String() != want {
 		t.Fatalf("body = %q, want %q", recorder.Body.String(), want)
 	}

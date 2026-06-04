@@ -5,6 +5,7 @@ package goldr
 
 import (
 	"errors"
+	"maps"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -42,6 +43,7 @@ type Page struct {
 	Status    int
 	Component templ.Component
 	Metadata  PageMetadata
+	Data      LayoutData
 	headers   http.Header
 }
 
@@ -133,6 +135,22 @@ type LayoutContext struct {
 	Child templ.Component
 	// Metadata is the page metadata visible to the layout chain.
 	Metadata PageMetadata
+	// Data is app-owned page response data visible to the layout chain.
+	Data LayoutData
+}
+
+// LayoutData carries app-owned page response data for matching layouts.
+type LayoutData struct {
+	values map[*layoutKeyID]any
+}
+
+type layoutKeyID struct {
+	name string
+}
+
+// LayoutKey identifies one typed layout data value.
+type LayoutKey[T any] struct {
+	id *layoutKeyID
 }
 
 // NewPage returns a normal 200 OK rendered page response.
@@ -142,6 +160,40 @@ func NewPage(component templ.Component, metadata PageMetadata) Page {
 		Component: component,
 		Metadata:  metadata,
 	}
+}
+
+// NewLayoutKey returns an app-owned key for one layout data value.
+//
+// The name is for humans; each call returns a distinct key identity even when
+// names match.
+func NewLayoutKey[T any](name string) LayoutKey[T] {
+	return LayoutKey[T]{id: &layoutKeyID{name: name}}
+}
+
+// WithLayoutValue returns page with value stored under key for matching layouts.
+func WithLayoutValue[T any](page Page, key LayoutKey[T], value T) Page {
+	if key.id == nil {
+		panic("goldr: zero-value LayoutKey passed to WithLayoutValue")
+	}
+	page.Data = withLayoutValue(page.Data, key.id, value)
+	return page
+}
+
+// LayoutValue returns the layout value stored under key.
+func LayoutValue[T any](ctx LayoutContext, key LayoutKey[T]) (T, bool) {
+	var zero T
+	if key.id == nil || ctx.Data.values == nil {
+		return zero, false
+	}
+	value, ok := ctx.Data.values[key.id]
+	if !ok {
+		return zero, false
+	}
+	typed, ok := value.(T)
+	if !ok {
+		return zero, false
+	}
+	return typed, true
 }
 
 // NewFragment returns a normal 200 OK rendered fragment response.
@@ -386,6 +438,25 @@ func addResponseHeader(headers http.Header, name, value string) http.Header {
 	}
 	next.Add(name, value)
 	return next
+}
+
+func withLayoutValue(data LayoutData, id *layoutKeyID, value any) LayoutData {
+	next := cloneLayoutData(data)
+	if next.values == nil {
+		next.values = make(map[*layoutKeyID]any)
+	}
+	next.values[id] = value
+	return next
+}
+
+func cloneLayoutData(data LayoutData) LayoutData {
+	if len(data.values) == 0 {
+		return LayoutData{}
+	}
+
+	clone := make(map[*layoutKeyID]any, len(data.values))
+	maps.Copy(clone, data.values)
+	return LayoutData{values: clone}
 }
 
 func cloneResponseHeaders(headers http.Header) http.Header {

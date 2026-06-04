@@ -41,6 +41,13 @@
 //	    return LayoutView(ctx.Metadata, ctx.Child)
 //	}
 //
+// Page responses can pass app-owned layout data to matching layouts with typed
+// layout keys. Use this for state such as active tabs, active shell sections,
+// or contextual toolbar state. The matched page attaches the value with
+// WithLayoutValue, and layouts read it with LayoutValue(ctx, key). Define
+// layout keys once and share the key value between the page and layout; the
+// string name is not a lookup key.
+//
 // After route or template edits, run goldr generation and checks. The generate
 // command runs templ generation first when .templ files are present:
 //

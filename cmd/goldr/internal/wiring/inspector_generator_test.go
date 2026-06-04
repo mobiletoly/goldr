@@ -84,6 +84,46 @@ func FragRow(r *http.Request) goldr.FragmentRouteResponse {
 	}
 }
 
+func TestGenerateFragmentWrappersUsesValidNamesForHyphenatedFragmentPaths(t *testing.T) {
+	tempDir := tempGoldrModule(t)
+	manifest := routing.Manifest{
+		Root: filepath.Join(tempDir, "routes"),
+		Fragments: []routing.ManifestFragment{
+			{Name: "daytempo-chart", RoutePrefix: "/reports", Unit: completeUnit("reports/route.go")},
+		},
+	}
+	writeTempFile(t, tempDir, "routes/reports/route.go", `package reports
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+func Fragment(r *http.Request) goldr.FragmentRouteResponse {
+	return goldr.NewFragment(nil)
+}
+`)
+
+	files, err := GenerateFragmentWrappers(manifest, GenerateOptions{RouteRootImportPath: "example.com/app/routes"})
+	if err != nil {
+		t.Fatalf("GenerateFragmentWrappers() error = %v, want nil", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("len(files) = %d, want 1", len(files))
+	}
+	source := string(files[0].Content)
+	if !strings.Contains(source, "func renderFragDaytempoChart(component templ.Component) templ.Component") {
+		t.Fatalf("generated source missing hyphen-normalized wrapper:\n%s", source)
+	}
+	if strings.Contains(source, "renderFragDaytempo-chart") {
+		t.Fatalf("generated source contains invalid hyphenated wrapper:\n%s", source)
+	}
+	if _, err := parser.ParseFile(token.NewFileSet(), GeneratedFileName, files[0].Content, parser.SkipObjectResolution); err != nil {
+		t.Fatalf("ParseFile() error = %v\n%s", err, source)
+	}
+}
+
 func TestGenerateRoutePackageFilesWritesAdaptersAndReconstructsImports(t *testing.T) {
 	tempDir := tempGoldrModule(t)
 	manifest := routing.Manifest{
@@ -257,6 +297,102 @@ func (Kit) Page(_ *http.Request) goldr.PageRouteResponse {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated file missing %q:\n%s", want, source)
 		}
+	}
+	if _, err := parser.ParseFile(token.NewFileSet(), GeneratedFileName, files[0].Content, parser.SkipObjectResolution); err != nil {
+		t.Fatalf("ParseFile() error = %v\n%s", err, source)
+	}
+}
+
+func TestGenerateRoutePackageFilesDisambiguatesMountedIndexFragmentWrappers(t *testing.T) {
+	tempDir := tempGoldrModule(t)
+	manifest := routing.Manifest{
+		Root: filepath.Join(tempDir, "routes"),
+		Routes: []routing.ManifestRouteDeclaration{
+			{
+				Route:  "/admin/customers/{id}/chart",
+				Params: []string{"id"},
+				GoFile: "admin/customers/by_id/route.go",
+				Kind:   "mounted-kit",
+				Fragments: []routing.RouteFragmentDeclaration{
+					{Name: "index", SymbolName: "Index", Handler: "Kit.Chart", Index: true},
+				},
+				Kit:     &routing.RouteKitDeclaration{New: "newKit"},
+				Source:  "../mounts/customer_chart/route.go",
+				Adapter: "MountCustomerChart",
+				Mount:   &routing.RouteMountDeclaration{Path: "customer_chart", Owner: "admin/customers/by_id/route.go"},
+			},
+			{
+				Route:  "/admin/customers/{id}/timeline",
+				Params: []string{"id"},
+				GoFile: "admin/customers/by_id/route.go",
+				Kind:   "mounted-kit",
+				Fragments: []routing.RouteFragmentDeclaration{
+					{Name: "index", SymbolName: "Index", Handler: "Kit.Timeline", Index: true},
+				},
+				Kit:     &routing.RouteKitDeclaration{New: "newKit"},
+				Source:  "../mounts/customer_timeline/route.go",
+				Adapter: "MountCustomerTimeline",
+				Mount:   &routing.RouteMountDeclaration{Path: "customer_timeline", Owner: "admin/customers/by_id/route.go"},
+			},
+		},
+	}
+	writeTempFile(t, tempDir, "routes/admin/customers/by_id/route.go", `package by_id
+
+import "net/http"
+
+type Kit struct{}
+
+func newKit(_ *http.Request) (Kit, error) {
+	return Kit{}, nil
+}
+`)
+	writeTempFile(t, tempDir, "mounts/customer_chart/route.go", `package customer_chart
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+func (kit Kit) Chart(r *http.Request) goldr.FragmentRouteResponse {
+	return goldr.NewFragment(nil)
+}
+`)
+	writeTempFile(t, tempDir, "mounts/customer_timeline/route.go", `package customer_timeline
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+type Kit struct{}
+
+func (kit Kit) Timeline(r *http.Request) goldr.FragmentRouteResponse {
+	return goldr.NewFragment(nil)
+}
+`)
+
+	files, err := GenerateRoutePackageFiles(manifest, GenerateOptions{RouteRootImportPath: "example.com/app/routes"})
+	if err != nil {
+		t.Fatalf("GenerateRoutePackageFiles() error = %v, want nil", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("len(files) = %d, want 1", len(files))
+	}
+	source := string(files[0].Content)
+	for _, want := range []string{
+		"func renderFragMountCustomerChartIndex(component templ.Component) templ.Component",
+		"func renderFragMountCustomerTimelineIndex(component templ.Component) templ.Component",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("generated source missing %q:\n%s", want, source)
+		}
+	}
+	if strings.Count(source, "func renderFragIndex(component templ.Component) templ.Component") != 0 {
+		t.Fatalf("generated source contains ambiguous index wrapper:\n%s", source)
 	}
 	if _, err := parser.ParseFile(token.NewFileSet(), GeneratedFileName, files[0].Content, parser.SkipObjectResolution); err != nil {
 		t.Fatalf("ParseFile() error = %v\n%s", err, source)

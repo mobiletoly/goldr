@@ -167,24 +167,60 @@ func rootFragments(fragments []routing.ManifestFragment) []routing.ManifestFragm
 }
 
 func writeFragmentWrapperFunctions(buffer *bytes.Buffer, fragments []routing.ManifestFragment) {
-	for _, fragment := range fragments {
-		fmt.Fprintf(buffer, "func %s(component templ.Component) templ.Component {\n", fragmentWrapperFuncName(fragment.Name))
+	names := fragmentWrapperFuncNames(fragments)
+	for index, fragment := range fragments {
+		fmt.Fprintf(buffer, "func %s(component templ.Component) templ.Component {\n", names[index])
 		fmt.Fprintf(buffer, "\treturn goldrinspect.Wrap(component, %s)\n", templateMarker("fragment", fragmentRoute(fragment), fragment.Unit))
 		buffer.WriteString("}\n\n")
 	}
 }
 
+func fragmentWrapperFuncNames(fragments []routing.ManifestFragment) []string {
+	baseCounts := make(map[string]int, len(fragments))
+	for _, fragment := range fragments {
+		baseCounts[fragmentWrapperFuncName(fragment.Name)]++
+	}
+
+	names := make([]string, len(fragments))
+	used := make(map[string]bool, len(fragments))
+	for index, fragment := range fragments {
+		name := fragmentWrapperFuncName(fragment.Name)
+		if baseCounts[name] > 1 {
+			name = disambiguatedFragmentWrapperFuncName(fragment)
+		}
+		base := name
+		for suffix := 2; used[name]; suffix++ {
+			name = base + strconv.Itoa(suffix)
+		}
+		used[name] = true
+		names[index] = name
+	}
+	return names
+}
+
 func fragmentFuncName(name string) string {
-	parts := strings.Split(name, "_")
 	var builder strings.Builder
 	builder.WriteString("Frag")
-	for _, part := range parts {
-		if part == "" {
-			builder.WriteByte('_')
+	upperNext := true
+	for index := 0; index < len(name); index++ {
+		char := name[index]
+		switch char {
+		case '_':
+			if index == len(name)-1 || name[index+1] == '_' {
+				builder.WriteByte('_')
+			}
+			upperNext = true
+			continue
+		case '-':
+			upperNext = true
 			continue
 		}
-		builder.WriteString(strings.ToUpper(part[:1]))
-		builder.WriteString(part[1:])
+		if upperNext {
+			builder.WriteString(strings.ToUpper(name[index : index+1]))
+			upperNext = false
+			continue
+		}
+		builder.WriteByte(char)
 	}
 	return builder.String()
 }
@@ -192,4 +228,48 @@ func fragmentFuncName(name string) string {
 func fragmentWrapperFuncName(name string) string {
 	function := fragmentFuncName(name)
 	return "render" + function
+}
+
+func disambiguatedFragmentWrapperFuncName(fragment routing.ManifestFragment) string {
+	suffix := fragment.Function
+	if suffix == "" {
+		suffix = fragmentRoute(fragment)
+	}
+	suffix = strings.TrimPrefix(suffix, "GoldrRoute")
+	if trimmed, ok := strings.CutPrefix(suffix, "Frag"); ok {
+		suffix = trimmed
+	} else if index := strings.LastIndex(suffix, "Frag"); index >= 0 {
+		suffix = suffix[:index] + suffix[index+len("Frag"):]
+	}
+	return "renderFrag" + identifierSuffix(suffix)
+}
+
+func identifierSuffix(value string) string {
+	var builder strings.Builder
+	upperNext := true
+	for index := 0; index < len(value); index++ {
+		char := value[index]
+		if !asciiLetter(char) && !asciiDigit(char) {
+			upperNext = true
+			continue
+		}
+		if upperNext {
+			builder.WriteString(strings.ToUpper(value[index : index+1]))
+			upperNext = false
+			continue
+		}
+		builder.WriteByte(char)
+	}
+	if builder.Len() == 0 {
+		return "Fragment"
+	}
+	return builder.String()
+}
+
+func asciiLetter(char byte) bool {
+	return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')
+}
+
+func asciiDigit(char byte) bool {
+	return char >= '0' && char <= '9'
 }

@@ -99,6 +99,11 @@ wrapper:
 
 For an index fragment, the wrapper is `renderFragIndex`.
 
+Hyphenated fragment paths are normalized to valid Go identifiers, so
+`/daytempo-chart` uses `renderFragDaytempoChart`. If several mounted fragments
+in the same route package would collide on the same wrapper, Goldr generates a
+route-qualified wrapper such as `renderFragMountCustomerChartIndex`.
+
 Direct templ rendering is valid, but it is just normal HTML output:
 
 ```templ

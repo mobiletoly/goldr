@@ -41,6 +41,122 @@ func TestPageWithStatus(t *testing.T) {
 	}
 }
 
+func TestPageLayoutValue(t *testing.T) {
+	type layoutState struct {
+		ActiveTab string
+	}
+	key := NewLayoutKey[layoutState]("test.layout")
+	page := WithLayoutValue(
+		NewPage(templ.NopComponent, PageMetadata{}),
+		key,
+		layoutState{ActiveTab: "summary"},
+	)
+
+	got, ok := LayoutValue(LayoutContext{Data: page.Data}, key)
+
+	if !ok {
+		t.Fatalf("LayoutValue() ok = false, want true")
+	}
+	if got.ActiveTab != "summary" {
+		t.Fatalf("ActiveTab = %q, want summary", got.ActiveTab)
+	}
+}
+
+func TestPageLayoutValueMissingAndWrongType(t *testing.T) {
+	type layoutState struct {
+		ActiveTab string
+	}
+	stateKey := NewLayoutKey[layoutState]("test.layout")
+	missingKey := NewLayoutKey[layoutState]("missing")
+	page := WithLayoutValue(
+		NewPage(templ.NopComponent, PageMetadata{}),
+		stateKey,
+		layoutState{ActiveTab: "summary"},
+	)
+	wrongTypeData := LayoutData{values: map[*layoutKeyID]any{stateKey.id: "summary"}}
+
+	if got, ok := LayoutValue(LayoutContext{}, stateKey); ok || got != (layoutState{}) {
+		t.Fatalf("zero LayoutValue() = (%#v, %v), want zero false", got, ok)
+	}
+	if got, ok := LayoutValue(LayoutContext{Data: page.Data}, missingKey); ok || got != (layoutState{}) {
+		t.Fatalf("missing LayoutValue() = (%#v, %v), want zero false", got, ok)
+	}
+	if got, ok := LayoutValue(LayoutContext{Data: wrongTypeData}, stateKey); ok || got != (layoutState{}) {
+		t.Fatalf("wrong-type LayoutValue() = (%#v, %v), want zero false", got, ok)
+	}
+}
+
+func TestPageLayoutValueZeroKey(t *testing.T) {
+	var key LayoutKey[string]
+
+	if got, ok := LayoutValue(LayoutContext{}, key); ok || got != "" {
+		t.Fatalf("zero-key LayoutValue() = (%q, %v), want empty false", got, ok)
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("WithLayoutValue() with zero key did not panic")
+		}
+	}()
+	_ = WithLayoutValue(NewPage(templ.NopComponent, PageMetadata{}), key, "ignored")
+}
+
+func TestPageLayoutValueKeysWithSameNameDoNotCollide(t *testing.T) {
+	type layoutState struct {
+		ActiveTab string
+	}
+	firstKey := NewLayoutKey[layoutState]("test.layout")
+	secondKey := NewLayoutKey[layoutState]("test.layout")
+	page := WithLayoutValue(NewPage(templ.NopComponent, PageMetadata{}), firstKey, layoutState{ActiveTab: "summary"})
+	page = WithLayoutValue(page, secondKey, layoutState{ActiveTab: "details"})
+
+	firstValue, firstOK := LayoutValue(LayoutContext{Data: page.Data}, firstKey)
+	secondValue, secondOK := LayoutValue(LayoutContext{Data: page.Data}, secondKey)
+
+	if !firstOK || firstValue.ActiveTab != "summary" {
+		t.Fatalf("first LayoutValue() = (%#v, %v), want summary true", firstValue, firstOK)
+	}
+	if !secondOK || secondValue.ActiveTab != "details" {
+		t.Fatalf("second LayoutValue() = (%#v, %v), want details true", secondValue, secondOK)
+	}
+}
+
+func TestPageLayoutValueKeysWithSameNameAndDifferentTypesDoNotCollide(t *testing.T) {
+	type layoutState struct {
+		ActiveTab string
+	}
+	stateKey := NewLayoutKey[layoutState]("test.layout")
+	stringKey := NewLayoutKey[string]("test.layout")
+	page := WithLayoutValue(NewPage(templ.NopComponent, PageMetadata{}), stateKey, layoutState{ActiveTab: "summary"})
+	page = WithLayoutValue(page, stringKey, "settings")
+
+	stateValue, stateOK := LayoutValue(LayoutContext{Data: page.Data}, stateKey)
+	stringValue, stringOK := LayoutValue(LayoutContext{Data: page.Data}, stringKey)
+
+	if !stateOK || stateValue.ActiveTab != "summary" {
+		t.Fatalf("state LayoutValue() = (%#v, %v), want summary true", stateValue, stateOK)
+	}
+	if !stringOK || stringValue != "settings" {
+		t.Fatalf("string LayoutValue() = (%q, %v), want settings true", stringValue, stringOK)
+	}
+}
+
+func TestPageLayoutValueCopyOnWrite(t *testing.T) {
+	key := NewLayoutKey[string]("test.layout")
+	original := WithLayoutValue(NewPage(templ.NopComponent, PageMetadata{}), key, "one")
+	next := WithLayoutValue(original, key, "two")
+
+	originalValue, originalOK := LayoutValue(LayoutContext{Data: original.Data}, key)
+	nextValue, nextOK := LayoutValue(LayoutContext{Data: next.Data}, key)
+
+	if !originalOK || originalValue != "one" {
+		t.Fatalf("original LayoutValue() = (%q, %v), want one true", originalValue, originalOK)
+	}
+	if !nextOK || nextValue != "two" {
+		t.Fatalf("next LayoutValue() = (%q, %v), want two true", nextValue, nextOK)
+	}
+}
+
 func TestNewFragmentRouteResponse(t *testing.T) {
 	response, err := resolveRouteResponse(
 		NewFragment(templ.NopComponent).

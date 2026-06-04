@@ -396,32 +396,35 @@ type goldrLayoutStep struct {
 }
 
 func goldrRenderPageWithMarker(r *http.Request, page goldr.Page, marker goldrinspect.Marker, layouts []goldrLayoutStep) (templ.Component, error) {
-	component, metadata, err := goldrPageComponent(page)
+	component, metadata, data, err := goldrPageComponent(page)
 	if err != nil {
 		return nil, err
 	}
 	component = goldrinspect.Wrap(component, marker)
-	return goldrRenderPageLayouts(r, component, metadata, layouts)
+	return goldrRenderPageLayouts(r, component, metadata, data, layouts)
 }
 
 func goldrRenderPage(r *http.Request, page goldr.Page, layouts []goldrLayoutStep) (templ.Component, error) {
-	component, metadata, err := goldrPageComponent(page)
+	component, metadata, data, err := goldrPageComponent(page)
 	if err != nil {
 		return nil, err
 	}
-	return goldrRenderPageLayouts(r, component, metadata, layouts)
+	return goldrRenderPageLayouts(r, component, metadata, data, layouts)
 }
 
-func goldrPageComponent(page goldr.Page) (templ.Component, goldr.PageMetadata, error) {
+func goldrPageComponent(page goldr.Page) (templ.Component, goldr.PageMetadata, goldr.LayoutData, error) {
 	component := page.Component
 	if component == nil {
-		return nil, goldr.PageMetadata{}, goldr.ErrNilComponent
+		return nil, goldr.PageMetadata{}, goldr.LayoutData{}, goldr.ErrNilComponent
 	}
-	return component, page.Metadata, nil
+	return component, page.Metadata, page.Data, nil
 }
 
-func goldrRenderPageLayouts(r *http.Request, component templ.Component, metadata goldr.PageMetadata, layouts []goldrLayoutStep) (templ.Component, error) {
-	layoutContext := goldr.LayoutContext{Metadata: metadata}
+func goldrRenderPageLayouts(r *http.Request, component templ.Component, metadata goldr.PageMetadata, data goldr.LayoutData, layouts []goldrLayoutStep) (templ.Component, error) {
+	layoutContext := goldr.LayoutContext{
+		Metadata: metadata,
+		Data:     data,
+	}
 	for index := len(layouts) - 1; index >= 0; index-- {
 		layoutContext.Child = component
 		component = layouts[index].render(r, layoutContext)

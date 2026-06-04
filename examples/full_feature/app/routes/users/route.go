@@ -6,6 +6,7 @@ import (
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/routes/internal/shelllayout"
 	"github.com/mobiletoly/goldr/hx"
 )
 
@@ -33,12 +34,16 @@ var Route = goldr.RouteDef{
 }
 
 func Page(r *http.Request) goldr.PageRouteResponse {
-	return goldr.NewPage(
-		PageView(contactForm{}, ListContacts(), csrf.Token(r)),
-		goldr.PageMetadata{
-			Title:       "Users - Goldr Example",
-			Description: "Browse and manage example contacts.",
-		},
+	return goldr.WithLayoutValue(
+		goldr.NewPage(
+			PageView(contactForm{}, ListContacts(), csrf.Token(r)),
+			goldr.PageMetadata{
+				Title:       "Users - Goldr Example",
+				Description: "Browse and manage example contacts.",
+			},
+		),
+		shelllayout.Key,
+		shelllayout.State{ActiveNav: shelllayout.NavUsers},
 	)
 }
 

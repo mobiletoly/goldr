@@ -185,8 +185,11 @@ func TestGenerateManifestHoistsRenderAndMiddlewareHelpers(t *testing.T) {
 			t.Fatalf("generated source still contains inline helper shape %q:\n%s", reject, source)
 		}
 	}
-	if count := strings.Count(source, "layoutContext := goldr.LayoutContext{Metadata: metadata}"); count != 1 {
+	if count := strings.Count(source, "layoutContext := goldr.LayoutContext{"); count != 1 {
 		t.Fatalf("layout context setup count = %d, want 1:\n%s", count, source)
+	}
+	if !strings.Contains(source, "Data:     data") {
+		t.Fatalf("generated source missing layout data context:\n%s", source)
 	}
 }
 

@@ -961,7 +961,9 @@ fragment, redirect, and text responses may carry explicit headers with
 status and body. Nil rendered components and invalid route responses are
 internal server errors. The framework metadata surface is intentionally small:
 `Title` and `Description` are passed through to layouts, while canonical links,
-navigation state, and other shell policy remain application-owned.
+navigation state, and other shell policy remain application-owned. Page
+responses can also carry app-owned layout data through typed layout keys; this
+is runtime response data, not scanner metadata.
 
 An invalid Goldr route response contract includes a zero-value page, a nil
 render component, an empty redirect location, a redirect status outside `301`,
@@ -984,11 +986,12 @@ applies the deepest layout first and the root layout last so the root layout
 renders outermost.
 
 The generated handler builds one `goldr.LayoutContext` per rendered page or
-status component, copies the page metadata into it, and updates `ctx.Child`
-before each layout call. Root and nested layouts receive the same metadata
-value. Redirects, plain text status responses, and error responses bypass the
-layout chain. The framework does not store metadata on `context.Context`, use a
-registry, collect head items from components, or merge head output at runtime.
+status component, copies the page metadata and layout data into it, and updates
+`ctx.Child` before each layout call. Root and nested layouts receive the same
+metadata and layout data values. Redirects, plain text status responses, and
+error responses bypass the layout chain. The framework does not store metadata
+or layout data on `context.Context`, use a registry, collect head items from
+components, or merge head output at runtime.
 
 Nested page and layout packages are imported by the generated root route package
 using deterministic aliases derived from route-relative directories.

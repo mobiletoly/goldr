@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/routes/internal/shelllayout"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 )
 
@@ -30,8 +31,16 @@ func Page(r *http.Request) goldr.PageRouteResponse {
 		Description: "A page-level redirect and forbidden status example.",
 	}
 	if role != security.RoleAdmin {
-		return goldr.NewPage(ForbiddenView(role), metadata).WithStatus(http.StatusForbidden)
+		return goldr.WithLayoutValue(
+			goldr.NewPage(ForbiddenView(role), metadata).WithStatus(http.StatusForbidden),
+			shelllayout.Key,
+			shelllayout.State{ActiveNav: shelllayout.NavProtected},
+		)
 	}
 
-	return goldr.NewPage(PageView(role), metadata)
+	return goldr.WithLayoutValue(
+		goldr.NewPage(PageView(role), metadata),
+		shelllayout.Key,
+		shelllayout.State{ActiveNav: shelllayout.NavProtected},
+	)
 }

@@ -217,6 +217,30 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 }
 ```
 
+Layouts can also read app-owned page response state through typed layout keys.
+Use this for active tabs, active shell sections, contextual headers, or
+layout-owned toolbar state. Page handlers attach the value, and layouts read
+it from `goldr.LayoutContext`:
+
+```go
+var shellKey = goldr.NewLayoutKey[shellState]("app.shell")
+
+type shellState struct {
+	ActiveNav string
+}
+
+return goldr.WithLayoutValue(
+	goldr.NewPage(PageView(), goldr.PageMetadata{Title: "Users"}),
+	shellKey,
+	shellState{ActiveNav: "users"},
+)
+
+state, _ := goldr.LayoutValue(ctx, shellKey)
+```
+
+Define layout keys once and share the key value between the page and layout;
+the string name is not a lookup key.
+
 The CDN script is only a quick-start option. If browser network access is
 unavailable or app policy forbids CDN use, serve HTMX as an app-owned asset,
 for example from `assets/build`, and reference it through the app's static path

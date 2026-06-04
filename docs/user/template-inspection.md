@@ -186,8 +186,13 @@ inspector boundary around the embedded fragment:
 
 The wrapper name follows the fragment path in `route.go`. For example,
 `goldr.FragmentRoute("/table", table)` uses `renderFragTable`. An index
-fragment uses `renderFragIndex`. The helper takes the component you already
-render, so the application still chooses the templ function and arguments.
+fragment uses `renderFragIndex`. Hyphenated fragment paths are normalized to
+valid Go identifiers, so `/daytempo-chart` uses `renderFragDaytempoChart`.
+When several mounted fragments in the same route package would otherwise share
+the same wrapper name, Goldr generates route-qualified wrapper names such as
+`renderFragMountCustomerChartIndex`. The helper takes the component you
+already render, so the application still chooses the templ function and
+arguments.
 
 Multiple templ declarations inside one fragment template are internal to that
 fragment render unit. Declare separate fragments in `route.go` when they need

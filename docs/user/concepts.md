@@ -97,7 +97,8 @@ app/routes/users/layout.go -> wraps /users and pages below /users
 
 Layouts do not wrap fragments or actions.
 
-Layouts receive the rendered child component and page metadata:
+Layouts receive the rendered child component, page metadata, and page-owned
+layout data:
 
 ```go
 func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component
@@ -105,6 +106,47 @@ func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component
 
 For nested pages, generated runtime wiring applies matching layouts from the
 page directory back to the root, so the root layout is outermost.
+
+## Layout Data
+
+Page responses can carry app-owned layout data for matching layouts:
+
+```go
+var shellKey = goldr.NewLayoutKey[shellState]("app.shell")
+
+type shellState struct {
+	ActiveNav string
+}
+
+func Page(_ *http.Request) goldr.PageRouteResponse {
+	return goldr.WithLayoutValue(
+		goldr.NewPage(PageView(), goldr.PageMetadata{Title: "Users"}),
+		shellKey,
+		shellState{ActiveNav: "users"},
+	)
+}
+```
+
+Layouts read the value from `goldr.LayoutContext`:
+
+```go
+func Layout(_ *http.Request, ctx goldr.LayoutContext) templ.Component {
+	state, _ := goldr.LayoutValue(ctx, shellKey)
+	return LayoutView(ctx.Metadata, state.ActiveNav, ctx.Child)
+}
+```
+
+Define layout keys once and share the key value between the page and layout;
+the string name is not a lookup key.
+
+Use layout data for page-owned shell state such as active tabs, active
+sections, contextual headers, or layout-owned toolbar state. Do not put this
+state in `PageMetadata`; metadata stays title and description.
+
+When a parent layout and descendant route packages both need the same key or
+state type, put it in a route-local `internal` package such as
+`app/routes/report/internal/reportlayout`. Descendant pages should not import
+their parent route package just to set layout state.
 
 ## Fragments
 

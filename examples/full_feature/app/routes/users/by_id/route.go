@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/routes/internal/shelllayout"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/routes/users"
 )
 
@@ -22,5 +23,9 @@ func Page(r *http.Request) goldr.PageRouteResponse {
 		metadata.Title = contact.Name + " - Goldr Example"
 		metadata.Description = "Contact details for " + contact.Name + "."
 	}
-	return goldr.NewPage(PageView(id, contact.Name, contact.Status, ok), metadata)
+	return goldr.WithLayoutValue(
+		goldr.NewPage(PageView(id, contact.Name, contact.Status, ok), metadata),
+		shelllayout.Key,
+		shelllayout.State{ActiveNav: shelllayout.NavUsers},
+	)
 }

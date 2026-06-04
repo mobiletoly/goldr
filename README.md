@@ -218,6 +218,31 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 }
 ```
 
+Pages can also pass app-owned state to matching layouts with typed layout
+keys. Use this for layout concerns such as active tabs, active shell sections,
+or contextual toolbar state:
+
+```go
+var shellKey = goldr.NewLayoutKey[shellState]("app.shell")
+
+type shellState struct {
+	ActiveNav string
+}
+
+// In a page handler:
+return goldr.WithLayoutValue(
+	goldr.NewPage(PageView(), goldr.PageMetadata{Title: "Users"}),
+	shellKey,
+	shellState{ActiveNav: "users"},
+)
+
+// In a layout:
+state, _ := goldr.LayoutValue(ctx, shellKey)
+```
+
+Define layout keys once and share the key value between the page and layout;
+the string name is not a lookup key.
+
 Generate templ output and goldr route wiring, validate, and run:
 
 ```bash

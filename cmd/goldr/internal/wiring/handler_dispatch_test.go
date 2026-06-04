@@ -14,10 +14,20 @@ func TestGenerateManifestRuntimeDispatchAndLayoutStack(t *testing.T) {
 	if !strings.Contains(source, `"github.com/mobiletoly/goldr"`) {
 		t.Fatalf("generated source missing root goldr package import:\n%s", source)
 	}
-	if !strings.Contains(source, "goldr.LayoutContext{Metadata: metadata}") {
+	if !strings.Contains(source, "Data:     data") {
 		t.Fatalf("generated source missing layout context wiring:\n%s", source)
 	}
 	writeGeneratedRoutes(t, tempDir, source)
+	writeTempFile(t, tempDir, "routes/internal/layoutstate/state.go", `package layoutstate
+
+import "github.com/mobiletoly/goldr"
+
+var Key = goldr.NewLayoutKey[State]("test.layout")
+
+type State struct {
+	Active string
+}
+`)
 	writeTempFile(t, tempDir, "routes/page.go", `package routes
 
 import (
@@ -27,6 +37,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
+	"example.com/app/routes/internal/layoutstate"
 )
 
 func Page(r *http.Request) goldr.PageRouteResponse {
@@ -34,7 +45,11 @@ func Page(r *http.Request) goldr.PageRouteResponse {
 		_, err := io.WriteString(writer, "<h1>Root</h1>")
 		return err
 	})
-	return goldr.NewPage(component, goldr.PageMetadata{Title: "Root"})
+	return goldr.WithLayoutValue(
+		goldr.NewPage(component, goldr.PageMetadata{Title: "Root"}),
+		layoutstate.Key,
+		layoutstate.State{Active: "root"},
+	)
 }
 `)
 	writeTempFile(t, tempDir, "routes/layout.go", `package routes
@@ -46,11 +61,13 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
+	"example.com/app/routes/internal/layoutstate"
 )
 
 func Layout(r *http.Request, layout goldr.LayoutContext) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
-		if _, err := io.WriteString(writer, "<root title=\""+layout.Metadata.Title+"\">"); err != nil {
+		state, _ := goldr.LayoutValue(layout, layoutstate.Key)
+		if _, err := io.WriteString(writer, "<root title=\""+layout.Metadata.Title+"\" active=\""+state.Active+"\">"); err != nil {
 			return err
 		}
 		if err := layout.Child.Render(ctx, writer); err != nil {
@@ -70,6 +87,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
+	"example.com/app/routes/internal/layoutstate"
 )
 
 func Page(r *http.Request) goldr.PageRouteResponse {
@@ -83,7 +101,11 @@ func Page(r *http.Request) goldr.PageRouteResponse {
 		}
 		return renderFragTable(fragment).Render(ctx, writer)
 	})
-	return goldr.NewPage(component, goldr.PageMetadata{Title: "Users", Description: "users"})
+	return goldr.WithLayoutValue(
+		goldr.NewPage(component, goldr.PageMetadata{Title: "Users", Description: "users"}),
+		layoutstate.Key,
+		layoutstate.State{Active: "users"},
+	)
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/layout.go", `package users
@@ -95,11 +117,13 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
+	"example.com/app/routes/internal/layoutstate"
 )
 
 func Layout(r *http.Request, layout goldr.LayoutContext) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
-		if _, err := io.WriteString(writer, "<users section=\""+layout.Metadata.Description+"\">"); err != nil {
+		state, _ := goldr.LayoutValue(layout, layoutstate.Key)
+		if _, err := io.WriteString(writer, "<users section=\""+layout.Metadata.Description+"\" active=\""+state.Active+"\">"); err != nil {
 			return err
 		}
 		if err := layout.Child.Render(ctx, writer); err != nil {
@@ -119,6 +143,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/mobiletoly/goldr"
+	"example.com/app/routes/internal/layoutstate"
 )
 
 func Page(r *http.Request) goldr.PageRouteResponse {
@@ -127,7 +152,11 @@ func Page(r *http.Request) goldr.PageRouteResponse {
 		_, err := io.WriteString(writer, "<h1>User "+id+"</h1>")
 		return err
 	})
-	return goldr.NewPage(component, goldr.PageMetadata{Title: "User " + id, Description: "users"})
+	return goldr.WithLayoutValue(
+		goldr.NewPage(component, goldr.PageMetadata{Title: "User " + id, Description: "users"}),
+		layoutstate.Key,
+		layoutstate.State{Active: "user-detail"},
+	)
 }
 `)
 	writeTempFile(t, tempDir, "routes/users/by_id/layout.go", `package by_id
@@ -209,10 +238,10 @@ func TestHandlerRoutes(t *testing.T) {
 		path string
 		body string
 	}{
-		{"/", "<root title=\"Root\"><h1>Root</h1></root>"},
-		{"/users", "<root title=\"Users\"><users section=\"users\"><h1>Users</h1><tbody>Users fragment</tbody></users></root>"},
-		{"/users/42", "<root title=\"User 42\"><users section=\"users\"><user id=\"42\" title=\"User 42\"><h1>User 42</h1></user></users></root>"},
-		{"/users/42%2F43", "<root title=\"User 42/43\"><users section=\"users\"><user id=\"42/43\" title=\"User 42/43\"><h1>User 42/43</h1></user></users></root>"},
+		{"/", "<root title=\"Root\" active=\"root\"><h1>Root</h1></root>"},
+		{"/users", "<root title=\"Users\" active=\"users\"><users section=\"users\" active=\"users\"><h1>Users</h1><tbody>Users fragment</tbody></users></root>"},
+		{"/users/42", "<root title=\"User 42\" active=\"user-detail\"><users section=\"users\" active=\"user-detail\"><user id=\"42\" title=\"User 42\"><h1>User 42</h1></user></users></root>"},
+		{"/users/42%2F43", "<root title=\"User 42/43\" active=\"user-detail\"><users section=\"users\" active=\"user-detail\"><user id=\"42/43\" title=\"User 42/43\"><h1>User 42/43</h1></user></users></root>"},
 		{"/users/table", "<tbody>Users fragment</tbody>"},
 		{"/users/42/row", "<tr>User 42</tr>"},
 		{"/users/a%20b/row", "<tr>User a b</tr>"},

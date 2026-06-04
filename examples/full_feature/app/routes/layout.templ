@@ -4,10 +4,11 @@ import (
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/assets"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/routes/internal/shelllayout"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
 )
 
-templ LayoutView(metadata goldr.PageMetadata, activeNav string, csrfToken string, child templ.Component) {
+templ LayoutView(metadata goldr.PageMetadata, activeNav shelllayout.Nav, csrfToken string, child templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -26,10 +27,10 @@ templ LayoutView(metadata goldr.PageMetadata, activeNav string, csrfToken string
 			<header class="app-header">
 				<a class="app-title" href={ urls.Root.Path() }>Goldr Example</a>
 				<nav class="app-nav" aria-label="Primary">
-					<a href={ urls.Users.Path() } { currentPageAttr(activeNav == navUsers)... }>Users</a>
-					<a href={ urls.Settings.Path() } { currentPageAttr(activeNav == navSettings)... }>Settings</a>
-					<a href={ urls.ProtectedResourceDemo.Path() } { currentPageAttr(activeNav == navProtected)... }>Protected</a>
-					<a href="/sign-in" { currentPageAttr(activeNav == navSignIn)... }>Sign in</a>
+					<a href={ urls.Users.Path() } { currentPageAttr(activeNav == shelllayout.NavUsers)... }>Users</a>
+					<a href={ urls.Settings.Path() } { currentPageAttr(activeNav == shelllayout.NavSettings)... }>Settings</a>
+					<a href={ urls.ProtectedResourceDemo.Path() } { currentPageAttr(activeNav == shelllayout.NavProtected)... }>Protected</a>
+					<a href={ urls.SignIn.Path() } { currentPageAttr(activeNav == shelllayout.NavSignIn)... }>Sign in</a>
 				</nav>
 			</header>
 			<main class="app-main">

@@ -6,6 +6,7 @@ import (
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/routes/internal/shelllayout"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 )
 
@@ -18,12 +19,16 @@ var Route = goldr.RouteDef{
 }
 
 func Page(r *http.Request) goldr.PageRouteResponse {
-	return goldr.NewPage(
-		PageView(csrf.Token(r), security.DemoRole(r)),
-		goldr.PageMetadata{
-			Title:       "Protected Resource Demo - Goldr Example",
-			Description: "Sign in as different demo users before opening a protected page.",
-		},
+	return goldr.WithLayoutValue(
+		goldr.NewPage(
+			PageView(csrf.Token(r), security.DemoRole(r)),
+			goldr.PageMetadata{
+				Title:       "Protected Resource Demo - Goldr Example",
+				Description: "Sign in as different demo users before opening a protected page.",
+			},
+		),
+		shelllayout.Key,
+		shelllayout.State{ActiveNav: shelllayout.NavProtected},
 	)
 }
 
@@ -56,11 +61,15 @@ func PostRevealSecret(r *http.Request) goldr.RouteResponse {
 		return goldr.Redirect{Location: "/sign-in?next=%2Fprotected-resource-demo", Status: http.StatusSeeOther}
 	}
 
-	return goldr.NewPage(
-		SecretRevealView(role),
-		goldr.PageMetadata{
-			Title:       "One-time secret - Goldr Example",
-			Description: "A full page response rendered from an action.",
-		},
-	).WithStatus(http.StatusCreated)
+	return goldr.WithLayoutValue(
+		goldr.NewPage(
+			SecretRevealView(role),
+			goldr.PageMetadata{
+				Title:       "One-time secret - Goldr Example",
+				Description: "A full page response rendered from an action.",
+			},
+		).WithStatus(http.StatusCreated),
+		shelllayout.Key,
+		shelllayout.State{ActiveNav: shelllayout.NavProtected},
+	)
 }

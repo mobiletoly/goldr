@@ -255,9 +255,46 @@ func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component {
 ```
 
 `ctx.Child` is the child page or nested layout component. `ctx.Metadata` comes
-from the matched page. Fragments are not layout-wrapped. Actions return route
-responses; page responses from actions are written through the matched layout
-stack.
+from the matched page. `ctx.Data` carries app-owned layout data attached to the
+matched page response with `goldr.WithLayoutValue`.
+
+Use typed layout keys when a child page should influence parent layout
+rendering, such as active tabs, active shell sections, contextual headers, or
+layout-owned toolbar state:
+
+```go
+var shellKey = goldr.NewLayoutKey[shellState]("app.shell")
+
+type shellState struct {
+	ActiveNav string
+}
+
+func Page(_ *http.Request) goldr.PageRouteResponse {
+	return goldr.WithLayoutValue(
+		goldr.NewPage(PageView(), goldr.PageMetadata{Title: "Users"}),
+		shellKey,
+		shellState{ActiveNav: "users"},
+	)
+}
+```
+
+```go
+func Layout(_ *http.Request, ctx goldr.LayoutContext) templ.Component {
+	state, _ := goldr.LayoutValue(ctx, shellKey)
+	return LayoutView(ctx.Metadata, state.ActiveNav, ctx.Child)
+}
+```
+
+Define layout keys once and share the key value between the page and layout;
+the string name is not a lookup key.
+
+When parent layouts and descendant pages share a layout key or state type, put
+that shared state in a route-local `internal` package. Do not import a parent
+route package from descendant route packages just to set layout state.
+
+Fragments are not layout-wrapped. Actions return route responses; page
+responses from actions are written through the matched layout stack and can
+carry layout data like ordinary page responses.
 
 ## Dynamic Routes
 

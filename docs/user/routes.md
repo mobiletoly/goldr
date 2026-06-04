@@ -425,10 +425,47 @@ func Layout(r *http.Request, ctx goldr.LayoutContext) templ.Component
 ```
 
 `ctx.Child` is the child page or nested layout component. `ctx.Metadata` is the
-page metadata returned by the matched page.
+page metadata returned by the matched page. `ctx.Data` is app-owned layout data
+attached to the matched page response with `goldr.WithLayoutValue`.
+
+Use layout data when the matched page should influence parent layout rendering,
+such as active tabs, active shell sections, contextual headers, or layout-owned
+toolbar state:
+
+```go
+var reportLayoutKey = goldr.NewLayoutKey[reportLayoutState]("report.layout")
+
+type reportLayoutState struct {
+	ActiveTab string
+}
+
+func Page(_ *http.Request) goldr.PageRouteResponse {
+	return goldr.WithLayoutValue(
+		goldr.NewPage(PageView(), goldr.PageMetadata{Title: "Summary"}),
+		reportLayoutKey,
+		reportLayoutState{ActiveTab: "summary"},
+	)
+}
+```
+
+```go
+func Layout(_ *http.Request, ctx goldr.LayoutContext) templ.Component {
+	state, _ := goldr.LayoutValue(ctx, reportLayoutKey)
+	return LayoutView(ctx.Metadata, state.ActiveTab, ctx.Child)
+}
+```
+
+Define layout keys once and share the key value between the page and layout;
+the string name is not a lookup key.
 
 Fragments are not layout-wrapped. Actions return route responses; page
 responses from actions are written through the matched route layout stack.
+Actions that return `goldr.Page` can attach layout data the same way as page
+handlers.
+
+When the layout state is shared by a parent layout package and descendant route
+packages, put the key and state type in a route-local `internal` package rather
+than importing the parent route package from descendants.
 
 ## Dynamic Routes
 

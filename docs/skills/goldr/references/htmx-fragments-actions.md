@@ -149,6 +149,11 @@ needs a distinct inspection boundary.
 @renderFragTable(FragTableView(rows))
 ```
 
+Hyphenated fragment paths are normalized in wrapper names, and mounted
+fragments may get route-qualified wrapper names when simple names would collide
+inside one live owner package. Read `template-inspection.md` before relying on
+a generated wrapper name.
+
 Rendering the templ view directly is valid HTML output:
 
 ```templ

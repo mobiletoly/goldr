@@ -7,6 +7,7 @@ import (
 	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/deps"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/routes/internal/shelllayout"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/security"
 )
 
@@ -38,12 +39,16 @@ func Page(r *http.Request) goldr.PageRouteResponse {
 		errorMessage = signInCredentialsNotice
 	}
 
-	return goldr.NewPage(
-		PageView(csrf.Token(r), security.DemoRole(r), next, notice, errorMessage),
-		goldr.PageMetadata{
-			Title:       "Sign in - Goldr Example",
-			Description: "Demo sign-in page for page-level redirect and status responses.",
-		},
+	return goldr.WithLayoutValue(
+		goldr.NewPage(
+			PageView(csrf.Token(r), security.DemoRole(r), next, notice, errorMessage),
+			goldr.PageMetadata{
+				Title:       "Sign in - Goldr Example",
+				Description: "Demo sign-in page for page-level redirect and status responses.",
+			},
+		),
+		shelllayout.Key,
+		shelllayout.State{ActiveNav: shelllayout.NavSignIn},
 	)
 }
 

@@ -1,6 +1,9 @@
 package sign_in
 
-import "github.com/mobiletoly/goldr/csrf"
+import (
+	"github.com/mobiletoly/goldr/csrf"
+	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
+)
 
 templ PageView(csrfToken string, role string, next string, notice string, errorMessage string) {
 	<section>
@@ -16,7 +19,7 @@ templ PageView(csrfToken string, role string, next string, notice string, errorM
 		} else {
 			<p>Current demo role: { role }</p>
 		}
-		<form method="post" action="/sign-in">
+		<form method="post" action={ urls.SignIn.Path() }>
 			@csrf.Input(csrfToken)
 			<input type="hidden" name="next" value={ next }/>
 			<fieldset>
@@ -36,6 +39,6 @@ templ PageView(csrfToken string, role string, next string, notice string, errorM
 			</fieldset>
 			<button type="submit">Sign in</button>
 		</form>
-		<p><a href="/protected-resource-demo">Back to Protected Resource Demo</a></p>
+		<p><a href={ urls.ProtectedResourceDemo.Path() }>Back to Protected Resource Demo</a></p>
 	</section>
 }
