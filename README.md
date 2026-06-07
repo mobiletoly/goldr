@@ -1,15 +1,22 @@
 # goldr (Go Layout-Driven Router)
 
-goldr is a server-first Go framework for building web/HTMX applications.
+goldr is a server-first, HTML-first, HTMX-native Go framework for building web applications that
+stay simple as they grow.
 
-It gives Go projects a predictable filesystem route tree, page layouts,
-fragments, action handlers, route-derived navigation trails, generated route
-wiring, and generated URL helpers. It also includes small helpers for CSRF
-tokens, HTMX headers, server-sent event wire formatting, named SSE browser
-swaps, and final-file asset fingerprinting.
-The application still owns its `net/http` server, middleware, static asset
-handlers, auth, sessions, request parsing, validation, data access, and
-deployment.
+The core idea is straightforward: the filesystem is the route map, `.templ` files own HTML, route
+handlers stay ordinary Go, and goldr generates the boring wiring around them. That generated wiring
+gives you `net/http` dispatch, nested layout composition, page and fragment response handling,
+action routing, URL helpers, route navigation data, template inspection metadata, and final-file
+asset fingerprints.
+
+goldr lets developers build rich HTMX workflows without inventing a private routing convention,
+scattering hard-coded paths through templates, or hiding browser behavior behind a client framework.
+HTMX stays visible in HTML. Go stays in charge of requests, data loading, validation, redirects, and
+response control.
+
+The application still owns its `net/http` server, middleware, static asset handlers, auth, sessions,
+request parsing, validation, data access, and deployment. goldr owns the route structure and
+generated wiring around that application code.
 
 goldr is v0. APIs and conventions may change before v1.
 
@@ -32,50 +39,107 @@ app/routes/
     frag_table.templ -> fragment HTML
 ```
 
-Route declarations define pages, fragments, and actions. Layouts wrap pages in
-their route directory and below. Fragments are standalone HTMX partials, and
-actions are ordinary Go handlers colocated with the route they mutate.
+A route directory is the unit of local web behavior. Its `route.go` declares the page, HTMX
+fragments, and actions for that part of the app:
 
-Reusable Kit route subtrees can live under `app/mounts` and be mounted by real
-`app/routes` owners. The mounted subtree is not routable on its own; final
-paths and URL helpers still come from the live route owner. Keep owner-only
-children under the live owner and pass owner-only URLs through app data when
-shared mounted templates need those links.
+```go
+var Route = goldr.RouteDef{
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/table", table),
+	},
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create", postCreate),
+	},
+}
+```
 
-Static directory underscores become hyphens in browser URLs, so Go-safe source
-names such as `build_info/` can serve stable paths such as `/build-info`.
+goldr turns the filesystem and route declarations into generated dispatch and route-shaped URL
+helpers. The source route remains ordinary Go, while templates can link to generated helpers instead
+of hard-coded paths:
+
+```go
+urls.Users.Path()
+urls.Users.Table.Path()
+urls.Users.Create.Path()
+urls.Users.ByID.Bind(id).Path()
+```
+
+Layouts wrap pages in their route directory and below. Fragments are standalone HTMX partials, and
+actions are ordinary Go handlers colocated with the route they mutate. The result is a Go-native
+structure where page loading, partial refreshes, form posts, redirects, validation failures, and
+layout state all live close to the workflow they support.
+
+When two sections of an app need the same route workflow, use a mounted Kit route subtree instead of
+copying route directories or inventing shared hidden routes. For example, an app might need the same
+reports page, table fragment, filters, audit child route, and POST actions under both
+`/admin/reports` and `/user/reports`.
+
+The reusable implementation lives under `app/mounts`, but it is not a live URL tree. A real owner
+under `app/routes` mounts it, provides the request-scoped Kit value, selects which children are
+exposed, and owns the final URL surface, auth, middleware, navigation decisions, and URL helpers.
+That solves the "same workflow in multiple places" problem while preserving goldr's route truth:
+shared code can render and link within the mounted subtree, but final routability still belongs to
+real route owners. Keep owner-only children under the live owner and pass owner-only URLs through
+app data when shared mounted templates need those links.
+
+Static directory underscores become hyphens in browser URLs, so Go-safe source names such as
+`build_info/` can serve stable paths such as `/build-info`.
 
 ## Why goldr
 
-goldr is for developers who want modern web application structure without
-turning the browser into the center of the system.
+goldr is for developers who want modern web application structure without turning the browser into
+the center of the system.
 
-With goldr:
+The power of goldr is not a larger runtime. It is the removal of repetitive structure around Go+HTMX
+apps while keeping important behavior visible and app-owned.
+
+With goldr, one route directory can contain the whole local workflow:
+
+- the page handler that loads data
+- the `.templ` file that renders HTML
+- the layout state needed by parent shells
+- the HTMX fragments used by that page
+- the POST actions that mutate that route's data
+- the generated URL helpers used by templates and redirects
+- the metadata used for titles, navigation trails, and app-level Back links
+
+That means a developer can look at the filesystem and understand the application surface. They do
+not need to chase runtime route registration, stringly typed paths, hidden client-side state, or a
+custom folder convention that only exists in project lore.
+
+goldr keeps the Go+HTMX model direct:
 
 - routes are visible in the filesystem
 - pages and layouts are rendered on the server
+- route declarations are static source code, not runtime registration
 - HTMX attributes stay visible in templates
 - forms and mutations use ordinary Go handlers
-- CSRF protection stays explicit and middleware-friendly
-- route metadata can prepare breadcrumb-style UI and app-level Back links
+- fragments are independently renderable HTMX partials
+- mounted Kit route subtrees let several live owners share a route workflow without creating hidden
+  live routes
 - generated URL helpers remove hard-coded paths
 - generated route wiring stays inspectable
+- route metadata can prepare breadcrumb-style UI and app-level Back links
+- template inspection can show which render unit produced a page region
 - final static files can be fingerprinted without adopting an asset pipeline
+- `generate`, `check`, and `dev` keep generated output and local development predictable
 
-goldr intentionally avoids SPA routing, hydration, virtual DOM, framework-owned
-client state, and hidden runtime registration.
+goldr intentionally avoids SPA routing, hydration, virtual DOM, framework-owned client state, hidden
+runtime registration, a DI container, reflection-based route discovery, and a goldr-owned server
+store.
 
 ## Install
 
-Goldr applications use Go and [templ](https://github.com/a-h/templ). During v0,
-templ is Goldr's HTML render contract: page functions return
+goldr applications use Go and [templ](https://github.com/a-h/templ). During v0,
+templ is goldr's HTML render contract: page functions return
 `goldr.PageRouteResponse`, fragment functions return
 `goldr.FragmentRouteResponse`, actions return `goldr.RouteResponse`, and
-`.templ` files own HTML rendering. Goldr
-owns the filesystem route model, generated route wiring, URL helpers, and
-validation around that workflow.
+`.templ` files own HTML rendering. goldr owns the filesystem route model,
+generated route wiring, URL helpers, route validation, and inspection metadata
+around that workflow.
 
-Use Go 1.26 or newer.
+Use Go 1.26 or newer (pre-1.26 version should work as well, but I have not tested).
 
 Add goldr, templ, and app-local CLI tools to your module:
 
@@ -179,17 +243,19 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-const defaultTitle = "Hello goldr"
+const appTitle = "Hello goldr"
 
 func Layout(_ *http.Request, ctx goldr.LayoutContext) templ.Component {
 	return LayoutView(ctx.Metadata, ctx.Child)
 }
 
+// Each matched page can set metadata.Title; fall back to the app title when it does not.
 func pageTitle(metadata goldr.PageMetadata) string {
+	// Propagated from children pages, if available
 	if metadata.Title != "" {
 		return metadata.Title
 	}
-	return defaultTitle
+	return appTitle
 }
 ```
 
@@ -207,7 +273,7 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ pageTitle(metadata) }</title>
-			<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3" integrity="sha384-bq4nTap5u8w4XlVP8JHkDioQVZBI5wUx5PxNwlbCq27H5QJ+q0CSeJcTYU+PLdCp" crossorigin="anonymous" defer></script>
+			<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4" integrity="sha384-aWZK1NtOs/aWb/+YZdTM8q2JkWEshlMc9mgZ189numT9bwFhyAyYEoO4nO/2dTXt" crossorigin="anonymous" defer></script>
 		</head>
 		<body>
 			<main>
@@ -328,13 +394,17 @@ The conventions are Go-native:
 
 - `route.go` declares a route page, fragments, and actions
 - `layout.go` wraps pages in that directory and below
-- fragment declarations in `route.go` define independently renderable HTMX fragments, including optional index fragments at the route path
+- fragment declarations in `route.go` define independently renderable HTMX fragments, including
+  optional index fragments at the route path
 - action declarations in `route.go` define colocated mutation handlers
 - `by_id/` maps to a dynamic `{id}` route segment
 - `build_info/` maps to a static `/build-info` browser segment
 
 goldr generates route dispatch in `app/routes/goldr_gen.go` and URL helpers in
 `app/urls/goldr_gen.go`.
+
+This generated code is meant to be inspected. It is the executable route truth produced from the
+filesystem and `route.go` declarations, not a hidden registry built at runtime.
 
 When an HTMX action or fragment only supports one page workflow, nest it under
 that page route instead of creating a flat sibling route:
@@ -360,7 +430,9 @@ directory names for clear generated helpers such as
 ## HTMX Stays Visible
 
 goldr does not hide HTMX behind framework components. Templates keep ordinary
-HTML and `hx-*` attributes:
+HTML and `hx-*` attributes. The framework helps with routing, response shape,
+headers, and helpers, but the browser behavior remains visible at the call
+site:
 
 ```templ
 package users

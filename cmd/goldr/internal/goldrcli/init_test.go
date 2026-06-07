@@ -51,7 +51,7 @@ func TestRunInitCreatesStarterApp(t *testing.T) {
 		t.Fatalf("route.go = %q, want RouteDef declaration", routeSource)
 	}
 	layoutTempl := readFile(t, filepath.Join(root, "app", "routes", "layout.templ"))
-	if !strings.Contains(layoutTempl, `https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3`) {
+	if !strings.Contains(layoutTempl, `https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4`) {
 		t.Fatalf("layout.templ = %q, want HTMX script", layoutTempl)
 	}
 

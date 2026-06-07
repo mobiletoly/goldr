@@ -181,8 +181,8 @@ func TestHandlerGetPages(t *testing.T) {
 			}
 			if test.wantCSS {
 				for _, want := range []string{
-					`src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3"`,
-					`integrity="sha384-bq4nTap5u8w4XlVP8JHkDioQVZBI5wUx5PxNwlbCq27H5QJ+q0CSeJcTYU+PLdCp"`,
+					`src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4"`,
+					`integrity="sha384-aWZK1NtOs/aWb/+YZdTM8q2JkWEshlMc9mgZ189numT9bwFhyAyYEoO4nO/2dTXt"`,
 					`href="` + assets.Path("app.css") + `"`,
 					`src="` + assets.Path("app.js") + `"`,
 					`data-js-enhance="open-users"`,

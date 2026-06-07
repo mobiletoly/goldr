@@ -94,7 +94,7 @@ func LayoutView(metadata goldr.PageMetadata, activeNav shelllayout.Nav, csrfToke
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<script src=\"https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3\" integrity=\"sha384-bq4nTap5u8w4XlVP8JHkDioQVZBI5wUx5PxNwlbCq27H5QJ+q0CSeJcTYU+PLdCp\" crossorigin=\"anonymous\" defer></script><script src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<script src=\"https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4\" integrity=\"sha384-aWZK1NtOs/aWb/+YZdTM8q2JkWEshlMc9mgZ189numT9bwFhyAyYEoO4nO/2dTXt\" crossorigin=\"anonymous\" defer></script><script src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
