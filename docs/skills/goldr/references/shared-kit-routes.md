@@ -26,6 +26,13 @@ the route harder to inspect. A route-local named fragment can call a shared
 function directly; do not introduce a Kit route only to reuse a simple fragment
 handler.
 
+Not every reusable fragment needs Kit. When the live URL, query params, defaults,
+and empty states belong to each page, keep a local `goldr.FragmentRoute` or
+`goldr.KitFragmentRoute` in the route owner and make its handler an adapter into
+an app-owned shared package. That shared package can expose ordinary Go values
+such as `Input`, `Model`, `Load`, and `View`, while the route owner binds the
+request and chooses the generated URL helper used by the page template.
+
 ## Route-Owned Binding
 
 A Kit route declares a static `Route` value in `route.go`:

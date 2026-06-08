@@ -332,6 +332,45 @@ Index fragments are fragments, not pages. They are not layout-wrapped, cannot be
 declared beside `Page`, and can share the path with index actions when methods
 differ.
 
+## Reusable Fragment Adapters
+
+Not every reusable fragment needs Kit. When each page owns its fragment URL,
+query params, defaults, empty states, and surrounding UX, keep the fragment
+route local and make its handler an adapter into an app-owned shared package:
+
+```go
+var Route = goldr.RouteDef{
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/chart", chart),
+	},
+}
+
+func chart(r *http.Request) goldr.FragmentRouteResponse {
+	input := chartui.Input{
+		EndDate: selectedEndDate(r),
+		Focus:   r.FormValue("focus"),
+		Metric:  r.FormValue("metric"),
+	}
+	model, err := chartui.Load(r.Context(), appDeps(r), input)
+	if err != nil {
+		return chartui.ErrorFragment(err)
+	}
+	return goldr.NewFragment(chartui.View(model))
+}
+```
+
+The shared package owns typed input, model, loading, formatting, and templ
+views. The route owner owns request binding, app dependencies, URL helpers, and
+the decision about which empty or error response to return. It can delegate
+reusable fragment-specific rendering to the shared package. Templates keep
+`hx-*` attributes visible and use the route-owned helper, such as
+`hx-get={ urls.Reports.Chart.Path() }`.
+
+Use `KitRouteDef` or `KitRouteMount` instead when the route behavior or route
+subtree itself is shared. Use a local adapter when only the implementation
+behind a route-owned fragment is shared.
+
 ## Actions
 
 Actions are declared in `route.go`. Ordinary action handlers return

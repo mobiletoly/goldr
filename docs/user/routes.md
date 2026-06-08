@@ -579,6 +579,57 @@ Fragments may also return `goldr.Redirect`, `goldr.Text`, and
 `goldr.RouteError`. Returning `goldr.Page` from a fragment route is an invalid
 route-response contract because fragments do not render through layouts.
 
+### Reusable Fragment Adapters
+
+When multiple pages need the same server-rendered partial behavior but different
+URL ownership, keep each fragment route local and share ordinary Go code behind
+the handler.
+
+Use this when a fragment has reusable loading or rendering logic, but the page
+still owns its query params, defaults, selected state, empty states, and
+surrounding UX:
+
+```go
+var Route = goldr.RouteDef{
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/chart", chart),
+	},
+}
+
+func chart(r *http.Request) goldr.FragmentRouteResponse {
+	input := chartui.Input{
+		EndDate: selectedEndDate(r),
+		Focus:   r.FormValue("focus"),
+		Metric:  r.FormValue("metric"),
+	}
+	model, err := chartui.Load(r.Context(), appDeps(r), input)
+	if err != nil {
+		return chartui.ErrorFragment(err)
+	}
+	return goldr.NewFragment(chartui.View(model))
+}
+```
+
+The shared package owns typed input, model, loading, formatting, and templ
+views. The route owner owns request binding, app dependencies, path and query
+semantics, URL helpers, and the decision about which empty or error response to
+return. It can delegate reusable fragment-specific rendering to the shared
+package. Templates keep HTMX visible and point at the route-owned helper:
+
+```templ
+<div
+	id="report-chart-slot"
+	hx-get={ urls.Reports.Chart.Path() }
+	hx-trigger="load"
+	hx-swap="innerHTML"
+></div>
+```
+
+Use `KitRouteDef` or `KitRouteMount` instead when the route behavior or route
+subtree itself is shared. Use a local adapter when only the implementation
+behind a route-owned fragment is shared.
+
 ## Actions
 
 Actions return `goldr.RouteResponse` by default. In `route.go`, action

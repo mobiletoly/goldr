@@ -94,6 +94,39 @@ The shared kit method receives the request-scoped kit value and the request:
 func (kit Kit) Table(r *http.Request) goldr.FragmentRouteResponse
 ```
 
+For complex reusable partials, keep the same route-owned shape and make the
+handler an adapter into a shared app package. This is useful when two pages
+need the same chart, picker, or preview behavior but each page owns different
+query params, defaults, empty states, surrounding UX, and URL helpers.
+
+```go
+var Route = goldr.RouteDef{
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/chart", chart),
+	},
+}
+
+func chart(r *http.Request) goldr.FragmentRouteResponse {
+	input := chartui.Input{
+		EndDate: selectedEndDate(r),
+		Focus:   r.FormValue("focus"),
+		Metric:  r.FormValue("metric"),
+	}
+	model, err := chartui.Load(r.Context(), appDeps(r), input)
+	if err != nil {
+		return chartui.ErrorFragment(err)
+	}
+	return goldr.NewFragment(chartui.View(model))
+}
+```
+
+The shared package may own typed input, model, loading, formatting, and templ
+views. It should not declare live URLs, infer page-owned query state, hide
+HTMX, or store request-scoped data in package globals. The page template still
+uses the route-owned helper in visible HTMX markup, such as
+`hx-get={ urls.Reports.Chart.Path() }`.
+
 ## Replacement Boundaries
 
 When a control refreshes a fragment, prefer a page-owned slot as the HTMX
