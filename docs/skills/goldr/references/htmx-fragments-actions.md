@@ -201,6 +201,21 @@ boundary.
 Actions are route-local mutation endpoints. Use them when a route needs to
 parse forms, set response headers, redirect, or redisplay HTML.
 
+### Same-Page Component Actions
+
+A page that renders multiple interactive components should not default every
+mutation to the page index action. If a component owns a distinct workflow,
+form, validation path, or mutation, give it a route-local action endpoint even
+when the component is rendered inside the parent page.
+
+Avoid making the page index action a multiplexer based on hidden `intent`
+fields, query modes, or component-specific branches. The visible browser URL
+may remain the parent page URL, while forms post to component-owned action URLs
+and preserve page state through explicit query params or form fields.
+
+Use fragments only when the response boundary is partial HTML. Do not introduce
+fragment routes merely to split Go or templ files.
+
 Function names are ordinary Go names. `route.go` declares the route surface:
 
 ```go

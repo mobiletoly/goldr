@@ -102,7 +102,7 @@ func nestedFragmentsByDir(fragments []routing.ManifestFragment) map[string][]rou
 func fragmentWrappers(manifest routing.Manifest) []routing.ManifestFragment {
 	fragments := slices.Clone(manifest.Fragments)
 	for _, route := range manifest.Routes {
-		unit := routing.RenderUnit{GoFile: route.GoFile}
+		unit := routing.RenderUnit{GoFile: route.GoFile, SourceGoFile: route.Source}
 		for _, fragment := range route.Fragments {
 			fragments = append(fragments, routing.ManifestFragment{
 				Name:        fragment.Name,
@@ -110,6 +110,7 @@ func fragmentWrappers(manifest routing.Manifest) []routing.ManifestFragment {
 				Params:      slices.Clone(route.Params),
 				Unit:        unit,
 				Function:    routeFragmentAdapterName(route, fragment),
+				Handler:     fragment.Handler,
 				Segment:     fragment.Segment,
 				Index:       fragment.Index,
 			})

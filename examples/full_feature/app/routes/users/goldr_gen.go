@@ -30,5 +30,5 @@ func GoldrRoutePostSavePreview(r *http.Request) goldr.RouteResponse {
 }
 
 func renderFragTable(component templ.Component) templ.Component {
-	return goldrinspect.Wrap(component, goldrinspect.NewMarker("g_fragmentusers_route_go", "fragment", "/users/table", "app/routes/users/route.go", "app/routes/users/route.go"))
+	return goldrinspect.Wrap(component, goldrinspect.NewMarker("g_fragmentusers_route_go", "fragment", "/users/table", "app/routes/users/route.go", "app/routes/users/route.go").WithHandler("FragTable"))
 }

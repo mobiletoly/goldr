@@ -34,15 +34,21 @@ func GenerateInspectorSupport(packageName string) ([]byte, error) {
 )
 
 type Marker struct {
-	ID     string
-	Kind   string
-	Route  string
-	Source string
-	GoFile string
+	ID      string
+	Kind    string
+	Route   string
+	Source  string
+	GoFile  string
+	Handler string
 }
 
 func NewMarker(id string, kind string, route string, source string, goFile string) Marker {
 	return Marker{ID: id, Kind: kind, Route: route, Source: source, GoFile: goFile}
+}
+
+func (marker Marker) WithHandler(handler string) Marker {
+	marker.Handler = handler
+	return marker
 }
 
 func (marker Marker) comments() (string, string) {
@@ -50,8 +56,11 @@ func (marker Marker) comments() (string, string) {
 		" kind=" + commentValue(marker.Kind) +
 		" route=" + commentValue(marker.Route) +
 		" source=" + commentValue(marker.Source) +
-		" go=" + commentValue(marker.GoFile) +
-		"-->"
+		" go=" + commentValue(marker.GoFile)
+	if marker.Handler != "" {
+		start += " handler=" + commentValue(marker.Handler)
+	}
+	start += "-->"
 	end := "<!--goldr:end id=" + commentValue(marker.ID) + "-->"
 	return start, end
 }
@@ -170,7 +179,7 @@ func writeFragmentWrapperFunctions(buffer *bytes.Buffer, fragments []routing.Man
 	names := fragmentWrapperFuncNames(fragments)
 	for index, fragment := range fragments {
 		fmt.Fprintf(buffer, "func %s(component templ.Component) templ.Component {\n", names[index])
-		fmt.Fprintf(buffer, "\treturn goldrinspect.Wrap(component, %s)\n", templateMarker("fragment", fragmentRoute(fragment), fragment.Unit))
+		fmt.Fprintf(buffer, "\treturn goldrinspect.Wrap(component, %s)\n", templateMarkerWithHandler("fragment", fragmentRoute(fragment), fragment.Unit, fragmentMarkerHandler(fragment)))
 		buffer.WriteString("}\n\n")
 	}
 }

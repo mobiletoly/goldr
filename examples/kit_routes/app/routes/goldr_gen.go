@@ -50,6 +50,7 @@ type goldrFragment struct {
 	Params      []string
 	Nav         goldrRouteNav
 	Unit        goldrRenderUnit
+	Handler     string
 	Index       bool
 }
 
@@ -218,7 +219,7 @@ func goldrDispatchRootStaticAdminStaticReportsStaticTable(options HandlerOptions
 			// expected in file: app/routes/admin/reports/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_admin_reports.GoldrRouteMountReportsFragTable(r)
-			routeResponse = goldrWrapFragmentRouteResponse(routeResponse, goldrinspect.NewMarker("g_fragment___mounts_reports_route_go", "fragment", "/admin/reports/table", "app/mounts/reports/route.go", "app/routes/admin/reports/route.go"))
+			routeResponse = goldrWrapFragmentRouteResponse(routeResponse, goldrinspect.NewMarker("g_fragment___mounts_reports_route_go", "fragment", "/admin/reports/table", "app/mounts/reports/route.go", "app/routes/admin/reports/route.go").WithHandler("Kit.Table"))
 			goldrWriteFragmentEndpointResponse(options, w, r, routeResponse, goldrRoutePageRenderer0)
 			return
 		}
@@ -269,7 +270,7 @@ func goldrDispatchRootStaticUserStaticReportsStaticTable(options HandlerOptions,
 			// expected in file: app/routes/user/reports/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_user_reports.GoldrRouteMountReportsFragTable(r)
-			routeResponse = goldrWrapFragmentRouteResponse(routeResponse, goldrinspect.NewMarker("g_fragment___mounts_reports_route_go", "fragment", "/user/reports/table", "app/mounts/reports/route.go", "app/routes/user/reports/route.go"))
+			routeResponse = goldrWrapFragmentRouteResponse(routeResponse, goldrinspect.NewMarker("g_fragment___mounts_reports_route_go", "fragment", "/user/reports/table", "app/mounts/reports/route.go", "app/routes/user/reports/route.go").WithHandler("Kit.Table"))
 			goldrWriteFragmentEndpointResponse(options, w, r, routeResponse, goldrRoutePageRenderer0)
 			return
 		}

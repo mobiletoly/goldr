@@ -184,6 +184,12 @@ other application policy.
 When an HTMX action or fragment exists only to support one page, prefer nesting
 it under the page route instead of creating a flat sibling route.
 
+Same-page composition does not imply same-action ownership. If a parent page
+renders multiple interactive components, each component with its own workflow,
+form, validation path, or mutation can own a nested action route. Avoid routing
+all component posts through the parent page index action and branching on hidden
+`intent` values or query modes.
+
 Recommended shape:
 
 ```text

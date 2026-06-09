@@ -130,6 +130,7 @@ type goldrFragment struct {
 	Params      []string
 	Nav         goldrRouteNav
 	Unit        goldrRenderUnit
+	Handler     string
 	Index       bool
 }
 
@@ -212,6 +213,9 @@ func writeManifestValue(buffer *bytes.Buffer, manifest routing.Manifest) {
 		writeParams(buffer, fragment.Params)
 		writeRouteNav(buffer, fragment.Nav)
 		writeRenderUnit(buffer, fragment.Unit)
+		if fragment.Handler != "" {
+			fmt.Fprintf(buffer, "\t\t\tHandler: %s,\n", strconv.Quote(fragment.Handler))
+		}
 		if fragment.Index {
 			buffer.WriteString("\t\t\tIndex: true,\n")
 		}

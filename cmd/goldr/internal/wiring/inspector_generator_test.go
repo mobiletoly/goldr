@@ -246,6 +246,9 @@ func TestGenerateRoutePackageFilesQualifiesMountedLocalHandlers(t *testing.T) {
 				GoFile: "admin/reports/route.go",
 				Kind:   "mounted-kit",
 				Page:   &routing.RouteHandlerDeclaration{Handler: "Kit.Page"},
+				Fragments: []routing.RouteFragmentDeclaration{
+					{Name: "table", SymbolName: "Table", Handler: "Kit.Table"},
+				},
 				Kit: &routing.RouteKitDeclaration{
 					New: "newKit",
 				},
@@ -278,6 +281,10 @@ type Kit struct{}
 func (Kit) Page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.Text{Body: "ok"}
 }
+
+func (Kit) Table(_ *http.Request) goldr.FragmentRouteResponse {
+	return goldr.NewFragment(nil)
+}
 `)
 
 	files, err := GenerateRoutePackageFiles(manifest, GenerateOptions{RouteRootImportPath: "example.com/app/routes"})
@@ -293,6 +300,9 @@ func (Kit) Page(_ *http.Request) goldr.PageRouteResponse {
 		`var _ = goldrmount_reports.Route`,
 		`func GoldrRouteMountReportsPage(r *http.Request) goldr.PageRouteResponse`,
 		`return goldrmount_reports.Kit.Page(goldrKit, r)`,
+		`func GoldrRouteMountReportsFragTable(r *http.Request) goldr.FragmentRouteResponse`,
+		`return goldrmount_reports.Kit.Table(goldrKit, r)`,
+		`goldrinspect.NewMarker("g_fragment___mounts_reports_route_go", "fragment", "/admin/reports/table", "app/mounts/reports/route.go", "app/routes/admin/reports/route.go").WithHandler("Kit.Table")`,
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("generated file missing %q:\n%s", want, source)

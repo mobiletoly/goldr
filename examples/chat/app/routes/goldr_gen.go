@@ -48,6 +48,7 @@ type goldrFragment struct {
 	Params      []string
 	Nav         goldrRouteNav
 	Unit        goldrRenderUnit
+	Handler     string
 	Index       bool
 }
 

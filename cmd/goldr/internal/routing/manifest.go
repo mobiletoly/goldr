@@ -49,6 +49,7 @@ type ManifestFragment struct {
 	Nav         RouteNavDeclaration
 	Unit        RenderUnit
 	Function    string
+	Handler     string
 	Segment     string
 	Index       bool
 }

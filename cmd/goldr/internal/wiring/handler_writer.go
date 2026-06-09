@@ -752,7 +752,7 @@ func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, helpers handlerH
 		writeFragmentCallComment(buffer, indent, *route.fragment)
 		writeRoutePageRendererAssignment(buffer, route.fragment.layouts, helpers, indent)
 		fmt.Fprintf(buffer, "%srouteResponse := %s(r)\n", indent, fragmentCall)
-		fmt.Fprintf(buffer, "%srouteResponse = goldrWrapFragmentRouteResponse(routeResponse, %s)\n", indent, templateMarker("fragment", route.fragment.route, route.fragment.fragment.Unit))
+		fmt.Fprintf(buffer, "%srouteResponse = goldrWrapFragmentRouteResponse(routeResponse, %s)\n", indent, templateMarkerWithHandler("fragment", route.fragment.route, route.fragment.fragment.Unit, fragmentMarkerHandler(route.fragment.fragment)))
 		fmt.Fprintf(buffer, "%sgoldrWriteFragmentEndpointResponse(options, w, r, routeResponse, %s)\n", indent, helpers.routePageRendererName(route.fragment.layouts))
 	}
 	fmt.Fprintf(buffer, "%sreturn\n", indent)
@@ -889,12 +889,16 @@ func appRouteGoFile(goFile string) string {
 }
 
 func templateMarker(kind string, route string, unit routing.RenderUnit) string {
+	return templateMarkerWithHandler(kind, route, unit, "")
+}
+
+func templateMarkerWithHandler(kind string, route string, unit routing.RenderUnit, handler string) string {
 	source := unit.TemplFile
 	if source == "" {
 		source = renderUnitSourceGoFile(unit)
 	}
 	id := templateMarkerID(kind, source)
-	return fmt.Sprintf(
+	marker := fmt.Sprintf(
 		"goldrinspect.NewMarker(%s, %s, %s, %s, %s)",
 		strconv.Quote(id),
 		strconv.Quote(kind),
@@ -902,6 +906,10 @@ func templateMarker(kind string, route string, unit routing.RenderUnit) string {
 		strconv.Quote(appRouteGoFile(source)),
 		strconv.Quote(appRouteGoFile(unit.GoFile)),
 	)
+	if handler != "" {
+		marker += ".WithHandler(" + strconv.Quote(handler) + ")"
+	}
+	return marker
 }
 
 func templateMarkerID(kind string, source string) string {
@@ -952,4 +960,11 @@ func manifestFragmentFuncName(fragment routing.ManifestFragment) string {
 		return fragment.Function
 	}
 	return fragmentFuncName(fragment.Name)
+}
+
+func fragmentMarkerHandler(fragment routing.ManifestFragment) string {
+	if fragment.Handler != "" {
+		return fragment.Handler
+	}
+	return manifestFragmentFuncName(fragment)
 }

@@ -268,7 +268,7 @@ func TestTemplateInspectorMarkers(t *testing.T) {
 		"<!--goldr:start id=g_layoutlayout_templ kind=layout route=/ source=app/routes/layout.templ go=app/routes/layout.go-->",
 		"<!--goldr:start id=g_layoutusers_layout_templ kind=layout route=/users source=app/routes/users/layout.templ go=app/routes/users/layout.go-->",
 		"<!--goldr:start id=g_pageusers_page_templ kind=page route=/users source=app/routes/users/page.templ go=app/routes/users/page.go-->",
-		"<!--goldr:start id=g_fragmentusers_frag_table_templ kind=fragment route=/users/table source=app/routes/users/frag_table.templ go=app/routes/users/frag_table.go-->",
+		"<!--goldr:start id=g_fragmentusers_frag_table_templ kind=fragment route=/users/table source=app/routes/users/frag_table.templ go=app/routes/users/frag_table.go handler=FragTable-->",
 		"<tbody>Users fragment</tbody>",
 		"<!--goldr:end id=g_fragmentusers_frag_table_templ-->",
 		"<!--goldr:end id=g_pageusers_page_templ-->",
@@ -295,7 +295,7 @@ func TestTemplateInspectorMarkers(t *testing.T) {
 		t.Fatalf("inspected fragment status = %d, want %d", fragment.Code, http.StatusOK)
 	}
 	for _, want := range []string{
-		"<!--goldr:start id=g_fragmentusers_frag_table_templ kind=fragment route=/users/table source=app/routes/users/frag_table.templ go=app/routes/users/frag_table.go-->",
+		"<!--goldr:start id=g_fragmentusers_frag_table_templ kind=fragment route=/users/table source=app/routes/users/frag_table.templ go=app/routes/users/frag_table.go handler=FragTable-->",
 		"<tbody>Users fragment</tbody>",
 		"<!--goldr:end id=g_fragmentusers_frag_table_templ-->",
 	} {

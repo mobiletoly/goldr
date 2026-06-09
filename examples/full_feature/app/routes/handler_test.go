@@ -36,6 +36,9 @@ func TestTemplateInspectionOverlayIncludesScript(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), `<!--goldr:start id=g_pageusers_page_templ`) {
 		t.Fatalf("body missing inspector marker:\n%s", recorder.Body.String())
 	}
+	if !strings.Contains(recorder.Body.String(), `<!--goldr:start id=g_component_user_directory kind=component label=User%20directory-->`) {
+		t.Fatalf("body missing labeled component marker:\n%s", recorder.Body.String())
+	}
 	if !strings.Contains(recorder.Body.String(), `<script src="/goldr/goldr-template-inspector.js" defer></script>`) {
 		t.Fatalf("body missing template inspector script:\n%s", recorder.Body.String())
 	}

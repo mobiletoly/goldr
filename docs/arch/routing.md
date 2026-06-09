@@ -1203,6 +1203,44 @@ inspection mode to request context, then page, layout, and direct fragment
 routes call the generated `goldrinspect.Wrap` helper. The wrapping helper is
 app-internal generated code, not a public `goldr` package API.
 
+Application-authored component boundaries use the public
+`goldr.LabeledComponent(label, component)` helper instead of generated
+metadata. This helper is for selective, meaningful component regions only, such
+as complex forms, data tables, reusable panels, or page shell sections. It must
+not become a default wrapper for every templ function, because excessive
+component markers make the inspector noisy and obscure the generated route,
+layout, page, and fragment boundaries.
+
+The browser inspector derives component badge context from marker nesting. A
+labeled component rendered inside page `/users` can display a component kind
+token, label, and source context such as
+`component User directory: app/routes/users/page.templ`, then expand to show
+source context, rendered context, and a vertical render chain. Collapsed badges
+render kind, label, and path/context values as separate styled parts so words
+such as `layout` and route paths such as `/` are visually distinct. The render
+chain lists the enclosing route-owned render units and includes labeled
+component parents as `component <label>` entries. Expanded route-owned details
+keep the render unit kind, URL-facing route pattern, handler, and source path
+in separate rows. Route patterns keep dynamic parameter notation such as
+`/{id}`, while source rows keep Go filesystem conventions such as `by_id`. The
+source context is the enclosing generated render unit's source path, not the
+labeled component's templ definition location.
+
+For mounted route fragments, endpoint markers and embedded-fragment wrapper
+markers use the live owner URL path, such as `/admin/reports/table`, and the
+mounted source path for the `source` field, such as
+`app/mounts/reports/route.go`. The marker `go` field remains the live owner
+adapter path, such as `app/routes/admin/reports/route.go`, because the owner
+package constructs the request-scoped kit and dispatches the mounted
+implementation.
+
+Fragment markers may also include a `handler` field. For convention fragments
+this is the generated fragment function name, such as `FragTable`. For
+route-declared fragments this is the handler expression selected in `route.go`,
+such as `FragTable` or `Kit.Table`. The browser inspector shows that value in
+expanded fragment details only; collapsed badges and render-chain entries stay
+focused on route kind, route path, labels, and source context.
+
 Embedded fragment boundaries are opt-in at the template call site. For every
 first-class fragment declared outside the root route package, Goldr writes a
 package-local `goldr_gen.go` containing a helper such as:

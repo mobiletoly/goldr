@@ -44,5 +44,5 @@ func GoldrRouteMountReportsAuditPage(r *http.Request) goldr.PageRouteResponse {
 }
 
 func renderFragTable(component templ.Component) templ.Component {
-	return goldrinspect.Wrap(component, goldrinspect.NewMarker("g_fragmentadmin_reports_route_go", "fragment", "/admin/reports/table", "app/routes/admin/reports/route.go", "app/routes/admin/reports/route.go"))
+	return goldrinspect.Wrap(component, goldrinspect.NewMarker("g_fragment___mounts_reports_route_go", "fragment", "/admin/reports/table", "app/mounts/reports/route.go", "app/routes/admin/reports/route.go").WithHandler("Kit.Table"))
 }

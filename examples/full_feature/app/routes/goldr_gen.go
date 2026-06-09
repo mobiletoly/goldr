@@ -65,6 +65,7 @@ type goldrFragment struct {
 	Params      []string
 	Nav         goldrRouteNav
 	Unit        goldrRenderUnit
+	Handler     string
 	Index       bool
 }
 
@@ -527,7 +528,7 @@ func goldrNewHandlers(options HandlerOptions) *goldrHandlers {
 			// expected in file: app/routes/users/status_options/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
 			routeResponse := goldrroute_users_status_options.GoldrRouteFragIndex(r)
-			routeResponse = goldrWrapFragmentRouteResponse(routeResponse, goldrinspect.NewMarker("g_fragmentusers_status_options_route_go", "fragment", "/users/status-options", "app/routes/users/status_options/route.go", "app/routes/users/status_options/route.go"))
+			routeResponse = goldrWrapFragmentRouteResponse(routeResponse, goldrinspect.NewMarker("g_fragmentusers_status_options_route_go", "fragment", "/users/status-options", "app/routes/users/status_options/route.go", "app/routes/users/status_options/route.go").WithHandler("Options"))
 			goldrWriteFragmentEndpointResponse(options, w, r, routeResponse, goldrRoutePageRenderer1)
 			return
 		})),
@@ -535,7 +536,7 @@ func goldrNewHandlers(options HandlerOptions) *goldrHandlers {
 			// expected in file: app/routes/users/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
 			routeResponse := goldrroute_users.GoldrRouteFragTable(r)
-			routeResponse = goldrWrapFragmentRouteResponse(routeResponse, goldrinspect.NewMarker("g_fragmentusers_route_go", "fragment", "/users/table", "app/routes/users/route.go", "app/routes/users/route.go"))
+			routeResponse = goldrWrapFragmentRouteResponse(routeResponse, goldrinspect.NewMarker("g_fragmentusers_route_go", "fragment", "/users/table", "app/routes/users/route.go", "app/routes/users/route.go").WithHandler("FragTable"))
 			goldrWriteFragmentEndpointResponse(options, w, r, routeResponse, goldrRoutePageRenderer1)
 			return
 		})),

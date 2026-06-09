@@ -180,6 +180,7 @@ func executableRouteSurface(manifest routing.Manifest) ([]routing.ManifestPage, 
 				Nav:         cloneRuntimeRouteNav(route.Nav),
 				Unit:        unit,
 				Function:    routeFragmentAdapterName(route, fragment),
+				Handler:     fragment.Handler,
 				Segment:     fragment.Segment,
 				Index:       fragment.Index,
 			})

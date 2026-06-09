@@ -1,6 +1,7 @@
 package users
 
 import (
+	"github.com/mobiletoly/goldr"
 	"github.com/mobiletoly/goldr/csrf"
 	"github.com/mobiletoly/goldr/examples/full_feature/app/urls"
 )
@@ -8,15 +9,15 @@ import (
 templ PageView(form contactForm, contacts []Contact, csrfToken string) {
 	<section>
 		<h1>User Directory</h1>
-		@DirectoryView(form, contacts, csrfToken)
+		@goldr.LabeledComponent("User directory", DirectoryView(form, contacts, csrfToken))
 	</section>
 }
 
-	templ DirectoryView(form contactForm, contacts []Contact, csrfToken string) {
-		<section id="users-directory">
-			<form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post={ urls.Users.Create.Path() } hx-target="#users-directory" hx-swap="outerHTML">
-				@csrf.Input(csrfToken)
-				<div>
+templ DirectoryView(form contactForm, contacts []Contact, csrfToken string) {
+	<section id="users-directory">
+		<form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post={ urls.Users.Create.Path() } hx-target="#users-directory" hx-swap="outerHTML">
+			@csrf.Input(csrfToken)
+			<div>
 				<label for="contact-name">Name</label>
 				<input id="contact-name" name="name" value={ form.Name }/>
 				if form.NameError != "" {
