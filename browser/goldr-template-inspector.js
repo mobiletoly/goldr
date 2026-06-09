@@ -185,6 +185,7 @@
       "position:fixed",
       "left:" + (rect.left + inset - 2) + "px",
       "top:" + (rect.top + inset - 2) + "px",
+      "z-index:1",
       "max-width:min(520px,calc(100% - 8px),90vw)",
       "display:flex",
       "align-items:center",

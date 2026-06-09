@@ -141,7 +141,7 @@ func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Re
 			// expected in file: app/routes/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageroute_go", "page", "/", "app/routes/route.go", "app/routes/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -178,7 +178,7 @@ func goldrDispatchRootStaticAdminStaticReports(options HandlerOptions, w http.Re
 			// expected in file: app/routes/admin/reports/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_admin_reports.GoldrRouteMountReportsPage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_reports_route_go", "page", "/admin/reports", "app/mounts/reports/route.go", "app/routes/admin/reports/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_reports_page_templ", "page", "/admin/reports", "app/mounts/reports/page.templ", "app/routes/admin/reports/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -248,7 +248,7 @@ func goldrDispatchRootStaticUserStaticReports(options HandlerOptions, w http.Res
 			// expected in file: app/routes/user/reports/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_user_reports.GoldrRouteMountReportsPage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_reports_route_go", "page", "/user/reports", "app/mounts/reports/route.go", "app/routes/user/reports/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_reports_page_templ", "page", "/user/reports", "app/mounts/reports/page.templ", "app/routes/user/reports/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")

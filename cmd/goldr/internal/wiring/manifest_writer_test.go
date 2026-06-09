@@ -329,6 +329,38 @@ func TestGenerateManifestAcceptsPageWithoutTempl(t *testing.T) {
 	}
 }
 
+func TestGenerateManifestRoutePageMarkerUsesColocatedTemplateSource(t *testing.T) {
+	manifest := routing.Manifest{
+		Routes: []routing.ManifestRouteDeclaration{
+			{
+				Route:  "/",
+				GoFile: "route.go",
+				Kind:   "local",
+				Page: &routing.RouteHandlerDeclaration{
+					Handler:   "page",
+					TemplFile: "page.templ",
+					HasTempl:  true,
+				},
+			},
+		},
+	}
+
+	source, err := GenerateManifest(manifest, GenerateOptions{
+		PackageName:         "routes",
+		RouteRootImportPath: "example.com/app/routes",
+	})
+	if err != nil {
+		t.Fatalf("GenerateManifest() error = %v, want nil", err)
+	}
+	for _, want := range []string{
+		`goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/route.go")`,
+	} {
+		if !strings.Contains(string(source), want) {
+			t.Fatalf("generated source missing %q:\n%s", want, source)
+		}
+	}
+}
+
 func TestGenerateManifestRejectsInvalidPackageNames(t *testing.T) {
 	tests := []string{"", "App", "app-name", "1app", "func"}
 

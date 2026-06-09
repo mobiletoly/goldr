@@ -331,19 +331,19 @@ func fullFeatureManifest() routing.Manifest {
 				Route:  "/",
 				GoFile: "route.go",
 				Kind:   "local",
-				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Page:   completeRoutePage("route.go"),
 			},
 			{
 				Route:  "/admin",
 				GoFile: "admin/route.go",
 				Kind:   "local",
-				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Page:   completeRoutePage("admin/route.go"),
 			},
 			{
 				Route:  "/protected-resource-demo",
 				GoFile: "protected_resource_demo/route.go",
 				Kind:   "local",
-				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Page:   completeRoutePage("protected_resource_demo/route.go"),
 				Actions: []routing.RouteActionDeclaration{
 					{Method: "POST", Name: "reveal-secret", Segment: "reveal-secret", SymbolName: "RevealSecret", Handler: "PostRevealSecret"},
 					{Method: "POST", Name: "sign-out", Segment: "sign-out", SymbolName: "SignOut", Writer: true, Handler: "PostSignOut"},
@@ -353,13 +353,13 @@ func fullFeatureManifest() routing.Manifest {
 				Route:  "/settings",
 				GoFile: "settings/route.go",
 				Kind:   "local",
-				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Page:   completeRoutePage("settings/route.go"),
 			},
 			{
 				Route:  "/sign-in",
 				GoFile: "sign_in/route.go",
 				Kind:   "local",
-				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Page:   completeRoutePage("sign_in/route.go"),
 				Actions: []routing.RouteActionDeclaration{
 					{Method: "POST", Index: true, SymbolName: "Index", Writer: true, Handler: "PostIndex"},
 				},
@@ -368,7 +368,7 @@ func fullFeatureManifest() routing.Manifest {
 				Route:  "/users",
 				GoFile: "users/route.go",
 				Kind:   "local",
-				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Page:   completeRoutePage("users/route.go"),
 				Fragments: []routing.RouteFragmentDeclaration{
 					{Name: "table", Segment: "table", SymbolName: "Table", Handler: "FragTable"},
 				},
@@ -382,7 +382,7 @@ func fullFeatureManifest() routing.Manifest {
 				Params: []string{"id"},
 				GoFile: "users/by_id/route.go",
 				Kind:   "local",
-				Page:   &routing.RouteHandlerDeclaration{Handler: "Page"},
+				Page:   completeRoutePage("users/by_id/route.go"),
 			},
 			{
 				Route:  "/users/status-options",
@@ -393,6 +393,14 @@ func fullFeatureManifest() routing.Manifest {
 				},
 			},
 		},
+	}
+}
+
+func completeRoutePage(goFile string) *routing.RouteHandlerDeclaration {
+	return &routing.RouteHandlerDeclaration{
+		Handler:   "Page",
+		TemplFile: strings.TrimSuffix(goFile, "route.go") + "page.templ",
+		HasTempl:  true,
 	}
 }
 

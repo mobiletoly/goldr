@@ -58,7 +58,9 @@ type RouteImportDeclaration struct {
 }
 
 type RouteHandlerDeclaration struct {
-	Handler string
+	Handler   string
+	TemplFile string
+	HasTempl  bool
 }
 
 type RouteFragmentDeclaration struct {

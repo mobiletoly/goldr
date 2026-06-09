@@ -132,7 +132,11 @@ func initManifest() routing.Manifest {
 				Route:  "/",
 				GoFile: "route.go",
 				Kind:   "local",
-				Page:   &routing.RouteHandlerDeclaration{Handler: "page"},
+				Page: &routing.RouteHandlerDeclaration{
+					Handler:   "page",
+					TemplFile: "page.templ",
+					HasTempl:  true,
+				},
 			},
 		},
 		Layouts: []routing.ManifestLayout{

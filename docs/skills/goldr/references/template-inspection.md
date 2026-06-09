@@ -32,12 +32,15 @@ inspector comments or overlay elements.
 Comments mode helps source inspection:
 
 ```html
-<!--goldr:start id=g_pageusers_route_go kind=page route=/users source=app/routes/users/route.go go=app/routes/users/route.go-->
+<!--goldr:start id=g_pageusers_page_templ kind=page route=/users source=app/routes/users/page.templ go=app/routes/users/route.go-->
 ...
-<!--goldr:end id=g_pageusers_route_go-->
+<!--goldr:end id=g_pageusers_page_templ-->
 ```
 
-Paths are app-relative, not absolute machine paths.
+Paths are app-relative, not absolute machine paths. `source` is the file shown
+and copied by the overlay; it prefers a colocated template file when Goldr can
+identify one and otherwise falls back to the Go source file. `go` is the route
+declaration or handler file.
 
 ## Overlay Mode
 

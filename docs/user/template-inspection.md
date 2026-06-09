@@ -46,13 +46,17 @@ Generated dispatch emits paired HTML comments around page, layout, and
 fragment render boundaries:
 
 ```html
-<!--goldr:start id=g_pageusers_route_go kind=page route=/users source=app/routes/users/route.go go=app/routes/users/route.go-->
+<!--goldr:start id=g_pageusers_page_templ kind=page route=/users source=app/routes/users/page.templ go=app/routes/users/route.go-->
 ...
-<!--goldr:end id=g_pageusers_route_go-->
+<!--goldr:end id=g_pageusers_page_templ-->
 ```
 
-The paths are app-relative, never absolute machine paths. Redirect, text,
-error, and `HEAD` response bodies do not emit inspector markers.
+The paths are app-relative, never absolute machine paths. `source` is the file
+shown and copied by the browser overlay. It prefers the colocated template file
+when Goldr can identify one, such as `page.templ` or `layout.templ`; otherwise
+it falls back to the Go source file. `go` is the route declaration or handler
+file that Goldr calls. Redirect, text, error, and `HEAD` response bodies do not
+emit inspector markers.
 
 ## Overlay Inspection
 

@@ -161,11 +161,14 @@ func executableRouteSurface(manifest routing.Manifest) ([]routing.ManifestPage, 
 			MiddlewareGoFile: route.MiddlewareGoFile,
 		}
 		if route.Page != nil {
+			pageUnit := unit
+			pageUnit.TemplFile = route.Page.TemplFile
+			pageUnit.HasTempl = route.Page.HasTempl
 			pages = append(pages, routing.ManifestPage{
 				Route:    route.Route,
 				Params:   slices.Clone(route.Params),
 				Nav:      cloneRuntimeRouteNav(route.Nav),
-				Unit:     unit,
+				Unit:     pageUnit,
 				Function: routePageAdapterName(route),
 			})
 		}

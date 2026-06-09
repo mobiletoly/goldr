@@ -279,6 +279,7 @@ func (scanner *scanner) scanFile(relDir, name, route string, params []string, fi
 		routeDeclaration.Route = route
 		routeDeclaration.Params = slices.Clone(params)
 		routeDeclaration.GoFile = relPath
+		scanner.attachPageTemplatePair(relDir, &routeDeclaration, files)
 		scanner.validateRouteDeclaration(relPath, routeDeclaration)
 		scanner.tree.Routes = append(scanner.tree.Routes, routeDeclaration)
 	case layoutGoFile:
@@ -301,6 +302,15 @@ func (scanner *scanner) scanFile(relDir, name, route string, params []string, fi
 			GoFile:      relPath,
 		})
 	}
+}
+
+func (scanner *scanner) attachPageTemplatePair(relDir string, route *RouteDeclaration, files map[string]bool) {
+	if route.Page == nil {
+		return
+	}
+	templFile, hasTempl := pairFile(relDir, "page", files)
+	route.Page.TemplFile = templFile
+	route.Page.HasTempl = hasTempl
 }
 
 func (scanner *scanner) validateRouteDeclaration(relPath string, route RouteDeclaration) {
@@ -590,6 +600,10 @@ func (expander *mountExpander) rebaseRoute(owner RouteDeclaration, mountPath str
 	rebased.Source = source
 	rebased.Adapter = mountedAdapterPrefix(mountPath, route.Route)
 	rebased.Imports = slices.Clone(route.Imports)
+	rebased.Page = cloneRouteHandlerDeclaration(route.Page)
+	if rebased.Page != nil {
+		rebased.Page.TemplFile = prefixedOptionalMountPath(mountPath, route.Page.TemplFile)
+	}
 	rebased.Kind = routeDeclarationKindKitMount
 	rebased.Kit = cloneRouteKitDeclaration(owner.Kit)
 	rebased.Destinations = cloneRouteDestinations(route.Destinations)

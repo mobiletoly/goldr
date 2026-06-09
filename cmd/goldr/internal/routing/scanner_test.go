@@ -42,6 +42,35 @@ func TestScanRouteDeclarationsAndParams(t *testing.T) {
 	}
 }
 
+func TestScanRouteDeclarationRecordsColocatedPageTemplate(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "route.go", routeGoPageSource("routes"))
+	writeFile(t, root, "users/route.go", routeGoPageSource("users"))
+	writeFiles(t, root,
+		"page.templ",
+	)
+
+	tree := scanOK(t, root)
+
+	if len(tree.Routes) != 2 {
+		t.Fatalf("routes count = %d, want 2: %#v", len(tree.Routes), tree.Routes)
+	}
+	rootRoute := tree.Routes[0]
+	if rootRoute.Route != "/" || rootRoute.Page == nil {
+		t.Fatalf("root route = %#v, want page route", rootRoute)
+	}
+	if rootRoute.Page.TemplFile != "page.templ" || !rootRoute.Page.HasTempl {
+		t.Fatalf("root page template = (%q, %v), want page.templ true", rootRoute.Page.TemplFile, rootRoute.Page.HasTempl)
+	}
+	usersRoute := tree.Routes[1]
+	if usersRoute.Route != "/users" || usersRoute.Page == nil {
+		t.Fatalf("users route = %#v, want page route", usersRoute)
+	}
+	if usersRoute.Page.TemplFile != "" || usersRoute.Page.HasTempl {
+		t.Fatalf("users page template = (%q, %v), want empty false", usersRoute.Page.TemplFile, usersRoute.Page.HasTempl)
+	}
+}
+
 func TestScanLayouts(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root,
@@ -213,6 +242,7 @@ func TestScanWithMountsExpandsKitRouteDefs(t *testing.T) {
 	writeFile(t, routesRoot, "admin/reports/layout.go", "package reports\n")
 	writeFile(t, routesRoot, "admin/reports/layout.templ", "package reports\n")
 	writeFile(t, mountsRoot, "reports/route.go", routeGoMountedKitPageSource("reports", "shared.Kit.Page"))
+	writeFile(t, mountsRoot, "reports/page.templ", "package reports\n")
 	writeFile(t, mountsRoot, "reports/layout.go", "package reports\n")
 	writeFile(t, mountsRoot, "reports/layout.templ", "package reports\n")
 	writeFile(t, mountsRoot, "reports/table/route.go", routeGoMountedKitActionsSource("table", "shared.Kit.Table",
@@ -233,6 +263,9 @@ func TestScanWithMountsExpandsKitRouteDefs(t *testing.T) {
 	}
 	if rootRoute.Kind != routeDeclarationKindKitMount || rootRoute.Kit == nil || rootRoute.Kit.New != "newKit" {
 		t.Fatalf("root mounted kit = %#v, want mounted kit with owner New", rootRoute)
+	}
+	if rootRoute.Page == nil || rootRoute.Page.TemplFile != "../mounts/reports/page.templ" || !rootRoute.Page.HasTempl {
+		t.Fatalf("root mounted page template = %#v, want rebased app/mounts page.templ", rootRoute.Page)
 	}
 	childRoute := tree.Routes[1]
 	if childRoute.Route != "/admin/reports/table" || childRoute.Source != "../mounts/reports/table/route.go" || childRoute.Adapter != "MountReportsTable" {

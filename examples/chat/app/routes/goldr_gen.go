@@ -139,7 +139,7 @@ func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Re
 			// expected in file: app/routes/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageroute_go", "page", "/", "app/routes/route.go", "app/routes/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -163,7 +163,7 @@ func goldrDispatchRootStaticChat(options HandlerOptions, w http.ResponseWriter, 
 			// expected in file: app/routes/chat/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_chat.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagechat_route_go", "page", "/chat", "app/routes/chat/route.go", "app/routes/chat/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagechat_page_templ", "page", "/chat", "app/routes/chat/page.templ", "app/routes/chat/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")

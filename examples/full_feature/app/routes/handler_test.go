@@ -33,7 +33,7 @@ func TestTemplateInspectionOverlayIncludesScript(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	testHandlerWithOptions(HandlerOptions{TemplateInspection: goldr.TemplateInspectionOverlay}).ServeHTTP(recorder, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users", nil))
 
-	if !strings.Contains(recorder.Body.String(), `<!--goldr:start id=g_pageusers_route_go`) {
+	if !strings.Contains(recorder.Body.String(), `<!--goldr:start id=g_pageusers_page_templ`) {
 		t.Fatalf("body missing inspector marker:\n%s", recorder.Body.String())
 	}
 	if !strings.Contains(recorder.Body.String(), `<script src="/goldr/goldr-template-inspector.js" defer></script>`) {

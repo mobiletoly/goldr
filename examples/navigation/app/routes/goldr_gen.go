@@ -181,7 +181,7 @@ func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Re
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}}, []string{goldrNavHref(options.BasePath)}, 0)
 			// expected in file: app/routes/route.go
 			routeResponse := GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageroute_go", "page", "/", "app/routes/route.go", "app/routes/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -205,7 +205,7 @@ func goldrDispatchRootStaticAbout(options HandlerOptions, w http.ResponseWriter,
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "About"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "about")}, 1)
 			// expected in file: app/routes/about/route.go
 			routeResponse := goldrroute_about.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageabout_route_go", "page", "/about", "app/routes/about/route.go", "app/routes/about/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageabout_page_templ", "page", "/about", "app/routes/about/page.templ", "app/routes/about/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -221,7 +221,7 @@ func goldrDispatchRootStaticMain(options HandlerOptions, w http.ResponseWriter, 
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main")}, 1)
 			// expected in file: app/routes/main/route.go
 			routeResponse := goldrroute_main.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_route_go", "page", "/main", "app/routes/main/route.go", "app/routes/main/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_page_templ", "page", "/main", "app/routes/main/page.templ", "app/routes/main/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -248,7 +248,7 @@ func goldrDispatchRootStaticMainStaticHq(options HandlerOptions, w http.Response
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "HQ"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "hq")}, 2)
 			// expected in file: app/routes/main/hq/route.go
 			routeResponse := goldrroute_main_hq.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_hq_route_go", "page", "/main/hq", "app/routes/main/hq/route.go", "app/routes/main/hq/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_hq_page_templ", "page", "/main/hq", "app/routes/main/hq/page.templ", "app/routes/main/hq/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -287,7 +287,7 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamID(options HandlerOp
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "HQ"}, {Key: "team"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "hq"), goldrNavHref(options.BasePath, "main", "hq", "teams", url.PathEscape(r.PathValue("team_id")))}, 3)
 			// expected in file: app/routes/main/hq/teams/by_team_id/route.go
 			routeResponse := goldrroute_main_hq_teams_by_team_id.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_hq_teams_by_team_id_route_go", "page", "/main/hq/teams/{team_id}", "app/routes/main/hq/teams/by_team_id/route.go", "app/routes/main/hq/teams/by_team_id/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_hq_teams_by_team_id_page_templ", "page", "/main/hq/teams/{team_id}", "app/routes/main/hq/teams/by_team_id/page.templ", "app/routes/main/hq/teams/by_team_id/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -317,7 +317,7 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalytics(op
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "HQ"}, {Key: "team"}, {Label: "Analytics"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "hq"), goldrNavHref(options.BasePath, "main", "hq", "teams", url.PathEscape(r.PathValue("team_id"))), goldrNavHref(options.BasePath, "main", "hq", "teams", url.PathEscape(r.PathValue("team_id")), "analytics")}, 4)
 			// expected in file: app/routes/main/hq/teams/by_team_id/analytics/route.go
 			routeResponse := goldrroute_main_hq_teams_by_team_id_analytics.GoldrRouteMountAnalyticsPage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_analytics_route_go", "page", "/main/hq/teams/{team_id}/analytics", "app/mounts/analytics/route.go", "app/routes/main/hq/teams/by_team_id/analytics/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_analytics_page_templ", "page", "/main/hq/teams/{team_id}/analytics", "app/mounts/analytics/page.templ", "app/routes/main/hq/teams/by_team_id/analytics/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -375,7 +375,7 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsSta
 			r = goldr.WithRequestNav(r, goldrRequestTrailKey(r, []string{"hq-analytics"}), []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "HQ"}, {Key: "team"}, {Label: "Analytics"}, {Label: "Report"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "hq"), goldrNavHref(options.BasePath, "main", "hq", "teams", url.PathEscape(r.PathValue("team_id"))), goldrNavHref(options.BasePath, "main", "hq", "teams", url.PathEscape(r.PathValue("team_id")), "analytics"), goldrNavHref(options.BasePath, "main", "hq", "teams", url.PathEscape(r.PathValue("team_id")), "analytics", "customers", url.PathEscape(r.PathValue("customer_id")), "report")}, 5)
 			// expected in file: app/routes/main/hq/teams/by_team_id/analytics/route.go
 			routeResponse := goldrroute_main_hq_teams_by_team_id_analytics.GoldrRouteMountAnalyticsCustomersByCustomerIDReportPage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_analytics_customers_by_customer_id_report_route_go", "page", "/main/hq/teams/{team_id}/analytics/customers/{customer_id}/report", "app/mounts/analytics/customers/by_customer_id/report/route.go", "app/routes/main/hq/teams/by_team_id/analytics/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_analytics_customers_by_customer_id_report_page_templ", "page", "/main/hq/teams/{team_id}/analytics/customers/{customer_id}/report", "app/mounts/analytics/customers/by_customer_id/report/page.templ", "app/routes/main/hq/teams/by_team_id/analytics/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -415,7 +415,7 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersPar
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "HQ"}, {Key: "team"}, {Key: "customer"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "hq"), goldrNavHref(options.BasePath, "main", "hq", "teams", url.PathEscape(r.PathValue("team_id"))), goldrNavHref(options.BasePath, "main", "hq", "teams", url.PathEscape(r.PathValue("team_id")), "customers", url.PathEscape(r.PathValue("customer_id")))}, 4)
 			// expected in file: app/routes/main/hq/teams/by_team_id/customers/by_customer_id/route.go
 			routeResponse := goldrroute_main_hq_teams_by_team_id_customers_by_customer_id.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_hq_teams_by_team_id_customers_by_customer_id_route_go", "page", "/main/hq/teams/{team_id}/customers/{customer_id}", "app/routes/main/hq/teams/by_team_id/customers/by_customer_id/route.go", "app/routes/main/hq/teams/by_team_id/customers/by_customer_id/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_hq_teams_by_team_id_customers_by_customer_id_page_templ", "page", "/main/hq/teams/{team_id}/customers/{customer_id}", "app/routes/main/hq/teams/by_team_id/customers/by_customer_id/page.templ", "app/routes/main/hq/teams/by_team_id/customers/by_customer_id/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -486,7 +486,7 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersPar
 			// expected in file: app/routes/main/hq/teams/by_team_id/customers/by_customer_id/report/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
 			routeResponse := goldrroute_main_hq_teams_by_team_id_customers_by_customer_id_report.GoldrRouteMountCustomerreportBriefPage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_customerreport_brief_route_go", "page", "/main/hq/teams/{team_id}/customers/{customer_id}/report/brief", "app/mounts/customerreport/brief/route.go", "app/routes/main/hq/teams/by_team_id/customers/by_customer_id/report/route.go"), goldrLayoutStack1, goldrRoutePageRenderer1)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_customerreport_brief_page_templ", "page", "/main/hq/teams/{team_id}/customers/{customer_id}/report/brief", "app/mounts/customerreport/brief/page.templ", "app/routes/main/hq/teams/by_team_id/customers/by_customer_id/report/route.go"), goldrLayoutStack1, goldrRoutePageRenderer1)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -515,7 +515,7 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersPar
 			// expected in file: app/routes/main/hq/teams/by_team_id/customers/by_customer_id/report/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
 			routeResponse := goldrroute_main_hq_teams_by_team_id_customers_by_customer_id_report.GoldrRouteMountCustomerreportDetailedPage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_customerreport_detailed_route_go", "page", "/main/hq/teams/{team_id}/customers/{customer_id}/report/detailed", "app/mounts/customerreport/detailed/route.go", "app/routes/main/hq/teams/by_team_id/customers/by_customer_id/report/route.go"), goldrLayoutStack1, goldrRoutePageRenderer1)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_customerreport_detailed_page_templ", "page", "/main/hq/teams/{team_id}/customers/{customer_id}/report/detailed", "app/mounts/customerreport/detailed/page.templ", "app/routes/main/hq/teams/by_team_id/customers/by_customer_id/report/route.go"), goldrLayoutStack1, goldrRoutePageRenderer1)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -531,7 +531,7 @@ func goldrDispatchRootStaticMainStaticRegional(options HandlerOptions, w http.Re
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "Regional"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "regional")}, 2)
 			// expected in file: app/routes/main/regional/route.go
 			routeResponse := goldrroute_main_regional.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_regional_route_go", "page", "/main/regional", "app/routes/main/regional/route.go", "app/routes/main/regional/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_regional_page_templ", "page", "/main/regional", "app/routes/main/regional/page.templ", "app/routes/main/regional/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -570,7 +570,7 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeID(options
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "Regional"}, {Key: "office"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "regional"), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id")))}, 3)
 			// expected in file: app/routes/main/regional/offices/by_office_id/route.go
 			routeResponse := goldrroute_main_regional_offices_by_office_id.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_regional_offices_by_office_id_route_go", "page", "/main/regional/offices/{office_id}", "app/routes/main/regional/offices/by_office_id/route.go", "app/routes/main/regional/offices/by_office_id/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_regional_offices_by_office_id_page_templ", "page", "/main/regional/offices/{office_id}", "app/routes/main/regional/offices/by_office_id/page.templ", "app/routes/main/regional/offices/by_office_id/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -615,7 +615,7 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "Regional"}, {Key: "office"}, {Key: "team"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "regional"), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id"))), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id")), "teams", url.PathEscape(r.PathValue("team_id")))}, 4)
 			// expected in file: app/routes/main/regional/offices/by_office_id/teams/by_team_id/route.go
 			routeResponse := goldrroute_main_regional_offices_by_office_id_teams_by_team_id.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_regional_offices_by_office_id_teams_by_team_id_route_go", "page", "/main/regional/offices/{office_id}/teams/{team_id}", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/route.go", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_regional_offices_by_office_id_teams_by_team_id_page_templ", "page", "/main/regional/offices/{office_id}/teams/{team_id}", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/page.templ", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -651,7 +651,7 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "Regional"}, {Key: "office"}, {Key: "team"}, {Label: "Analytics"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "regional"), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id"))), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id")), "teams", url.PathEscape(r.PathValue("team_id"))), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id")), "teams", url.PathEscape(r.PathValue("team_id")), "analytics")}, 5)
 			// expected in file: app/routes/main/regional/offices/by_office_id/teams/by_team_id/analytics/route.go
 			routeResponse := goldrroute_main_regional_offices_by_office_id_teams_by_team_id_analytics.GoldrRouteMountAnalyticsPage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_analytics_route_go", "page", "/main/regional/offices/{office_id}/teams/{team_id}/analytics", "app/mounts/analytics/route.go", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/analytics/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_analytics_page_templ", "page", "/main/regional/offices/{office_id}/teams/{team_id}/analytics", "app/mounts/analytics/page.templ", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/analytics/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -715,7 +715,7 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 			r = goldr.WithRequestNav(r, goldrRequestTrailKey(r, []string{"regional-analytics"}), []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "Regional"}, {Key: "office"}, {Key: "team"}, {Label: "Analytics"}, {Label: "Report"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "regional"), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id"))), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id")), "teams", url.PathEscape(r.PathValue("team_id"))), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id")), "teams", url.PathEscape(r.PathValue("team_id")), "analytics"), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id")), "teams", url.PathEscape(r.PathValue("team_id")), "analytics", "customers", url.PathEscape(r.PathValue("customer_id")), "report")}, 6)
 			// expected in file: app/routes/main/regional/offices/by_office_id/teams/by_team_id/analytics/route.go
 			routeResponse := goldrroute_main_regional_offices_by_office_id_teams_by_team_id_analytics.GoldrRouteMountAnalyticsCustomersByCustomerIDReportPage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_analytics_customers_by_customer_id_report_route_go", "page", "/main/regional/offices/{office_id}/teams/{team_id}/analytics/customers/{customer_id}/report", "app/mounts/analytics/customers/by_customer_id/report/route.go", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/analytics/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_analytics_customers_by_customer_id_report_page_templ", "page", "/main/regional/offices/{office_id}/teams/{team_id}/analytics/customers/{customer_id}/report", "app/mounts/analytics/customers/by_customer_id/report/page.templ", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/analytics/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -761,7 +761,7 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "Regional"}, {Key: "office"}, {Key: "team"}, {Key: "customer"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "regional"), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id"))), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id")), "teams", url.PathEscape(r.PathValue("team_id"))), goldrNavHref(options.BasePath, "main", "regional", "offices", url.PathEscape(r.PathValue("office_id")), "teams", url.PathEscape(r.PathValue("team_id")), "customers", url.PathEscape(r.PathValue("customer_id")))}, 5)
 			// expected in file: app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/route.go
 			routeResponse := goldrroute_main_regional_offices_by_office_id_teams_by_team_id_customers_by_customer_id.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_regional_offices_by_office_id_teams_by_team_id_customers_by_customer_id_route_go", "page", "/main/regional/offices/{office_id}/teams/{team_id}/customers/{customer_id}", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/route.go", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_regional_offices_by_office_id_teams_by_team_id_customers_by_customer_id_page_templ", "page", "/main/regional/offices/{office_id}/teams/{team_id}/customers/{customer_id}", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/page.templ", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -844,7 +844,7 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 			// expected in file: app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/report/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_main_regional_offices_by_office_id_teams_by_team_id_customers_by_customer_id_report.GoldrRouteMountCustomerreportBriefPage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_customerreport_brief_route_go", "page", "/main/regional/offices/{office_id}/teams/{team_id}/customers/{customer_id}/report/brief", "app/mounts/customerreport/brief/route.go", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/report/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_customerreport_brief_page_templ", "page", "/main/regional/offices/{office_id}/teams/{team_id}/customers/{customer_id}/report/brief", "app/mounts/customerreport/brief/page.templ", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/report/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -879,7 +879,7 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 			// expected in file: app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/report/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_main_regional_offices_by_office_id_teams_by_team_id_customers_by_customer_id_report.GoldrRouteMountCustomerreportDetailedPage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_customerreport_detailed_route_go", "page", "/main/regional/offices/{office_id}/teams/{team_id}/customers/{customer_id}/report/detailed", "app/mounts/customerreport/detailed/route.go", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/report/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_page___mounts_customerreport_detailed_page_templ", "page", "/main/regional/offices/{office_id}/teams/{team_id}/customers/{customer_id}/report/detailed", "app/mounts/customerreport/detailed/page.templ", "app/routes/main/regional/offices/by_office_id/teams/by_team_id/customers/by_customer_id/report/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")
@@ -913,7 +913,7 @@ func goldrDispatchRootStaticMainStaticReportsParamCustomerID(options HandlerOpti
 			r = goldr.WithRequestNav(r, goldrRequestTrailKey(r, []string{"hq-customer", "regional-customer"}), []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "Report"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "reports", url.PathEscape(r.PathValue("customer_id")))}, 2)
 			// expected in file: app/routes/main/reports/by_customer_id/route.go
 			routeResponse := goldrroute_main_reports_by_customer_id.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_reports_by_customer_id_route_go", "page", "/main/reports/{customer_id}", "app/routes/main/reports/by_customer_id/route.go", "app/routes/main/reports/by_customer_id/route.go"), nil, goldrDirectRoutePageRenderer)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagemain_reports_by_customer_id_page_templ", "page", "/main/reports/{customer_id}", "app/routes/main/reports/by_customer_id/page.templ", "app/routes/main/reports/by_customer_id/route.go"), nil, goldrDirectRoutePageRenderer)
 			return
 		}
 		w.Header().Set("Allow", "GET, HEAD")

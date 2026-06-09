@@ -26,6 +26,10 @@ func TestFSContainsTemplateInspectorStackingAndSingleOrdering(t *testing.T) {
 	assertFSContains(t, TemplateInspectorHelperPath, `return (a.depth - b.depth) || (a.sequence - b.sequence)`)
 }
 
+func TestFSContainsTemplateInspectorLabelsPaintAboveBorders(t *testing.T) {
+	assertFSContains(t, TemplateInspectorHelperPath, `"z-index:1"`)
+}
+
 func TestFSContainsTemplateInspectorControls(t *testing.T) {
 	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-inspector-control`)
 	assertFSContains(t, TemplateInspectorHelperPath, `data-goldr-template-inspector-mode`)

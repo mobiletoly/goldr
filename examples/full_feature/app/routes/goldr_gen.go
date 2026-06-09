@@ -494,7 +494,7 @@ func goldrNewHandlers(options HandlerOptions) *goldrHandlers {
 			// expected in file: app/routes/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageroute_go", "page", "/", "app/routes/route.go", "app/routes/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagepage_templ", "page", "/", "app/routes/page.templ", "app/routes/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		})),
 		endpoint1: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -543,28 +543,28 @@ func goldrNewHandlers(options HandlerOptions) *goldrHandlers {
 			// expected in file: app/routes/admin/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_admin.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageadmin_route_go", "page", "/admin", "app/routes/admin/route.go", "app/routes/admin/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageadmin_page_templ", "page", "/admin", "app/routes/admin/page.templ", "app/routes/admin/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		})),
 		endpoint8: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// expected in file: app/routes/protected_resource_demo/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_protected_resource_demo.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageprotected_resource_demo_route_go", "page", "/protected-resource-demo", "app/routes/protected_resource_demo/route.go", "app/routes/protected_resource_demo/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageprotected_resource_demo_page_templ", "page", "/protected-resource-demo", "app/routes/protected_resource_demo/page.templ", "app/routes/protected_resource_demo/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		})),
 		endpoint9: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// expected in file: app/routes/settings/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_settings.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagesettings_route_go", "page", "/settings", "app/routes/settings/route.go", "app/routes/settings/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagesettings_page_templ", "page", "/settings", "app/routes/settings/page.templ", "app/routes/settings/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		})),
 		endpoint10: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// expected in file: app/routes/sign_in/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer0)
 			routeResponse := goldrroute_sign_in.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagesign_in_route_go", "page", "/sign-in", "app/routes/sign_in/route.go", "app/routes/sign_in/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pagesign_in_page_templ", "page", "/sign-in", "app/routes/sign_in/page.templ", "app/routes/sign_in/route.go"), goldrLayoutStack0, goldrRoutePageRenderer0)
 			return
 		})),
 		endpoint11: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -577,14 +577,14 @@ func goldrNewHandlers(options HandlerOptions) *goldrHandlers {
 			// expected in file: app/routes/users/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
 			routeResponse := goldrroute_users.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageusers_route_go", "page", "/users", "app/routes/users/route.go", "app/routes/users/route.go"), goldrLayoutStack1, goldrRoutePageRenderer1)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageusers_page_templ", "page", "/users", "app/routes/users/page.templ", "app/routes/users/route.go"), goldrLayoutStack1, goldrRoutePageRenderer1)
 			return
 		})),
 		endpoint13: goldrMiddlewareStack0(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// expected in file: app/routes/users/by_id/route.go
 			r = goldr.WithRoutePageRenderer(r, goldrRoutePageRenderer1)
 			routeResponse := goldrroute_users_by_id.GoldrRoutePage(r)
-			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageusers_by_id_route_go", "page", "/users/{id}", "app/routes/users/by_id/route.go", "app/routes/users/by_id/route.go"), goldrLayoutStack1, goldrRoutePageRenderer1)
+			goldrWritePageEndpointResponse(options, w, r, routeResponse, goldrinspect.NewMarker("g_pageusers_by_id_page_templ", "page", "/users/{id}", "app/routes/users/by_id/page.templ", "app/routes/users/by_id/route.go"), goldrLayoutStack1, goldrRoutePageRenderer1)
 			return
 		})),
 	}

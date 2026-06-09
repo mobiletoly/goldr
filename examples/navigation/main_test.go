@@ -79,7 +79,8 @@ func TestNavigationExampleTemplateInspection(t *testing.T) {
 	overlayBody := overlay.Body.String()
 	for _, want := range []string{
 		`<!--goldr:start`,
-		`source=app/routes/route.go`,
+		`source=app/routes/page.templ`,
+		`go=app/routes/route.go`,
 		`<script src="/goldr/goldr-template-inspector.js" defer></script>`,
 	} {
 		if !strings.Contains(overlayBody, want) {
