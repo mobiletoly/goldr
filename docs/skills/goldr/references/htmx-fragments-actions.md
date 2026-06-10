@@ -213,6 +213,37 @@ fields, query modes, or component-specific branches. The visible browser URL
 may remain the parent page URL, while forms post to component-owned action URLs
 and preserve page state through explicit query params or form fields.
 
+Use the nested route directory for the component or workflow owner, not
+automatically for every operation name. If one component owns multiple closely
+related operations that share request context, form state, validation,
+redirects, or error redisplay, keep them in the same route directory as named
+actions:
+
+```go
+var Route = goldr.RouteDef{
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/save", postSave),
+		goldr.Action(http.MethodPost, "/delete", postDelete),
+	},
+}
+```
+
+Create deeper `save/` or `delete/` route directories only when that operation
+has independent route ownership, such as its own middleware, params, templates,
+confirmation page or fragment, or substantially separate workflow.
+
+For server-rendered HTML forms, prefer `POST` to operation-named action routes
+even when the operation is semantically destructive. For example,
+`POST /documents/delete` keeps ordinary forms, `formaction`, CSRF inputs, and
+non-HTMX fallback working while still making the workflow clear in the route
+helper. Use `DELETE`, `PUT`, or `PATCH` only for API-like endpoints or
+deliberate HTMX-only controls where templates explicitly use `hx-delete`,
+`hx-put`, or `hx-patch` and the app verifies CSRF/header behavior.
+
+Navigation-only controls such as Cancel should usually be ordinary links to
+the canonical page or state URL, not action routes. Add a Cancel action only
+when it mutates app-owned server state, such as discarding a saved draft.
+
 Use fragments only when the response boundary is partial HTML. Do not introduce
 fragment routes merely to split Go or templ files.
 

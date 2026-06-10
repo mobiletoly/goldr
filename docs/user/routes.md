@@ -247,6 +247,16 @@ inspection output, and collision checks.
 If an HTMX action or fragment exists only to support one page workflow, prefer
 nesting it under that page route instead of making it a top-level sibling.
 
+A page can render several independent components. Same page composition does
+not mean every form should post to the page index action. When a component owns
+its own workflow, validation, mutation, or redisplay state, give that workflow a
+route-local action URL instead of posting everything to the parent page and
+switching on a hidden `intent` field.
+
+The visible page URL can stay the same while individual forms post to
+component-owned action helpers. Keep page state explicit in query params or
+form fields when the action needs to redisplay the same page state.
+
 ```text
 users/
   route.go
@@ -264,6 +274,24 @@ This is appropriate even when `prepare/` or `save/` has no standalone page. A
 child route directory can declare only index actions, named actions, index
 fragments, or named fragments. The directory owns the workflow segment,
 templates, middleware, params, or generated helper namespace.
+
+Create a child route directory for the component or workflow owner, not for
+every operation name. If one workflow owns several related operations that
+share request context, form state, validation, redirects, and redisplay, keep
+those operations as named actions in the same route directory:
+
+```go
+var Route = goldr.RouteDef{
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/save", postSave),
+		goldr.Action(http.MethodPost, "/delete", postDelete),
+	},
+}
+```
+
+Create deeper operation directories such as `save/` or `delete/` only when that
+operation has independent route ownership, such as its own middleware, params,
+templates, confirmation page or fragment, or substantially separate workflow.
 
 Prefer shallow route-owned files for one-route fragments:
 
@@ -506,6 +534,12 @@ route could both match.
 
 Fragments render standalone partial HTML. In `route.go`, fragment segments map
 to `<segment>` browser routes:
+
+Declare a fragment when the browser can request or refresh that partial as its
+own HTML response boundary. Do not introduce a fragment route only to split Go
+handlers or templ declarations. If a view is just an internal helper for one
+page or fragment, keep it as an ordinary Go helper or templ component in the
+route package.
 
 ```go
 var Route = goldr.RouteDef{

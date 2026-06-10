@@ -210,6 +210,25 @@ This is valid even when `prepare/` and `save/` have no standalone page. Their
 fragments, or named fragments. The directory exists because it owns a child
 route workflow, middleware, params, templates, or helper name.
 
+Use a child route directory for the component or workflow owner, not
+automatically for every operation segment. If one component owns multiple
+closely related operations that share request context, form state, validation,
+redirects, or error redisplay, keep them in the same route directory as named
+actions:
+
+```go
+var Route = goldr.RouteDef{
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/save", postSave),
+		goldr.Action(http.MethodPost, "/delete", postDelete),
+	},
+}
+```
+
+Create deeper operation directories such as `save/` or `delete/` only when that
+operation has independent route ownership, such as its own middleware, params,
+templates, confirmation page or fragment, or substantially separate workflow.
+
 Prefer this over flat routes such as:
 
 ```text
@@ -399,6 +418,18 @@ goldr.Action(http.MethodPost, "/", postIndex) -> POST /users
 goldr.Action(http.MethodPost, "/create", postCreate) -> POST /users/create
 goldr.Action(http.MethodPost, "/save-preview", postSavePreview) -> POST /users/save-preview
 ```
+
+For server-rendered HTML forms, prefer `POST` actions for operation-named
+workflow routes, including destructive operations:
+
+```text
+goldr.Action(http.MethodPost, "/delete", postDelete) -> POST /users/delete
+```
+
+This preserves ordinary form submission, `formaction`, CSRF inputs, and
+non-HTMX fallback. Reserve `DELETE`, `PUT`, and `PATCH` actions for API-like
+endpoints or deliberate HTMX-only controls where the template uses
+`hx-delete`, `hx-put`, or `hx-patch` and the app verifies CSRF/header behavior.
 
 Actions may return pages, fragments, redirects, text, route errors, or
 `goldr.NoContent{}`. Use `goldr.HTTPAction` only when an action needs direct
