@@ -14,10 +14,13 @@ The gate checks:
 - golangci-lint when installed
 - gopls hint diagnostics
 
-The ASCII text check is intentionally broad. The only current exception is the
-Unicode box-drawing output for `goldr routes layouts`, including its renderer,
-expected-output test, user documentation, and implementation spec. Do not extend
-that exception for ordinary prose, comments, identifiers, or generated files.
+The ASCII text check is intentionally broad. The current exceptions are:
+- the README GitHub star callout, where only U+2B50 is allowed
+- Unicode box-drawing output for `goldr routes layouts`, including its
+  renderer, expected-output test, user documentation, and implementation spec
+
+Do not extend those exceptions for ordinary prose, comments, identifiers, or
+generated files.
 
 The linter policy is strict on correctness and moderate on style.
 

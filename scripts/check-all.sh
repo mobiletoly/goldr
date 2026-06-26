@@ -85,6 +85,33 @@ check_no_git_grep_matches() {
   fi
 }
 
+check_readme_ascii_allow_star() {
+  note "check README ASCII text"
+
+  # README.md may use U+2B50 in the public GitHub star callout. Keep every
+  # other README character ASCII so smart quotes, em dashes, and invisible
+  # Unicode still fail the gate.
+  local star
+  star="$(printf '\342\255\220')"
+
+  local matches
+  local status
+
+  set +e
+  matches="$(sed "s/${star}//g" README.md | LC_ALL=C grep -n '[^[:print:][:space:]]')"
+  status=$?
+  set -e
+
+  if [[ "$status" -eq 0 ]]; then
+    printf "%s\n" "$matches"
+    fail "check README ASCII text failed"
+  fi
+
+  if [[ "$status" -ne 1 ]]; then
+    fail "check README ASCII text scan failed"
+  fi
+}
+
 check_golangci_lint() {
   if [[ "${GOLDR_SKIP_GOLANGCI_LINT:-0}" == "1" ]]; then
     note "skip golangci-lint (GOLDR_SKIP_GOLANGCI_LINT=1)"
@@ -241,12 +268,14 @@ done
 
 layout_map_unicode_pathspecs=(
   "."
+  ":(exclude)README.md"
   ":(exclude)cmd/goldr/internal/goldrcli/routes/layouts.go"
   ":(exclude)cmd/goldr/internal/goldrcli/app_test.go"
   ":(exclude)docs/user/cli.md"
   ":(exclude)docs/spec/a0008-route-layout-map.md"
 )
 check_no_git_grep_matches "check ASCII text" '[^[:print:][:space:]]' "${layout_map_unicode_pathspecs[@]}"
+check_readme_ascii_allow_star
 check_no_git_grep_matches "check trailing whitespace" '[[:blank:]]$'
 check_golangci_lint
 check_gopls_hints
