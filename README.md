@@ -1,5 +1,8 @@
 # goldr (Go Layout-Driven Router)
 
+**If goldr saves you time, please consider starring ⭐ the repository - it helps
+more developers find it.**
+
 goldr is a server-first, HTML-first, HTMX-native Go framework for building web
 applications that stay easy to see, run, and change as they grow.
 
