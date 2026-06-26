@@ -1,5 +1,9 @@
 # goldr (Go Layout-Driven Router)
 
+[![CI](https://github.com/mobiletoly/goldr/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mobiletoly/goldr/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/mobiletoly/goldr?sort=semver)](https://github.com/mobiletoly/goldr/releases/latest)
+[![License](https://img.shields.io/github/license/mobiletoly/goldr?logo=apache&label=License)](LICENSE)
+
 **If goldr saves you time, please consider starring ⭐ the repository - it helps
 more developers find it.**
 
@@ -557,4 +561,4 @@ without making SSE part of the first-read path.
 
 ## License
 
-goldr is licensed under the [Apache License 2.0](LICENSE.txt).
+goldr is licensed under the [Apache License 2.0](LICENSE).
