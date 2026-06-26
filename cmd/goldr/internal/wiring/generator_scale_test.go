@@ -256,7 +256,7 @@ func parseBenchmarkNSPerOp(t *testing.T, output string) map[string]float64 {
 		if len(fields) < 4 || !strings.HasPrefix(fields[0], "BenchmarkDispatch") {
 			continue
 		}
-		name := strings.Split(fields[0], "-")[0]
+		name, _, _ := strings.Cut(fields[0], "-")
 		for index := 1; index < len(fields)-1; index++ {
 			if fields[index+1] != "ns/op" {
 				continue

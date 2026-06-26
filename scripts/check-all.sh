@@ -4,6 +4,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
+check_tools_dir="tools/check"
+
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     printf "error: required command not found: %s\n" "$1" >&2
@@ -28,19 +30,26 @@ run_in() {
   (cd "$dir" && "$@")
 }
 
+check_tool_path() {
+  local name="$1"
+
+  (cd "$check_tools_dir" && go tool -n "$name")
+}
+
+run_check_tool() {
+  local name="$1"
+  shift
+
+  local tool
+  tool="$(check_tool_path "$name")"
+
+  note "$name $*"
+  "$tool" "$@"
+}
+
 fail() {
   printf "error: %s\n" "$*" >&2
   exit 1
-}
-
-optional_missing() {
-  local name="$1"
-
-  if [[ "${GOLDR_REQUIRE_OPTIONAL_TOOLS:-0}" == "1" ]]; then
-    fail "optional command is required but not installed: $name"
-  fi
-
-  note "skip $name (not installed)"
 }
 
 check_gofmt() {
@@ -123,22 +132,13 @@ check_golangci_lint() {
     return
   fi
 
-  if ! command -v golangci-lint >/dev/null 2>&1; then
-    optional_missing "golangci-lint"
-    return
-  fi
-
-  run golangci-lint run
+  run_check_tool golangci-lint run
 }
 
 check_gopls_hints() {
   if [[ "${GOLDR_SKIP_GOPLS_HINTS:-0}" == "1" ]]; then
     note "skip gopls hints (GOLDR_SKIP_GOPLS_HINTS=1)"
     return
-  fi
-
-  if ! command -v gopls >/dev/null 2>&1; then
-    fail "gopls is required for modernization hint checks"
   fi
 
   note "gopls check -severity=hint"
@@ -158,9 +158,12 @@ check_gopls_hints() {
 
   local output
   local status
+  local gopls
+
+  gopls="$(check_tool_path gopls)"
 
   set +e
-  output="$(gopls check -severity=hint "${go_files[@]}" 2>&1)"
+  output="$("$gopls" check -severity=hint "${go_files[@]}" 2>&1)"
   status=$?
   set -e
 
@@ -226,6 +229,7 @@ require_cmd go
 require_cmd gofmt
 require_cmd git
 
+run_in "$check_tools_dir" go mod tidy -diff
 check_gofmt
 run go mod tidy -diff
 run go list ./...

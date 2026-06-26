@@ -11,8 +11,8 @@ The gate checks:
 - race-enabled tests
 - ASCII text
 - trailing whitespace
-- golangci-lint when installed
-- gopls hint diagnostics
+- pinned golangci-lint from `tools/check`
+- pinned gopls hint diagnostics from `tools/check`
 
 The ASCII text check is intentionally broad. The current exceptions are:
 - the README GitHub star callout, where only U+2B50 is allowed
@@ -23,6 +23,10 @@ Do not extend those exceptions for ordinary prose, comments, identifiers, or
 generated files.
 
 The linter policy is strict on correctness and moderate on style.
+
+Validation tool versions are pinned in `tools/check/go.mod`. CI and local
+`scripts/check-all.sh` runs use those tools instead of whichever `gopls` or
+`golangci-lint` happens to be installed on `PATH`.
 
 The golangci-lint configuration is explicit. It enables only selected linters and does not inherit default linter sets.
 
