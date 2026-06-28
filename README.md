@@ -24,6 +24,88 @@ request parsing, validation, data access, asset tools, and deployment.
 
 goldr is v0. APIs and conventions may change before v1.
 
+## Why goldr
+
+Go+HTMX applications are easy to start, then each real app tends to rebuild the
+same support layer: filesystem routes, nested layouts, route-safe URLs,
+generated-output checks, asset fingerprints, live reload, and inspection
+commands.
+
+Goldr standardizes that layer without moving the app out of Go. One route
+directory can hold the page handler, `.templ` HTML, layout state, HTMX
+fragments, POST actions, generated URL helpers, and navigation metadata for a
+local workflow.
+
+That means a developer can look at the filesystem and understand the
+application surface. They do not need to chase runtime route registration,
+copied path strings, hidden client-side state, or a private folder convention
+that only exists in project lore.
+
+The boundary is deliberate. Goldr gives Go+HTMX apps a route tree, generated
+wiring, asset fingerprints, local dev loop, and inspection tools. It does not
+own your server, data layer, asset compiler, JavaScript architecture, client
+state, hydration, deployment, or runtime registration system.
+
+## Try A Complete App First
+
+From a goldr checkout, run the full-feature example:
+
+```bash
+(cd examples/full_feature && go run .)
+```
+
+Then inspect the route surface and generated assets:
+
+```bash
+(cd examples/full_feature && go tool goldr routes list)
+(cd examples/full_feature && go tool goldr routes layouts)
+(cd examples/full_feature && go tool goldr routes refs)
+(cd examples/full_feature && go tool goldr assets list)
+(cd examples/full_feature && go tool goldr check)
+```
+
+The example shows pages, nested layouts, HTMX fragments, POST actions, forms,
+generated URL helpers, custom errors, middleware, request parsing, CSRF,
+route-rendered error pages, and fingerprinted static assets in one small app.
+
+## Start A New App
+
+Use Go 1.26 or newer.
+
+goldr applications use Go and [templ](https://github.com/a-h/templ). During v0,
+templ is goldr's HTML render contract: page functions return
+`goldr.PageRouteResponse`, fragment functions return
+`goldr.FragmentRouteResponse`, actions return `goldr.RouteResponse`, and
+`.templ` files own HTML rendering. goldr owns the filesystem route model,
+generated route wiring, URL helpers, route validation, and inspection metadata
+around that workflow.
+
+Create a module and add goldr, templ, and app-local CLI tools:
+
+```bash
+mkdir hello-goldr
+cd hello-goldr
+go mod init example.com/hello-goldr
+
+GOLDR_VERSION=v0.1.3
+TEMPL_VERSION=v0.3.1020
+
+go get github.com/mobiletoly/goldr@${GOLDR_VERSION} github.com/a-h/templ@${TEMPL_VERSION}
+go get -tool github.com/mobiletoly/goldr/cmd/goldr@${GOLDR_VERSION}
+go get -tool github.com/a-h/templ/cmd/templ@${TEMPL_VERSION}
+go tool -n goldr
+```
+
+Use the same Goldr version for the runtime library and the `cmd/goldr` tool.
+`go tool -n goldr` confirms that the app-local CLI tool is in the module
+graph. Then run goldr and templ with `go tool goldr` and `go tool templ`. This
+keeps the commands versioned with the application.
+
+Continue with the manual Quick Start below to build the first route by hand, or
+run `go tool goldr init` in an existing module to create the minimal route
+skeleton. The application still owns `main.go`, its `net/http` server, and its
+middleware.
+
 ## What goldr gives you
 
 Goldr is useful when a Go app needs real web-app structure but should still
@@ -72,6 +154,8 @@ feel like a Go app.
 - `routes refs` inventories direct HTMX references in `.templ` files.
 - The visual inspector can draw browser overlays for the layouts, pages,
   fragments, and labeled components that produced each page region.
+
+## How goldr Apps Are Shaped
 
 In goldr, the filesystem is the route map:
 
@@ -147,110 +231,6 @@ all live close to the workflow they support.
 Static directory underscores become hyphens in browser URLs, so Go-safe source
 names such as `build_info/` can serve stable paths such as `/build-info`.
 
-## Why goldr
-
-Most Go+HTMX applications start simple, then quietly collect the same support
-layer: route dispatch, layout stacking, route-safe URLs, stale-generated-output
-checks, asset fingerprints, and debugging commands. Without a shared framework,
-each app tends to invent a private routing convention and copy path strings
-through handlers, templates, redirects, and tests.
-
-Goldr standardizes that layer while keeping the application explicit. One
-route directory can contain the whole local workflow:
-
-- the page handler that loads data
-- the `.templ` file that renders HTML
-- the layout state needed by parent shells
-- the HTMX fragments used by that page
-- the POST actions that mutate that route's data
-- the generated URL helpers used by templates and redirects
-- the metadata used for titles, navigation trails, and app-level Back links
-
-That means a developer can look at the filesystem and understand the
-application surface. They do not need to chase runtime route registration,
-stringly typed paths, hidden client-side state, or a custom folder convention
-that only exists in project lore.
-
-The tradeoff is deliberate. Goldr gives Go+HTMX apps a route tree, generated
-wiring, asset fingerprints, local dev loop, and inspection tools. It does not
-own your server, data layer, asset compiler, JavaScript architecture, client
-state, hydration, deployment, or runtime registration system.
-
-## Install
-
-goldr applications use Go and [templ](https://github.com/a-h/templ). During v0,
-templ is goldr's HTML render contract: page functions return
-`goldr.PageRouteResponse`, fragment functions return
-`goldr.FragmentRouteResponse`, actions return `goldr.RouteResponse`, and
-`.templ` files own HTML rendering. goldr owns the filesystem route model,
-generated route wiring, URL helpers, route validation, and inspection metadata
-around that workflow.
-
-Use Go 1.26 or newer.
-
-Add goldr, templ, and app-local CLI tools to your module:
-
-```bash
-GOLDR_VERSION=v0.1.3
-go get github.com/mobiletoly/goldr@${GOLDR_VERSION} github.com/a-h/templ@v0.3.1020
-go get -tool github.com/mobiletoly/goldr/cmd/goldr@${GOLDR_VERSION}
-go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020
-go tool -n goldr
-```
-
-Use the same Goldr version for the runtime library and the `cmd/goldr` tool.
-`go tool -n goldr` confirms that the app-local CLI tool is in the module
-graph. Then run goldr and templ with `go tool goldr` and `go tool templ`. This
-keeps the commands versioned with the application. If you prefer a global
-convenience binary, `go install github.com/mobiletoly/goldr/cmd/goldr@v0.1.3`
-also works.
-
-## Try A Complete App First
-
-From a goldr checkout, run the full-feature example:
-
-```bash
-(cd examples/full_feature && go run .)
-```
-
-Then inspect the route surface and generated assets:
-
-```bash
-(cd examples/full_feature && go tool goldr routes list)
-(cd examples/full_feature && go tool goldr routes layouts)
-(cd examples/full_feature && go tool goldr routes refs)
-(cd examples/full_feature && go tool goldr assets list)
-(cd examples/full_feature && go tool goldr check)
-```
-
-The example shows pages, nested layouts, HTMX fragments, POST actions, forms,
-generated URL helpers, custom errors, middleware, request parsing, CSRF,
-route-rendered error pages, and fingerprinted static assets in one small app.
-
-## How goldr Apps Are Shaped
-
-goldr applications use a filesystem route tree rooted at `app/routes/`:
-
-```text
-app/
-  routes/
-    route.go
-    page.templ
-    layout.go
-    layout.templ
-    users/
-      route.go
-      page.templ
-      layout.go
-      layout.templ
-      frag_table.templ
-      by_id/
-        route.go
-        page.templ
-  urls/
-    goldr_gen.go
-```
-
 The conventions are Go-native:
 
 - `route.go` declares a route page, fragments, and actions
@@ -289,18 +269,10 @@ templates used only by one route directly in that route directory, and choose
 directory names for clear generated helpers such as
 `urls.Users.Prepare.Path()` and `urls.Users.Save.Path()`.
 
-## Quick Start
+## Manual Quick Start
 
-Create a new module:
-
-```bash
-mkdir hello-goldr
-cd hello-goldr
-go mod init example.com/hello-goldr
-go get github.com/mobiletoly/goldr@$0.1.3 github.com/a-h/templ@v0.3.1020
-go get -tool github.com/mobiletoly/goldr/cmd/goldr@$0.1.3
-go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020
-```
+After running the new-app commands above, build the first route by hand so the
+project shape is visible.
 
 Add `main.go`:
 
