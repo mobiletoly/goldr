@@ -1,30 +1,93 @@
 # Getting Started
 
-This guide builds the smallest useful goldr app manually. Manual setup comes
-first so the project shape is visible. `go tool goldr init` is available as a
-shortcut after the manual path.
+Build a small Goldr application from an empty directory. The home page will
+show five user links. Each link will open a dynamic page such as `/users/3`
+and render `Hello User 3`.
 
-## Install
+You will create each application-owned file by hand so you can see how the
+server, route declarations, templates, layout, and generated URL helpers fit
+together. Goldr can scaffold a starter with `go tool goldr init`, but do not
+run that command while following this tutorial. The final section explains how
+to use it for your next application.
 
-Create a module and add goldr, templ, and app-local CLI tools:
+Goldr and templ will still create their generated files. Do not write
+`goldr_gen.go` or `*_templ.go` files by hand.
+
+## Before You Start
+
+Install Go 1.26 or newer, then confirm your Go installation:
+
+```bash
+go version
+```
+
+You will build this route tree:
+
+```text
+app/routes/
+  layout.go
+  layout.templ
+  route.go
+  page.templ
+  users/
+    by_id/
+      route.go
+      page.templ
+```
+
+The root directory owns `/`. The `users/by_id` directory owns
+`/users/{id}`.
+
+## 1. Create The Project
+
+Create a directory and initialize a Go module:
 
 ```bash
 mkdir hello-goldr
 cd hello-goldr
 go mod init example.com/hello-goldr
-go get github.com/mobiletoly/goldr github.com/a-h/templ@v0.3.1020
-go get -tool github.com/mobiletoly/goldr/cmd/goldr@latest
-go get -tool github.com/a-h/templ/cmd/templ@v0.3.1020
 ```
 
-During v0, templ is Goldr's render contract. Route functions return templ
-components, `.templ` files render HTML, and Goldr owns the route tree,
-generated wiring, URL helpers, and validation around that workflow.
+The module path becomes the import prefix for packages in this application.
+If you choose another module path, replace `example.com/hello-goldr` in the Go
+and templ files below.
 
-Run goldr and templ with `go tool goldr` and `go tool templ`. This keeps the
-tool versions pinned in the application module.
+## 2. Install Goldr And Its Tools
 
-## Add The HTTP Server
+Keep the Goldr runtime and CLI on the same version. Add Goldr, templ, and both
+app-local tools:
+
+```bash
+GOLDR_VERSION=v0.1.3
+TEMPL_VERSION=v0.3.1020
+
+go get github.com/mobiletoly/goldr@${GOLDR_VERSION} github.com/a-h/templ@${TEMPL_VERSION}
+go get -tool github.com/mobiletoly/goldr/cmd/goldr@${GOLDR_VERSION}
+go get -tool github.com/a-h/templ/cmd/templ@${TEMPL_VERSION}
+```
+
+Confirm that Go can resolve both tools:
+
+```bash
+go tool -n goldr
+go tool -n templ
+```
+
+Each command prints the path to its executable. Running tools through
+`go tool` keeps their versions in `go.mod` with the application.
+
+## 3. Create The Route Directories
+
+Create the root route directory and the dynamic user route directory:
+
+```bash
+mkdir -p app/routes/users/by_id
+```
+
+The `by_` prefix declares a dynamic segment. Goldr turns `by_id` into `{id}`
+when it generates the route table.
+
+## 4. Add The HTTP Server
 
 Create `main.go`:
 
@@ -47,16 +110,10 @@ func main() {
 }
 ```
 
-The application owns the server and mux. goldr generates `routes.Handler()`
-from files under `app/routes`.
+Your application owns the HTTP server and mux. Goldr will generate
+`routes.Handler()` after you add the route source files.
 
-## Add The First Page
-
-Create the route directory:
-
-```bash
-mkdir -p app/routes
-```
+## 5. Add The Home Page
 
 Create `app/routes/route.go`:
 
@@ -65,7 +122,6 @@ package routes
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/mobiletoly/goldr"
 )
@@ -76,36 +132,49 @@ var Route = goldr.RouteDef{
 
 func page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
-		PageView(time.Now()),
-		goldr.PageMetadata{
-			Title: "Hello goldr",
-		},
+		PageView(),
+		goldr.PageMetadata{Title: "Choose a user"},
 	)
 }
 ```
+
+`Route` is static generation input. Because this declaration lives at the root
+of `app/routes`, it declares the page for `/`. `Page: page` names the ordinary
+Go function that handles `GET` and `HEAD` requests for that path.
 
 Create `app/routes/page.templ`:
 
 ```templ
 package routes
 
-import "time"
+import (
+	"strconv"
 
-templ PageView(now time.Time) {
+	"example.com/hello-goldr/app/urls"
+)
+
+templ PageView() {
 	<section>
-		<h1>Hello goldr</h1>
-		<p>Edit app/routes/page.templ to start building.</p>
-		<p>Rendered at { now.Format(time.RFC3339) }</p>
+		<h1>Choose a user</h1>
+		<ul>
+			for id := 1; id <= 5; id++ {
+				<li>
+					<a href={ urls.Users.ByID.Bind(strconv.Itoa(id)).Path() }>
+						Open User { strconv.Itoa(id) }
+					</a>
+				</li>
+			}
+		</ul>
 	</section>
 }
 ```
 
-`route.go` declares the route endpoint and handles the request-facing page
-function. `page.templ` renders the HTML. Pass ordinary Go values from the page
-handler into the templ component when the view needs request data, loaded
-records, validation state, or computed values.
+templ accepts normal Go control flow. The loop renders five links. Goldr will
+generate `urls.Users.ByID`, and `Bind` will insert and path-escape each ID.
+The generated helper keeps the link tied to the filesystem route instead of a
+copied `"/users/"` string.
 
-## Add The Root Layout
+## 6. Add The Root Layout
 
 Create `app/routes/layout.go`:
 
@@ -119,7 +188,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-const defaultTitle = "Hello goldr"
+const defaultTitle = "Hello Goldr"
 
 func Layout(_ *http.Request, ctx goldr.LayoutContext) templ.Component {
 	return LayoutView(ctx.Metadata, ctx.Child)
@@ -158,82 +227,227 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 }
 ```
 
-The root layout wraps the root page and pages below it. Fragments are not
-layout-wrapped. Actions return route responses; page responses from actions are
-written through the matched layout stack.
+The root layout wraps the home page and every descendant page. Goldr puts the
+matched page component in `ctx.Child` and its metadata in `ctx.Metadata`.
+`@child` renders that page inside the document.
 
-## Generate And Run
+HTMX stays visible as a normal script element. This tutorial uses standard
+links, so the application still works if the browser cannot load that script.
 
-Generate templ output and goldr route wiring, validate, and run:
+## 7. Add The Dynamic User Page
 
-```bash
-go tool goldr generate
-go tool goldr check
-go run .
+Create `app/routes/users/by_id/route.go`:
+
+```go
+package by_id
+
+import (
+	"net/http"
+
+	"github.com/mobiletoly/goldr"
+)
+
+var Route = goldr.RouteDef{
+	Page: page,
+}
+
+func page(r *http.Request) goldr.PageRouteResponse {
+	id := r.PathValue("id")
+	return goldr.NewPage(
+		PageView(id),
+		goldr.PageMetadata{Title: "User " + id},
+	)
+}
 ```
 
-When `assets/build` exists, `goldr generate` also refreshes fingerprinted
-assets. `goldr check` verifies Goldr-owned generated files, templ-generated
-files, and Goldr-managed asset outputs are current. It does not write them.
+Goldr maps `users/by_id` to `/users/{id}`. Go's `r.PathValue("id")` reads the
+decoded value that matched `{id}` and passes it to the template.
 
-Open:
+Create `app/routes/users/by_id/page.templ`:
+
+```templ
+package by_id
+
+import "example.com/hello-goldr/app/urls"
+
+templ PageView(id string) {
+	<section>
+		<h1>Hello User { id }</h1>
+		<p><a href={ urls.Root.Path() }>Choose another user</a></p>
+	</section>
+}
+```
+
+The Back link uses the generated root helper. This page has no local layout,
+so it inherits `app/routes/layout.go` from its parent route directory.
+
+## 8. Generate The Application
+
+You have now written every application-owned file used by this tutorial:
 
 ```text
-http://127.0.0.1:8080
+main.go
+app/routes/layout.go
+app/routes/layout.templ
+app/routes/page.templ
+app/routes/route.go
+app/routes/users/by_id/page.templ
+app/routes/users/by_id/route.go
 ```
 
-After route or template edits, use the same loop:
+Generate templ output, route dispatch, URL helpers, and inspection support,
+then tidy the module:
 
 ```bash
 go tool goldr generate
+go mod tidy
+```
+
+Goldr and templ add these generated files:
+
+```text
+app/internal/goldrinspect/goldr_gen.go
+app/routes/goldr_gen.go
+app/routes/layout_templ.go
+app/routes/page_templ.go
+app/routes/users/by_id/goldr_gen.go
+app/routes/users/by_id/page_templ.go
+app/urls/goldr_gen.go
+```
+
+Regenerate after changing a route declaration or `.templ` file. Do not edit
+these generated files.
+
+## 9. Validate The Application
+
+Check generated-file freshness, compile every package through `go test`, and
+build the application:
+
+```bash
 go tool goldr check
+go test ./...
+go build ./...
+```
+
+`goldr check` prints nothing when the route tree and generated files are
+current. It validates without rewriting files.
+
+## 10. Run The Application
+
+Start the server:
+
+```bash
 go run .
 ```
 
-For live reload during development, use:
+Open `http://127.0.0.1:8080`. The home page shows:
+
+```text
+Open User 1
+Open User 2
+Open User 3
+Open User 4
+Open User 5
+```
+
+Open each link. `/users/3`, for example, renders `Hello User 3`. Use the
+`Choose another user` link to return to `/`.
+
+Stop the server with `Ctrl+C` when you finish checking the pages.
+
+## 11. Inspect The Application
+
+Goldr can show the route surface without running the server:
+
+```bash
+go tool goldr routes list
+```
+
+The completed application reports:
+
+```text
+KIND    METHOD    PATH         PARAMS  SOURCE                OWNER  DECL   NAME  TITLE  LABELS  NAV  TRAIL_KEYS  HELPER
+layout  -         /            -       layout.go             -      -      -     -      -       -    -           -
+page    GET,HEAD  /            -       route.go              -      local  -     -      -       -    -           urls.Root.Path()
+page    GET,HEAD  /users/{id}  id      users/by_id/route.go  -      local  -     -      -       -    -           urls.Users.ByID.Bind(id).Path()
+```
+
+Explain one concrete URL:
+
+```bash
+go tool goldr routes explain /users/3
+```
+
+```text
+/users/3  GET
+
+MATCH
+  page     /users/{id}
+  source   app/routes/users/by_id/route.go
+  params   id = "3"
+
+DECLARATION
+  kind     local
+  source   app/routes/users/by_id/route.go
+  name     -
+  title    -
+  labels   -
+
+IMPLEMENTATION
+  page     page -> GoldrRoutePage
+
+LAYOUT STACK
+  / app/routes/layout.go
+```
+
+The explanation connects the browser URL to its source, decoded parameter,
+generated adapter, and inherited layout.
+
+Inspect the full layout tree:
+
+```bash
+go tool goldr routes layouts
+```
+
+The layout map places both pages below the root layout. It also shows the
+`users/by_id` directory and its `id` parameter in the route tree.
+
+These commands read the same filesystem declarations that Goldr uses for
+generation. They do not need a runtime route registry or a running server.
+
+## 12. Use The Development Loop
+
+Run the live-reload server while changing routes or templates:
 
 ```bash
 go tool goldr dev
 ```
 
-For the full workflow, including assets and Tailwind, read
-[Live Reload](live-reload.md).
+Open the proxy URL printed by `goldr dev`. The command watches templ files,
+regenerates Goldr output, restarts the application, and reloads the browser.
+Read [Live Reload](live-reload.md) for asset and Tailwind workflows.
 
-## Optional Scaffold
+## Use The Scaffold Next Time
 
-`goldr init` creates the minimal route skeleton for an existing Go module:
+You created the application-owned files by hand in this tutorial. For a new
+Go module, Goldr can create the minimal root route and layout skeleton:
 
 ```bash
 go tool goldr init
 ```
 
-It creates:
+Do not run `goldr init` in the application you just built because `app`
+already exists. In a new module, the command creates the four root route and
+layout source files plus initial generated output. It does not create
+`go.mod`, write `main.go`, run the application, or add the dynamic user route.
 
-```text
-app/routes/route.go
-app/routes/page.templ
-app/routes/layout.go
-app/routes/layout.templ
-app/routes/goldr_gen.go
-app/internal/goldrinspect/goldr_gen.go
-app/urls/goldr_gen.go
-```
+## Next Steps
 
-It does not create `go.mod`, edit `go.mod`, write `main.go`, run templ, or
-start a server.
-
-Use `--app-root` when running from outside the application root:
-
-```bash
-go tool goldr init --app-root ./hello-goldr
-```
-
-`--app-root` points to the application root. goldr still uses
-`<root>/app/routes` and `<root>/app/urls`.
-
-## Coding Agents
-
-If you use a coding agent in a goldr app, add goldr-specific instructions to
-the app's `AGENTS.md`. See [Coding Agents](coding-agents.md) for a copyable
-block that explains the route tree, generated files, HTMX conventions, assets,
-and validation commands.
+- Read [Concepts](concepts.md) for pages, fragments, actions, layouts, and
+  generated handlers.
+- Read [HTMX](htmx.md) to add visible `hx-*` interactions and partial HTML
+  responses.
+- Read [Routes](routes.md) for nested parameters, actions, fragments,
+  middleware, and URL helper behavior.
+- Read [CLI](cli.md) for all generation, inspection, asset, and development
+  commands.

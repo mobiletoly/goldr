@@ -1,6 +1,6 @@
 # Full-Feature Example
 
-This is the runnable goldr v0 large-app composition example. It keeps the app
+This is the runnable Goldr v0 large-app composition example. It keeps the app
 small, but shows how pages, layouts, fragments, actions, forms, URL helpers,
 custom errors, middleware, CSRF, and static assets fit together in one
 Go/HTMX app.
@@ -43,7 +43,7 @@ go tool goldr routes list --json
 go tool goldr assets list
 ```
 
-Regenerate goldr-owned route and URL files:
+Regenerate Goldr-owned route and URL files:
 
 ```bash
 go tool goldr generate

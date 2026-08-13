@@ -371,7 +371,7 @@ the spec before continuing.
 
 ## Pre-v0 Breaking Changes
 
-goldr is pre-v0.
+Goldr is pre-v0.
 
 Specs may intentionally introduce breaking changes when they improve architecture, simplicity,
 Go-native behavior, inspectability, public API clarity, or long-term maintainability.
@@ -397,6 +397,11 @@ Go-native, HTMX must remain visible, runtime magic is disallowed, public APIs sh
 cautiously, and examples are product surface.
 
 Specs must use plain ASCII text unless there is a concrete product reason not to.
+
+Write the product name as `Goldr` in prose, headings, comments, and
+user-visible example text. Keep `goldr` lowercase for machine-facing names such
+as Go packages and qualifiers, module and import paths, CLI commands, files,
+directories, URLs, HTML attributes, generated markers, and exact diagnostics.
 
 Avoid em dashes, smart quotes, decorative bullets, non-ASCII punctuation, and invisible Unicode
 whitespace.

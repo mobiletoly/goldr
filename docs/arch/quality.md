@@ -38,7 +38,7 @@ Current linter groups:
 - hygiene: `asciicheck`, `bidichk`, `copyloopvar`, `durationcheck`, `makezero`, `misspell`, `nolintlint`
 - test quality: `thelper`, `tparallel`
 
-Do not add broad style or complexity linters unless they protect a real goldr contract.
+Do not add broad style or complexity linters unless they protect a real Goldr contract.
 
 Avoid enabling noisy linters just to look strict.
 

@@ -1,6 +1,6 @@
 # Concepts
 
-goldr is the Go Layout-Driven Router.
+Goldr is the Go Layout-Driven Router.
 
 The filesystem is the route map. Go files handle request-facing behavior and
 templ files render HTML. Layouts compose by route directory, and generated
@@ -8,7 +8,7 @@ code turns the route tree into ordinary `net/http` handlers.
 
 ## Route Tree
 
-goldr applications use:
+Goldr applications use:
 
 ```text
 app/routes/
@@ -81,8 +81,8 @@ type PageMetadata struct {
 }
 ```
 
-goldr passes this value to every matching layout through
-`goldr.LayoutContext`. goldr does not render head tags by itself, choose active
+Goldr passes this value to every matching layout through
+`goldr.LayoutContext`. Goldr does not render head tags by itself, choose active
 navigation, or define canonical URL policy. Layouts decide how to use title and
 description, and applications own any extra shell behavior.
 
@@ -197,7 +197,7 @@ matched layout stack.
 
 ## Generated Code
 
-goldr generates:
+Goldr generates:
 
 ```text
 app/routes/goldr_gen.go
@@ -231,7 +231,7 @@ the selected live route helper surface for each owner.
 
 ## Application Ownership
 
-goldr does not own the whole server. Applications still own:
+Goldr does not own the whole server. Applications still own:
 
 - `net/http` server setup
 - mux registration

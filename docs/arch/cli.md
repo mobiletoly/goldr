@@ -1,6 +1,6 @@
 # CLI Architecture
 
-goldr uses `github.com/urfave/cli/v3` for CLI command parsing, help output, and command dispatch.
+Goldr uses `github.com/urfave/cli/v3` for CLI command parsing, help output, and command dispatch.
 
 The CLI is a nested Go tool module:
 
@@ -52,9 +52,9 @@ The current version value is `dev` until a later release/versioning spec defines
 
 ## Starter App Initialization
 
-`goldr init` initializes goldr's app structure inside an existing Go module.
+`goldr init` initializes Goldr's app structure inside an existing Go module.
 
-It owns only the `app/` starter tree and goldr-generated files:
+It owns only the `app/` starter tree and Goldr-generated files:
 
 ```text
 app/routes/route.go

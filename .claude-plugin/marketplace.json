@@ -1,0 +1,18 @@
+{
+  "name": "goldr",
+  "owner": {
+    "name": "Goldr"
+  },
+  "description": "Claude Code tooling for applications built with Goldr.",
+  "plugins": [
+    {
+      "name": "goldr-app",
+      "source": {
+        "source": "git-subdir",
+        "url": "mobiletoly/goldr",
+        "path": "docs/skills/goldr"
+      },
+      "description": "Build and maintain server-first Go applications with Goldr."
+    }
+  ]
+}

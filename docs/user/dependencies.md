@@ -1,6 +1,6 @@
 # Application Dependencies
 
-goldr generated routes are ordinary `http.Handler` values, and route functions
+Goldr-generated routes are ordinary `http.Handler` values, and route functions
 keep simple request-facing signatures:
 
 ```go
@@ -16,7 +16,7 @@ Use one app-owned typed dependency package instead of scattered context helpers
 or package globals. A CSRF field can hold Goldr's optional `csrf.Guard`, a
 different library, or an app-owned guard.
 
-goldr does not generate this package. The application owns its fields, helper
+Goldr does not generate this package. The application owns its fields, helper
 names, tests, and lifecycle.
 
 ## Recommended Shape

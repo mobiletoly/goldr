@@ -3,6 +3,7 @@ package goldrcli
 import (
 	"bytes"
 	"context"
+	"go/format"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,26 @@ import (
 
 	"github.com/mobiletoly/goldr/cmd/goldr/internal/goldrcli/project"
 )
+
+func TestRunInitCreatesGofmtCleanRoute(t *testing.T) {
+	root := t.TempDir()
+	writeTemplToolModule(t, root, "example.com/initapp")
+
+	code, _, stderr := runGoldr(t, "init", "--app-root", root)
+	if code != 0 {
+		t.Fatalf("Run(init) exit code = %d, want 0; stderr = %q", code, stderr)
+	}
+
+	path := filepath.Join(root, "app", "routes", "route.go")
+	source := []byte(readFile(t, path))
+	formatted, err := format.Source(source)
+	if err != nil {
+		t.Fatalf("format.Source(%s) error = %v", path, err)
+	}
+	if !bytes.Equal(source, formatted) {
+		t.Fatalf("%s is not gofmt-clean\n--- got ---\n%s\n--- want ---\n%s", path, source, formatted)
+	}
+}
 
 func TestRunInitCreatesStarterApp(t *testing.T) {
 	root := t.TempDir()
@@ -49,6 +70,19 @@ func TestRunInitCreatesStarterApp(t *testing.T) {
 	}
 	if !strings.Contains(routeSource, "var Route = goldr.RouteDef") {
 		t.Fatalf("route.go = %q, want RouteDef declaration", routeSource)
+	}
+	for _, name := range []string{
+		"app/routes/route.go",
+		"app/routes/page.templ",
+		"app/routes/layout.go",
+	} {
+		source := readFile(t, filepath.Join(root, filepath.FromSlash(name)))
+		if !strings.Contains(source, "Hello Goldr") {
+			t.Fatalf("%s does not contain %q", name, "Hello Goldr")
+		}
+		if strings.Contains(source, "Hello goldr") {
+			t.Fatalf("%s contains obsolete product name %q", name, "Hello goldr")
+		}
 	}
 	layoutTempl := readFile(t, filepath.Join(root, "app", "routes", "layout.templ"))
 	if !strings.Contains(layoutTempl, `https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4`) {

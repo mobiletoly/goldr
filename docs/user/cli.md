@@ -1,6 +1,6 @@
 # CLI
 
-The `goldr` command initializes, validates, generates, and inspects goldr app
+The `goldr` command initializes, validates, generates, and inspects Goldr app
 route trees.
 
 In an application module, prefer the app-local tool form:
@@ -18,7 +18,7 @@ Use `--app-root` when running a command from outside the application root:
 go tool goldr check --app-root ../my-app
 ```
 
-`--app-root` points to the application root. goldr reads `<root>/app/routes`,
+`--app-root` points to the application root. Goldr reads `<root>/app/routes`,
 expands any mounted route surfaces from `<root>/app/mounts`, and writes
 generated files under `<root>/app/routes`, `<root>/app/urls`, and referenced
 mount roots.
@@ -108,7 +108,7 @@ go tool goldr generate --app-root ../my-app --check
 ```
 
 Check mode runs templ check mode when `.templ` files exist, compares
-goldr-generated output with files on disk, checks Goldr-managed asset output
+Goldr-generated output with files on disk, checks Goldr-managed asset output
 when `assets/build` exists, reports stale or missing generated files, and exits
 non-zero without writing.
 
@@ -178,7 +178,7 @@ Diagnostic categories:
 | `GOLDR003` | A page handler signature is invalid, or a layout or fragment is missing its matching `.templ` file. |
 | `GOLDR004` | Generated route dispatch is not ready. |
 | `GOLDR005` | Generated URL helpers are not ready. |
-| `GOLDR006` | A goldr-owned generated file is missing or stale. |
+| `GOLDR006` | A Goldr-owned generated file is missing or stale. |
 | `GOLDR007` | templ is unavailable, or a templ-generated file is missing or stale. |
 | `GOLDR008` | Goldr-managed asset output is missing or stale. |
 
@@ -241,7 +241,7 @@ Run `go tool goldr assets check` when you want the asset-only check.
 
 ## Routes List
 
-`goldr routes list` prints the route surface goldr sees. During route
+`goldr routes list` prints the route surface Goldr sees. During route
 refactors, use it before and after generation to inspect browser paths and
 generated helper names together:
 

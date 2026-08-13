@@ -168,7 +168,7 @@ func page(_ *http.Request) goldr.PageRouteResponse {
 	return goldr.NewPage(
 		PageView(),
 		goldr.PageMetadata{
-			Title: "Hello goldr",
+			Title: "Hello Goldr",
 		},
 	)
 }
@@ -178,7 +178,7 @@ const initPageTemplSource = `package routes
 
 templ PageView() {
 	<section>
-		<h1>Hello goldr</h1>
+		<h1>Hello Goldr</h1>
 		<p>Edit app/routes/page.templ to start building.</p>
 	</section>
 }
@@ -193,7 +193,7 @@ import (
 	"github.com/mobiletoly/goldr"
 )
 
-const defaultTitle = "Hello goldr"
+const defaultTitle = "Hello Goldr"
 
 func Layout(_ *http.Request, ctx goldr.LayoutContext) templ.Component {
 	return LayoutView(ctx.Metadata, ctx.Child)

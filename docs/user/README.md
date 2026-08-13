@@ -1,15 +1,15 @@
 # User Documentation
 
-This documentation is for developers building applications with goldr.
+This documentation is for developers building applications with Goldr.
 
-goldr is the Go Layout-Driven Router: a server-first framework where the
+Goldr is the Go Layout-Driven Router: a server-first framework where the
 filesystem is the route map, layouts compose by directory, templates render
 HTML, and HTMX stays visible in the markup.
 
 ## Documentation
 
-- [Getting Started](getting-started.md) - build a minimal app by hand, then
-  see where `go tool goldr init` fits.
+- [Getting Started](getting-started.md) - build a two-page app by hand, inspect
+  its dynamic route, then see where `go tool goldr init` fits.
 - [Concepts](concepts.md) - pages, layouts, fragments, actions, render units,
   generated handlers, and URL helpers.
 - [CLI](cli.md) - app-local `go tool goldr` commands.
@@ -40,5 +40,5 @@ HTML, and HTMX stays visible in the markup.
 
 ## Current Scope
 
-goldr is v0. These docs describe current supported behavior only. They do not
+Goldr is v0. These docs describe current supported behavior only. They do not
 document planned features, migration history, or deprecated alternatives.

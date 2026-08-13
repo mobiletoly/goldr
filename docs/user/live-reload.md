@@ -1,10 +1,10 @@
 # Live Reload
 
-`goldr dev` runs a local live-reload loop for goldr applications.
+`goldr dev` runs a local live-reload loop for Goldr applications.
 
 It uses templ watch mode for the reload loop: templ generation, app restart,
 the browser proxy, and browser reload events. Goldr configures the watch
-patterns for goldr apps and adds the goldr-specific steps around that loop:
+patterns for Goldr apps and adds the Goldr-specific steps around that loop:
 route generation and production-faithful asset fingerprinting.
 
 Start it from an application module:

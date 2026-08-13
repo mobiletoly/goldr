@@ -1,6 +1,6 @@
 # Code Review
 
-Code review should protect goldr's correctness, coherence, simplicity, and
+Code review should protect Goldr's correctness, coherence, simplicity, and
 maintainability.
 
 Use this file as the shared review pattern catalog for human and agent reviews.
@@ -24,7 +24,7 @@ Review findings should focus on:
 
 Do not turn review into broad style commentary.
 
-Prefer issues that are concrete, actionable, and tied to goldr's architecture.
+Prefer issues that are concrete, actionable, and tied to Goldr's architecture.
 
 ## Pattern Format
 
@@ -65,26 +65,26 @@ actually reproduce the reported failure.
 
 ## Unsupported Convention Defensiveness
 
-Look for code that special-cases conventions goldr does not support or
+Look for code that special-cases conventions Goldr does not support or
 advertise.
 
 Bad shape:
 - dedicated rejection branches for syntax from other frameworks
-- compatibility paths for patterns goldr never documented
+- compatibility paths for patterns Goldr never documented
 - error messages that teach unsupported external conventions
 - tests that make unsupported external conventions look like product surface
 
 Good shape:
-- validate goldr's documented allowed forms
+- validate Goldr's documented allowed forms
 - reject invalid input through general naming or contract rules
-- keep error messages tied to goldr concepts
+- keep error messages tied to Goldr concepts
 - test supported behavior and generic invalid cases
 
 Why it matters:
 
 Special-casing unsupported external conventions makes the framework appear to
 have inherited or considered those conventions. It adds maintenance burden
-without product value and weakens goldr's Go-native identity.
+without product value and weakens Goldr's Go-native identity.
 
 ## Scattered Convention Vocabulary
 
@@ -128,7 +128,7 @@ Good shape:
 
 Why it matters:
 
-Parallel systems make goldr harder to explain, test, document, and maintain.
+Parallel systems make Goldr harder to explain, test, document, and maintain.
 During v0, breaking cleanup is usually better than compatibility baggage.
 
 ## Speculative Abstraction
@@ -148,7 +148,7 @@ Good shape:
 
 Why it matters:
 
-Every abstraction becomes framework surface area. goldr should stay easy to read
+Every abstraction becomes framework surface area. Goldr should stay easy to read
 and easy to reason about.
 
 ## Hidden Magic
@@ -190,7 +190,7 @@ Good shape:
 
 Why it matters:
 
-Tests should protect behavior without making refactoring expensive. goldr wants
+Tests should protect behavior without making refactoring expensive. Goldr wants
 minimal, high-signal tests.
 
 ## Inspector-Safe HTMX Fragment Targets

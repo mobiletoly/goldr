@@ -3,7 +3,7 @@
 This page is the route reference. For the mental model, read
 [Concepts](concepts.md) first.
 
-goldr applications use a filesystem route tree rooted at:
+Goldr applications use a filesystem route tree rooted at:
 
 ```text
 app/routes/
@@ -378,10 +378,10 @@ return goldr.NewPage(
 ).WithHeader("Cache-Control", "no-store")
 ```
 
-Supported metadata fields are `Title` and `Description`. goldr passes metadata
+Supported metadata fields are `Title` and `Description`. Goldr passes metadata
 to layouts. Layouts decide how to render it.
 
-goldr does not infer page titles, render canonical links, or choose active
+Goldr does not infer page titles, render canonical links, or choose active
 navigation entries. Those are application layout decisions. Use request data,
 generated URL helpers, or app-owned state when a layout needs them.
 
@@ -733,7 +733,7 @@ route directory path.
 
 ## URL Helpers
 
-goldr generates app-specific URL helpers in:
+Goldr generates app-specific URL helpers in:
 
 ```text
 app/urls/goldr_gen.go

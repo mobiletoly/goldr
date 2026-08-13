@@ -1,6 +1,6 @@
 # HTMX
 
-goldr keeps HTMX visible in templates and uses ordinary Go handlers for
+Goldr keeps HTMX visible in templates and uses ordinary Go handlers for
 response control.
 
 ## Template Attributes Stay Visible
@@ -294,7 +294,7 @@ See package documentation or completion for the full list.
 - 422 validation redisplay from `/users/create` with app-owned HTMX response
   handling
 
-Run it from a goldr checkout:
+Run it from a Goldr checkout:
 
 ```bash
 (cd examples/full_feature && go run .)

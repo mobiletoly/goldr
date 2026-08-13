@@ -1,0 +1,10 @@
+{
+  "name": "goldr-app",
+  "description": "Build and maintain server-first Go applications with Goldr.",
+  "author": {
+    "name": "Goldr"
+  },
+  "homepage": "https://github.com/mobiletoly/goldr",
+  "repository": "https://github.com/mobiletoly/goldr",
+  "license": "Apache-2.0"
+}

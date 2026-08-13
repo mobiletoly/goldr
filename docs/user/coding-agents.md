@@ -1,12 +1,34 @@
 # Coding Agents
 
 Many coding agents read `AGENTS.md` or similar repository instruction files
-before editing. If your application uses goldr, give the agent the framework
+before editing. If your application uses Goldr, give the agent the framework
 rules in the app repository, not only in chat.
 
-If your agent supports installable skills, you can also install the
-[Goldr App skill](../skills/goldr/SKILL.md). The skill is self-contained
-and gives agents an operational workflow for editing Goldr applications.
+## Install the Goldr App skill
+
+Coding agents use the [Goldr App skill](../skills/goldr/SKILL.md) as an
+operational workflow for editing Goldr applications. Install the complete
+skill so the agent can read its supporting reference files.
+
+### Codex
+
+Ask Codex to install the skill from its GitHub directory:
+
+```text
+$skill-installer install https://github.com/mobiletoly/goldr/tree/main/docs/skills/goldr
+```
+
+### Claude Code
+
+Run these commands in your shell:
+
+```bash
+claude plugin marketplace add mobiletoly/goldr --sparse .claude-plugin
+claude plugin install goldr-app@goldr
+```
+
+Claude checks out the marketplace metadata, then fetches only
+`docs/skills/goldr` when installing the skill.
 
 Copy this into your application's `AGENTS.md` and adjust the command list to
 match your project scripts:
@@ -14,7 +36,7 @@ match your project scripts:
 ````md
 # Goldr Application Rules
 
-This project uses goldr.
+This project uses Goldr.
 
 Goldr is server-first, HTML-first, HTMX-native, and Go-native.
 
@@ -72,7 +94,7 @@ go test ./...
 ```
 
 `goldr generate` runs templ generation when `.templ` files exist before
-writing goldr-owned generated files. When `assets/build` exists, it also
+writing Goldr-owned generated files. When `assets/build` exists, it also
 refreshes Goldr-managed asset outputs. `goldr check` runs templ check mode when
 `.templ` files exist and validates generated output without rewriting files.
 Use `goldr routes list --app-root <dir>` when the Goldr app root is nested, and
@@ -102,8 +124,8 @@ to a CDN, or register static handlers.
 - Keep page, layout, fragment, and action behavior local to the route directory.
 - Keep generated files current.
 - Do not introduce a second routing system.
-- Do not move application-owned server concerns into goldr framework code.
+- Do not move application-owned server concerns into Goldr framework code.
 ````
 
-If the application already has an `AGENTS.md`, merge the goldr section into the
+If the application already has an `AGENTS.md`, merge the Goldr section into the
 existing file instead of replacing project-specific rules.

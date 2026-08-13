@@ -1,6 +1,6 @@
 # Composition
 
-goldr generated routes are ordinary `http.Handler` values.
+Goldr-generated routes are ordinary `http.Handler` values.
 
 Applications own the HTTP server, mux, middleware, static assets, cache
 headers, auth, sessions, logging, recovery, and non-route handlers.

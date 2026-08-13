@@ -144,7 +144,7 @@ on fingerprinted app assets, not this helper.
 `hx-sse:connect`, ordinary generated actions for posted messages, in-memory
 server-side persistence, `event: chat-message`, and `goldr-sse-event`.
 
-Run it from a goldr checkout:
+Run it from a Goldr checkout:
 
 ```bash
 (cd examples/chat && go run .)

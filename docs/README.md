@@ -1,6 +1,6 @@
 # Documentation
 
-goldr uses three documentation lanes.
+Goldr uses three documentation lanes.
 
 ## `docs/spec/`
 
@@ -14,7 +14,7 @@ Completed specs should be removed or folded into durable documentation once thei
 
 ## `docs/user/`
 
-Durable user and developer documentation for people building applications with goldr.
+Durable user and developer documentation for people building applications with Goldr.
 
 This directory describes supported behavior only.
 
