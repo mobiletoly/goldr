@@ -68,6 +68,127 @@ The example shows pages, nested layouts, HTMX fragments, POST actions, forms,
 generated URL helpers, custom errors, middleware, request parsing, CSRF,
 route-rendered error pages, and fingerprinted static assets in one small app.
 
+For a bounded rich-client escape hatch, see `examples/react_island` and
+`examples/svelte_island`. They keep Goldr in charge of pages and navigation
+while React or Svelte owns one explicit editor subtree. The client-island
+contract is documented in `docs/user/client-islands.md`.
+
+
+## How goldr Apps Are Shaped
+
+In goldr, the filesystem is the route map:
+
+```text
+app/routes/
+  layout.go          -> layout logic for / and below
+  layout.templ       -> layout HTML
+  route.go           -> GET /
+  page.templ         -> page HTML
+  users/
+    layout.go        -> layout logic for /users and below
+    layout.templ     -> users layout HTML
+    route.go         -> GET /users, GET /users/table, POST /users/create
+    page.templ       -> users page HTML
+    by_id/
+      route.go       -> GET /users/{id}
+      page.templ     -> user detail HTML
+    frag_table.templ -> fragment HTML
+```
+
+A route directory is the unit of local web behavior. Its `route.go` declares
+the page, HTMX fragments, and actions for that part of the app:
+
+```go
+var Route = goldr.RouteDef{
+	Page: page,
+	Fragments: goldr.Fragments{
+		goldr.FragmentRoute("/table", table),
+	},
+	Actions: goldr.Actions{
+		goldr.Action(http.MethodPost, "/create", postCreate),
+	},
+}
+```
+
+goldr turns the filesystem and route declarations into generated dispatch and
+route-shaped URL helpers. The source route remains ordinary Go, while
+templates can link to generated helpers instead of hard-coded paths:
+
+```go
+urls.Users.Path()
+urls.Users.Table.Path()
+urls.Users.Create.Path()
+urls.Users.ByID.Bind(id).Path()
+```
+
+HTMX stays visible at the call site. A template can use the generated fragment
+path directly in the `hx-get` attribute:
+
+```templ
+package users
+
+import "example.com/hello-goldr/app/urls"
+
+templ UsersView() {
+	<button
+		hx-get={ urls.Users.Table.Path() }
+		hx-target="#users-table"
+		hx-swap="innerHTML"
+	>
+		Refresh users
+	</button>
+	<div id="users-table"></div>
+}
+```
+
+Layouts wrap pages in their route directory and below. Fragments are
+standalone HTMX partials, and actions are ordinary Go handlers colocated with
+the route they mutate. The result is a Go-native structure where page loading,
+partial refreshes, form posts, redirects, validation failures, and layout state
+all live close to the workflow they support.
+
+Static directory underscores become hyphens in browser URLs, so Go-safe source
+names such as `build_info/` can serve stable paths such as `/build-info`.
+
+The conventions are Go-native:
+
+- `route.go` declares a route page, fragments, and actions
+- `layout.go` wraps pages in that directory and below
+- fragment declarations in `route.go` define independently renderable HTMX
+  fragments, including optional index fragments at the route path
+- action declarations in `route.go` define colocated mutation handlers
+- `by_id/` maps to a dynamic `{id}` route segment
+- `build_info/` maps to a static `/build-info` browser segment
+
+goldr generates route dispatch in `app/routes/goldr_gen.go` and URL helpers in
+`app/urls/goldr_gen.go`.
+
+This generated code is meant to be inspected. It is the executable route truth
+produced from the filesystem and `route.go` declarations, not a hidden
+registry built at runtime.
+
+When an HTMX action or fragment only supports one page workflow, nest it under
+that page route instead of creating a flat sibling route:
+
+```text
+users/
+  route.go
+  page.templ
+  prepare/
+    route.go
+    action_handlers.go
+    result.templ
+  save/
+    route.go
+    action_handlers.go
+```
+
+The nested action or fragment routes do not need standalone pages. Keep
+templates used only by one route directly in that route directory, and choose
+directory names for clear generated helpers such as
+`urls.Users.Prepare.Path()` and `urls.Users.Save.Path()`.
+
+
 ## Quick Start
 
 This path builds the smallest useful goldr app by hand so the project shape is
@@ -325,119 +446,6 @@ feel like a Go app.
 - The visual inspector can draw browser overlays for the layouts, pages,
   fragments, and labeled components that produced each page region.
 
-## How goldr Apps Are Shaped
-
-In goldr, the filesystem is the route map:
-
-```text
-app/routes/
-  layout.go          -> layout logic for / and below
-  layout.templ       -> layout HTML
-  route.go           -> GET /
-  page.templ         -> page HTML
-  users/
-    layout.go        -> layout logic for /users and below
-    layout.templ     -> users layout HTML
-    route.go         -> GET /users, GET /users/table, POST /users/create
-    page.templ       -> users page HTML
-    by_id/
-      route.go       -> GET /users/{id}
-      page.templ     -> user detail HTML
-    frag_table.templ -> fragment HTML
-```
-
-A route directory is the unit of local web behavior. Its `route.go` declares
-the page, HTMX fragments, and actions for that part of the app:
-
-```go
-var Route = goldr.RouteDef{
-	Page: page,
-	Fragments: goldr.Fragments{
-		goldr.FragmentRoute("/table", table),
-	},
-	Actions: goldr.Actions{
-		goldr.Action(http.MethodPost, "/create", postCreate),
-	},
-}
-```
-
-goldr turns the filesystem and route declarations into generated dispatch and
-route-shaped URL helpers. The source route remains ordinary Go, while
-templates can link to generated helpers instead of hard-coded paths:
-
-```go
-urls.Users.Path()
-urls.Users.Table.Path()
-urls.Users.Create.Path()
-urls.Users.ByID.Bind(id).Path()
-```
-
-HTMX stays visible at the call site. A template can use the generated fragment
-path directly in the `hx-get` attribute:
-
-```templ
-package users
-
-import "example.com/hello-goldr/app/urls"
-
-templ UsersView() {
-	<button
-		hx-get={ urls.Users.Table.Path() }
-		hx-target="#users-table"
-		hx-swap="innerHTML"
-	>
-		Refresh users
-	</button>
-	<div id="users-table"></div>
-}
-```
-
-Layouts wrap pages in their route directory and below. Fragments are
-standalone HTMX partials, and actions are ordinary Go handlers colocated with
-the route they mutate. The result is a Go-native structure where page loading,
-partial refreshes, form posts, redirects, validation failures, and layout state
-all live close to the workflow they support.
-
-Static directory underscores become hyphens in browser URLs, so Go-safe source
-names such as `build_info/` can serve stable paths such as `/build-info`.
-
-The conventions are Go-native:
-
-- `route.go` declares a route page, fragments, and actions
-- `layout.go` wraps pages in that directory and below
-- fragment declarations in `route.go` define independently renderable HTMX
-  fragments, including optional index fragments at the route path
-- action declarations in `route.go` define colocated mutation handlers
-- `by_id/` maps to a dynamic `{id}` route segment
-- `build_info/` maps to a static `/build-info` browser segment
-
-goldr generates route dispatch in `app/routes/goldr_gen.go` and URL helpers in
-`app/urls/goldr_gen.go`.
-
-This generated code is meant to be inspected. It is the executable route truth
-produced from the filesystem and `route.go` declarations, not a hidden
-registry built at runtime.
-
-When an HTMX action or fragment only supports one page workflow, nest it under
-that page route instead of creating a flat sibling route:
-
-```text
-users/
-  route.go
-  page.templ
-  prepare/
-    route.go
-    action_handlers.go
-    result.templ
-  save/
-    route.go
-    action_handlers.go
-```
-
-The nested action or fragment routes do not need standalone pages. Keep
-templates used only by one route directly in that route directory, and choose
-directory names for clear generated helpers such as
-`urls.Users.Prepare.Path()` and `urls.Users.Save.Path()`.
 
 ## HTMX Stays Visible
 
@@ -507,19 +515,41 @@ without making SSE part of the first-read path.
 
 ## Documentation
 
-- [User documentation](docs/user/README.md)
-- [Getting Started](docs/user/getting-started.md)
-- [Routes](docs/user/routes.md)
-- [Mounted Kit Route Subtrees](docs/user/mounted-routes.md)
-- [CLI](docs/user/cli.md)
-- [Live Reload](docs/user/live-reload.md)
-- [Template Inspection](docs/user/template-inspection.md)
-- [Assets](docs/user/assets.md)
-- [Coding Agents](docs/user/coding-agents.md)
+- [User Documentation](docs/user/README.md) - the complete documentation index.
+- [Getting Started](docs/user/getting-started.md) - build a minimal app by hand,
+  then see where `go tool goldr init` fits.
+- [Concepts](docs/user/concepts.md) - pages, layouts, fragments, actions, render
+  units, generated handlers, and URL helpers.
+- [CLI](docs/user/cli.md) - app-local `go tool goldr` commands.
+- [Routes](docs/user/routes.md) - filesystem conventions and runtime behavior.
+- [Mounted Kit Route Subtrees](docs/user/mounted-routes.md) - reusable non-live
+  `app/mounts` route surfaces mounted by real `app/routes` owners.
+- [Navigation Trails](docs/user/navigation.md) - app-owned contextual trails,
+  breadcrumb-style rendering, and app-level Back links.
+- [Client Islands](docs/user/client-islands.md) - bounded React or Svelte
+  components, HTMX lifecycle cleanup, navigation, and app-owned frontend builds.
+- [HTMX](docs/user/htmx.md) - visible `hx-*` attributes and response headers.
+- [Error Handling](docs/user/error-handling.md) - route errors, custom generated
+  error hooks, full-page errors, and HTMX error fragments.
+- [Assets](docs/user/assets.md) - fingerprinted static files, cache headers, and
+  app-owned asset tooling.
+- [SSE](docs/user/sse.md) - app-owned streams, event IDs, and named SSE swaps.
+- [CSRF](docs/user/csrf.md) - signed-cookie tokens for unsafe form and HTMX
+  requests.
+- [Composition](docs/user/composition.md) - mux, middleware, static assets, and
+  app-owned server behavior.
+- [Application Dependencies](docs/user/dependencies.md) - app-owned typed
+  dependencies for generated route packages.
+- [Live Reload](docs/user/live-reload.md) - `goldr dev`, browser reload, assets,
+  and Tailwind workflows.
+- [Template Inspection](docs/user/template-inspection.md) - local render-unit
+  comments, visible browser overlays, and app-owned env-var wiring.
+- [Coding Agents](docs/user/coding-agents.md) - repository guidance for agents
+  working on Goldr applications.
+
+### Agent Tooling
+
 - [Installable Goldr App Skill](docs/skills/goldr/SKILL.md)
-- [HTMX](docs/user/htmx.md)
-- [SSE](docs/user/sse.md)
-- [Composition](docs/user/composition.md)
 
 ## License
 

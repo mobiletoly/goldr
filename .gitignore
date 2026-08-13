@@ -26,3 +26,8 @@ coverage.out
 /AGENTS.md
 /docs/spec/*.md
 !/docs/spec/README.md
+
+# App-owned frontend dependencies and local browser output
+node_modules/
+test-results/
+playwright-report/

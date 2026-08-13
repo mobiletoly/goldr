@@ -1,0 +1,15 @@
+{
+  "version": "v0",
+  "managed": [
+    {
+      "logical": "app.css",
+      "dist": "assets/dist/app.70948cf9.css",
+      "hash": "70948cf9"
+    },
+    {
+      "logical": "app.js",
+      "dist": "assets/dist/app.8fcbf288.js",
+      "hash": "8fcbf288"
+    }
+  ]
+}

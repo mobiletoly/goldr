@@ -6,23 +6,20 @@ goldr is the Go Layout-Driven Router: a server-first framework where the
 filesystem is the route map, layouts compose by directory, templates render
 HTML, and HTMX stays visible in the markup.
 
-## Start Here
+## Documentation
 
-Read these first:
-
-1. [Getting Started](getting-started.md) - build a minimal app by hand, then
-   see where `go tool goldr init` fits.
-2. [Concepts](concepts.md) - learn pages, layouts, fragments, actions, render
-   units, generated handlers, and URL helpers.
-
-Then use the references:
-
+- [Getting Started](getting-started.md) - build a minimal app by hand, then
+  see where `go tool goldr init` fits.
+- [Concepts](concepts.md) - pages, layouts, fragments, actions, render units,
+  generated handlers, and URL helpers.
 - [CLI](cli.md) - app-local `go tool goldr` commands.
 - [Routes](routes.md) - filesystem conventions and runtime behavior.
 - [Mounted Kit Route Subtrees](mounted-routes.md) - reusable non-live
   `app/mounts` route surfaces mounted by real `app/routes` owners.
 - [Navigation Trails](navigation.md) - app-owned contextual trails,
   breadcrumb-style rendering, and app-level Back links.
+- [Client Islands](client-islands.md) - bounded React or Svelte components,
+  HTMX lifecycle cleanup, navigation, and app-owned frontend builds.
 - [HTMX](htmx.md) - visible `hx-*` attributes and response headers.
 - [Error Handling](error-handling.md) - route errors, custom generated error
   hooks, full-page errors, and HTMX error fragments.
@@ -38,37 +35,8 @@ Then use the references:
   Tailwind workflows.
 - [Template Inspection](template-inspection.md) - local render-unit comments,
   visible browser overlays, and app-owned env-var wiring.
-
-- [Goldr App Skill](../skills/goldr/SKILL.md) - installable skill package
-  for agents working inside goldr applications.
-
-## What To Build First
-
-Use `getting-started.md` when you want to create the smallest working goldr app.
-
-Use `examples/full_feature/` when you want to see a larger app that combines
-pages, nested layouts, fragments, actions, request parsing, URL helpers,
-custom errors, middleware, CSRF, and fingerprinted static assets.
-
-From a goldr checkout:
-
-```bash
-(cd examples/full_feature && go run .)
-```
-
-Use `examples/chat/` when you want to see app-owned server-sent events with
-HTMX, the `sse` protocol helper, and Goldr's named-event browser swap helper:
-
-```bash
-(cd examples/chat && go run .)
-```
-
-Inspect the example route tree:
-
-```bash
-(cd examples/full_feature && go tool goldr routes layouts)
-(cd examples/full_feature && go tool goldr routes list)
-```
+- [Coding Agents](coding-agents.md) - repository guidance for agents working
+  on Goldr applications.
 
 ## Current Scope
 

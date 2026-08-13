@@ -1,0 +1,17 @@
+package routes
+
+import "strconv"
+
+templ PageView(project project, saveURL, cancelURL string) {
+	<section class="page-shell">
+		<h1>Svelte project editor</h1>
+		<p>Goldr owns this page. Svelte owns only the editor below.</p>
+		<div
+			data-client-island="project-editor"
+			data-project-name={ project.Name }
+			data-project-pinned={ strconv.FormatBool(project.Pinned) }
+			data-save-url={ saveURL }
+			data-cancel-url={ cancelURL }
+		></div>
+	</section>
+}

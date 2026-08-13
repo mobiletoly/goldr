@@ -1,0 +1,20 @@
+:root {
+  color: #172033;
+  font-family: system-ui, sans-serif;
+  background: #f4f7fb;
+}
+
+body { margin: 0; }
+a { color: #2457c5; }
+.app-header { align-items: center; background: white; border-bottom: 1px solid #d8dfeb; display: flex; justify-content: space-between; padding: 1rem 1.5rem; }
+.app-header > a { color: #172033; font-weight: 700; text-decoration: none; }
+.page-shell { margin: 3rem auto; max-width: 42rem; padding: 0 1rem; }
+.editor-card { background: white; border: 1px solid #d8dfeb; border-radius: 0.75rem; display: grid; gap: 0.75rem; padding: 1.25rem; }
+.editor-card input[type="text"], .editor-card input:not([type]) { border: 1px solid #9aa9bf; border-radius: 0.35rem; font: inherit; padding: 0.6rem; }
+.checkbox-row { align-items: center; display: flex; gap: 0.5rem; }
+.preview { background: #eef3ff; border-radius: 0.35rem; padding: 0.75rem; }
+.state { color: #53637a; }
+.error { color: #b42318; margin: 0; }
+.actions { align-items: center; display: flex; gap: 1rem; }
+button { background: #2457c5; border: 0; border-radius: 0.35rem; color: white; font: inherit; padding: 0.6rem 1rem; }
+button:disabled { opacity: 0.6; }

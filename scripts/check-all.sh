@@ -261,6 +261,8 @@ example_modules=(
   "examples/full_feature"
   "examples/chat"
   "examples/kit_routes"
+  "examples/react_island"
+  "examples/svelte_island"
 )
 
 for example_module in "${example_modules[@]}"; do

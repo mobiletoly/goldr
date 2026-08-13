@@ -1,0 +1,21 @@
+{
+  "name": "goldr-svelte-island-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "svelte": "5.56.9"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@sveltejs/vite-plugin-svelte": "7.3.0",
+    "@types/node": "26.2.0",
+    "svelte-check": "4.7.6",
+    "typescript": "5.9.3",
+    "vite": "8.2.1"
+  }
+}

@@ -1,0 +1,30 @@
+package routes
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/csrf"
+	"github.com/mobiletoly/goldr/examples/svelte_island/app/urls"
+	"github.com/mobiletoly/goldr/examples/svelte_island/assets"
+)
+
+templ LayoutView(metadata goldr.PageMetadata, csrfToken string, child templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ metadata.Title }</title>
+			@csrf.Meta(csrfToken)
+			<link rel="stylesheet" href={ assets.Path("app.css") }/>
+			<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4" integrity="sha384-aWZK1NtOs/aWb/+YZdTM8q2JkWEshlMc9mgZ189numT9bwFhyAyYEoO4nO/2dTXt" crossorigin="anonymous" defer></script>
+			<script type="module" src={ assets.Path("app.js") }></script>
+		</head>
+		<body hx-boost:inherited="true">
+			<header class="app-header">
+				<a href={ urls.Root.Path() }>Svelte Island</a>
+				<nav aria-label="Primary"><a href={ urls.About.Path() }>About</a></nav>
+			</header>
+			<main>@child</main>
+		</body>
+	</html>
+}
