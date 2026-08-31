@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/goldr-logo-dark.svg">
+    <img src="docs/assets/goldr-logo-light.svg" alt="Goldr gold crystal logo" width="112">
+  </picture>
+</p>
+
 # Goldr (Go Layout-Driven Router)
 
 [![CI](https://github.com/mobiletoly/goldr/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mobiletoly/goldr/actions/workflows/ci.yml)
