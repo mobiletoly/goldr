@@ -60,8 +60,10 @@ func TestRunDevHelpExplainsProductionFaithfulLoop(t *testing.T) {
 	requireGoldrOutputContains(
 		t,
 		[]string{"dev", "--help"},
-		"goldr dev [--app-root <dir>] [--cmd-dir <dir>] [--app-url <url>] [--proxy-addr <host:port>] [--cmd <command>]",
+		"goldr dev [--app-root <dir>] [--cmd-dir <dir>] [--reload-path <path>] [--app-url <url>] [--proxy-addr <host:port>] [--cmd <command>]",
 		"--cmd-dir",
+		"--reload-path",
+		"browser reload without restarting the app",
 		"templ watch mode",
 		"assets.Path",
 		"assets.FS",

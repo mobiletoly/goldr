@@ -11,7 +11,31 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/urfave/cli/v3"
 )
+
+func TestDevCommandAcceptsRepeatedReloadPaths(t *testing.T) {
+	command := Command()
+	var got []string
+	command.Action = func(_ context.Context, cmd *cli.Command) error {
+		got = cmd.StringSlice(devReloadPathFlag)
+		return nil
+	}
+
+	err := command.Run(context.Background(), []string{
+		"dev",
+		"--reload-path", " content/pages ",
+		"--reload-path", "../shared/legal",
+	})
+	if err != nil {
+		t.Fatalf("Command.Run() error = %v", err)
+	}
+	want := []string{"content/pages", "../shared/legal"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("reload paths = %#v, want %#v", got, want)
+	}
+}
 
 func TestDevTemplArgsUseProxyWatchAndWrapper(t *testing.T) {
 	config := devConfig{
@@ -104,6 +128,7 @@ func TestDevWrapperRunsGoldrGenerateThenAppCommand(t *testing.T) {
 		"set -eu",
 		generateCommand,
 		"cd " + shellQuote(root),
+		"printf '%s\\n' \"$$\" > " + shellQuote(devCommandPIDPath(wrapper)),
 		"printf '%s\\n' 'goldr dev live reload proxy'",
 		"printf '%s\\n' 'Open this URL in your browser:'",
 		"printf '%s\\n' '  http://127.0.0.1:7331'",
@@ -299,6 +324,17 @@ func TestResolveDevConfigRejectsInvalidOptionsBeforeTemplLookup(t *testing.T) {
 		want string
 	}{
 		{
+			name: "bad reload path",
+			opts: devOptions{
+				root:        root,
+				reloadPaths: []string{filepath.Join(root, "missing-content")},
+				appURL:      defaultDevAppURL,
+				proxyAddr:   defaultDevProxyAddr,
+				command:     defaultDevCommand,
+			},
+			want: "resolve --reload-path",
+		},
+		{
 			name: "bad app url",
 			opts: devOptions{
 				root:      root,
@@ -443,6 +479,37 @@ func TestResolveDevConfigResolvesRelativeCommandDirFromCurrentDirectory(t *testi
 
 	if config.cmdDir != resolvedCmdDir {
 		t.Fatalf("cmdDir = %q, want %q", config.cmdDir, resolvedCmdDir)
+	}
+}
+
+func TestResolveDevConfigResolvesReloadPathsFromCurrentDirectory(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "webapp")
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "app/routes/page.go", "package routes\n")
+	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
+	writeFile(t, parent, "content/page.html", "page")
+	t.Chdir(parent)
+
+	config, err := resolveDevConfig(context.Background(), devOptions{
+		root:        "webapp",
+		reloadPaths: []string{"content/page.html"},
+		appURL:      defaultDevAppURL,
+		proxyAddr:   defaultDevProxyAddr,
+		command:     defaultDevCommand,
+	})
+	if err != nil {
+		t.Fatalf("resolveDevConfig() error = %v", err)
+	}
+	defer func() {
+		_ = os.Remove(config.wrapperPath)
+	}()
+	canonical, err := filepath.EvalSymlinks(filepath.Join(parent, "content", "page.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.reloadPaths) != 1 || config.reloadPaths[0].path != canonical {
+		t.Fatalf("reload paths = %#v, want %q", config.reloadPaths, canonical)
 	}
 }
 

@@ -74,6 +74,7 @@ Default shape:
 ```text
 --app-root .
 --cmd-dir <app root>
+--reload-path <none; repeat as needed>
 --app-url http://127.0.0.1:8080
 --proxy-addr 127.0.0.1:7331
 --cmd "go run ."
@@ -87,6 +88,7 @@ Common usage:
 go tool goldr dev
 go tool goldr dev --cmd "<app start command>"
 go tool goldr dev --app-root <app-root> --cmd-dir <repo-root> --cmd "<app start command>"
+go tool goldr dev --reload-path <runtime-content-path> --reload-path <another-path>
 go tool goldr dev --app-url http://127.0.0.1:3000
 go tool goldr dev --proxy-addr 127.0.0.1:7332
 ```
@@ -96,6 +98,22 @@ command package, and scripts.
 
 Goldr watches `.go`, `.templ`, and `<app-root>/assets/build`. If a separate
 asset tool is needed, run it separately so it writes final files there.
+
+Use repeatable `--reload-path` flags only for files or directories that the
+running app reads on each request. Relative paths resolve from the invocation
+directory. Directories are recursive; exact files support atomic replacement,
+removal, and recreation without recursively watching sibling directories. A
+100 ms event burst produces one POST to templ's existing reload endpoint,
+without generation, the wrapper, or an app restart.
+
+Within `<app-root>`, `.go`, `.templ`, and `assets/build` remain owned by templ's
+normal generate-and-restart flow. Generated Goldr, templ, and asset outputs do
+not trigger reload-only notifications. Configured paths outside `<app-root>`
+are reload-only regardless of extension; the flag does not expand rebuild roots.
+Do not use it for embedded content, which cannot change in the running binary.
+Missing paths fail at startup, and removing or renaming a configured directory
+root stops the dev session. Applications own a development CSP that permits
+templ's same-origin reload script and event connection.
 
 Stop any dev server you start.
 

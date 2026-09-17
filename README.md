@@ -268,6 +268,16 @@ After route or template edits, run `go tool goldr generate` before
 go tool goldr dev
 ```
 
+For content that the running app reads on each request, add one or more
+reload-only paths:
+
+```bash
+go tool goldr dev --reload-path content/pages --reload-path ../shared/legal
+```
+
+Those changes refresh the browser without generation or an app restart, so
+process-local state survives. Embedded content still requires a rebuild.
+
 Read [Getting Started](docs/user/getting-started.md) to build a two-page app by
 hand and inspect its dynamic route. Read
 [Live Reload](docs/user/live-reload.md) for asset and Tailwind workflows.
@@ -363,6 +373,8 @@ mounted routes, and the complete route contract.
 
 - `goldr dev` runs templ generation, Goldr route generation, asset
   fingerprinting, app restart, and browser reload.
+- Repeat `goldr dev --reload-path <path>` for external runtime content that
+  should reload the browser while the current app process keeps running.
 - `goldr generate` refreshes route wiring, URL helpers, templ output, and
   fingerprinted assets.
 - `goldr check` verifies generated routes, templ output, and managed assets

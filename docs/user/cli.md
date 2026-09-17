@@ -140,6 +140,21 @@ Relative `--cmd-dir` paths are resolved from the directory where you invoked
 go tool goldr dev --app-root internal/adapters/webapp --cmd-dir . --cmd './scripts/run-goldr-dev-app.sh'
 ```
 
+Repeat `--reload-path` for external, runtime-readable files or directories
+whose changes should refresh the browser without restarting the application:
+
+```bash
+go tool goldr dev --reload-path content/pages --reload-path ../shared/legal
+```
+
+Relative reload paths resolve from the invocation directory. Directories are
+recursive, and exact files support replacement, removal, and recreation.
+Inside `--app-root`, `.go`, `.templ`, and `assets/build` changes keep using the
+existing generate-and-restart flow. Outside `--app-root`, configured paths are
+reload-only regardless of extension. This flag does not expand source rebuild
+roots, and it cannot refresh content embedded in the running executable. See
+[Live Reload](live-reload.md) for event, failure, and CSP details.
+
 ## Check
 
 `goldr check` validates the route tree and generated-file freshness without

@@ -60,6 +60,11 @@ assets/build change
   -> goldr generate
   -> restart app
   -> reload browser
+
+--reload-path change
+  -> notify templ proxy
+  -> reload browser
+  -> keep app process running
 ```
 
 Goldr does not replace templ's proxy or reload mechanism. It asks templ to
@@ -68,6 +73,55 @@ wrapper command for templ to run after generation. The wrapper runs
 `goldr generate`, which updates route files and fingerprinted assets when
 `assets/build` exists, then starts the app.
 
+## Reload-Only Content
+
+Use repeatable `--reload-path` flags for files that the running application
+reads on each request:
+
+```bash
+go tool goldr dev \
+  --reload-path content/pages \
+  --reload-path ../shared/legal \
+  --cmd "go run . -dev"
+```
+
+Each path must already be a regular file or directory when `goldr dev` starts.
+Relative paths resolve from the directory where the command is invoked, not
+from `--app-root` or `--cmd-dir`. Directories are watched recursively. Exact
+files are watched through their parent directory, so ordinary saves, atomic
+replacement, removal, and recreation are detected. Newly created descendant
+directories are also watched for directory targets. An exact-file target does
+not recursively watch sibling directories under its parent.
+
+Goldr coalesces a burst of create, write, remove, and rename events for 100 ms,
+then posts one reload notification to templ's existing proxy. It does not run
+templ generation, `goldr generate`, the app wrapper, or restart the Go process.
+This preserves in-memory application state while the next request reads the
+changed content.
+
+Inside `--app-root`, templ's existing inputs remain authoritative. Changes to
+`.go`, `.templ`, and files under `assets/build` use the normal generation and
+restart flow and do not receive a second reload-only notification. Generated
+outputs such as `goldr_gen.go`, `*_templ.go`, `assets/dist`, and
+`assets/.goldr` are also excluded from reload-only notifications. Outside
+`--app-root`, configured paths are reload-only regardless of extension. The
+flag does not add source rebuild roots.
+
+Do not use `--reload-path` for content embedded in the executable. Embedded
+bytes change only when the application is rebuilt and restarted. Keep content
+external when it must be editable and served by the current process.
+
+A missing, inaccessible, or non-regular/non-directory path fails before templ
+or the app starts. Removing or renaming a configured directory root stops the
+development session with an error; removing and recreating an exact configured
+file or a descendant remains supported. If one proxy notification cannot be
+delivered after a short retry window, Goldr prints a warning and keeps
+watching.
+
+Templ injects the browser reload script through its proxy. The application is
+responsible for a development Content Security Policy that permits that
+same-origin script and event connection.
+
 ## Options
 
 Defaults:
@@ -75,6 +129,7 @@ Defaults:
 ```text
 --app-root .
 --cmd-dir <app root>
+--reload-path <none; repeat for each reload-only file or directory>
 --app-url http://127.0.0.1:8080
 --proxy-addr 127.0.0.1:7331
 --cmd "go run ."
@@ -95,6 +150,12 @@ go tool goldr dev --app-root internal/adapters/webapp --cmd-dir .
 
 Relative `--cmd-dir` paths are resolved from the directory where you invoked
 `goldr dev`.
+
+Relative `--reload-path` values use the same invocation-directory rule:
+
+```bash
+go tool goldr dev --reload-path content/pages --reload-path ../shared/legal
+```
 
 Use `--app-url` when the app listens on another address:
 

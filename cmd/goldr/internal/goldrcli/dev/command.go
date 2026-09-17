@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -26,6 +28,7 @@ import (
 const (
 	devAppRootFlag    = "app-root"
 	devCommandDirFlag = "cmd-dir"
+	devReloadPathFlag = "reload-path"
 	devAppURLFlag     = "app-url"
 	devProxyAddrFlag  = "proxy-addr"
 	devCommandFlag    = "cmd"
@@ -36,11 +39,12 @@ const (
 )
 
 type devOptions struct {
-	root      string
-	cmdDir    string
-	appURL    string
-	proxyAddr string
-	command   string
+	root        string
+	cmdDir      string
+	reloadPaths []string
+	appURL      string
+	proxyAddr   string
+	command     string
 }
 
 type devConfig struct {
@@ -52,13 +56,14 @@ type devConfig struct {
 	command         string
 	goldrExecutable string
 	wrapperPath     string
+	reloadPaths     []reloadPath
 }
 
 func Command() *cli.Command {
 	return &cli.Command{
 		Name:        "dev",
 		Usage:       "run live reload for a goldr app",
-		UsageText:   "goldr dev [--app-root <dir>] [--cmd-dir <dir>] [--app-url <url>] [--proxy-addr <host:port>] [--cmd <command>]",
+		UsageText:   "goldr dev [--app-root <dir>] [--cmd-dir <dir>] [--reload-path <path>] [--app-url <url>] [--proxy-addr <host:port>] [--cmd <command>]",
 		Description: devDescription,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -73,6 +78,11 @@ func Command() *cli.Command {
 				Usage:       "directory where --cmd runs; defaults to --app-root",
 				Config:      cli.StringConfig{TrimSpace: true},
 				HideDefault: true,
+			},
+			&cli.StringSliceFlag{
+				Name:   devReloadPathFlag,
+				Usage:  "file or directory that triggers browser reload without restarting the app",
+				Config: cli.StringConfig{TrimSpace: true},
 			},
 			&cli.StringFlag{
 				Name:        devAppURLFlag,
@@ -95,11 +105,12 @@ func Command() *cli.Command {
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			return runDev(ctx, devOptions{
-				root:      cmd.String(devAppRootFlag),
-				cmdDir:    cmd.String(devCommandDirFlag),
-				appURL:    cmd.String(devAppURLFlag),
-				proxyAddr: cmd.String(devProxyAddrFlag),
-				command:   cmd.String(devCommandFlag),
+				root:        cmd.String(devAppRootFlag),
+				cmdDir:      cmd.String(devCommandDirFlag),
+				appURL:      cmd.String(devAppURLFlag),
+				proxyAddr:   cmd.String(devProxyAddrFlag),
+				command:     cmd.String(devCommandFlag),
+				reloadPaths: cmd.StringSlice(devReloadPathFlag),
 			}, cmd.Root().Writer, cmd.Root().ErrWriter)
 		},
 	}
@@ -109,31 +120,152 @@ const devDescription = `Runs a local development loop using templ watch mode.
 
 goldr dev keeps development on the production asset path: templates keep using assets.Path, apps keep serving assets.FS, and changes under assets/build run goldr generate before the app restarts.
 
+Repeat --reload-path for runtime-readable files or directories that should refresh the browser without generation or an application restart. Relative paths resolve from the directory where goldr dev is invoked.
+
 Run app-owned tools such as Tailwind separately so they write final browser-ready files into assets/build. goldr dev watches assets/build, not assets/src.`
 
 func runDev(ctx context.Context, options devOptions, stdout, stderr io.Writer) error {
+	if len(options.reloadPaths) == 0 {
+		return runDevSession(ctx, options, stdout, stderr)
+	}
+	signalCtx, stopSignals := signal.NotifyContext(ctx, devTerminationSignals()...)
+	defer stopSignals()
+	return runDevSession(signalCtx, options, stdout, stderr)
+}
+
+func runDevSession(ctx context.Context, options devOptions, stdout, stderr io.Writer) error {
 	config, err := resolveDevConfig(ctx, options)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
 		return fmt.Errorf("goldr dev: %w", err)
 	}
 	defer func() {
 		_ = os.Remove(config.wrapperPath)
+		_ = os.Remove(devCommandPIDPath(config.wrapperPath))
 	}()
 
+	var watcher *reloadWatcher
+	if len(config.reloadPaths) > 0 {
+		watcher, err = newReloadWatcher(ctx, config.reloadPaths, config.root, defaultReloadDebounce)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
+			return fmt.Errorf("goldr dev: %w", err)
+		}
+		defer watcher.Close()
+	}
+
 	if err := templtool.Require(ctx, config.root); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
 		return fmt.Errorf("goldr dev: %w", err)
 	}
 
-	command := exec.CommandContext(ctx, "go", templArgs(config)...)
+	if watcher == nil {
+		command := exec.CommandContext(ctx, "go", templArgs(config)...)
+		command.Dir = config.root
+		command.Stdin = os.Stdin
+		command.Stdout = stdout
+		command.Stderr = stderr
+		command.Env = os.Environ()
+		if err := command.Run(); err != nil {
+			return fmt.Errorf("templ live reload failed: %w", err)
+		}
+		return nil
+	}
+
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	templExecutable, err := resolveDevTemplExecutable(runCtx, config.root)
+	if err != nil {
+		if runCtx.Err() != nil {
+			return nil
+		}
+		return fmt.Errorf("goldr dev: %w", err)
+	}
+	command := exec.CommandContext(runCtx, templExecutable, templArgs(config)[2:]...)
 	command.Dir = config.root
 	command.Stdin = os.Stdin
 	command.Stdout = stdout
 	command.Stderr = stderr
 	command.Env = os.Environ()
-	if err := command.Run(); err != nil {
+	configureDevCommand(command)
+	if err := command.Start(); err != nil {
+		if runCtx.Err() != nil {
+			return nil
+		}
 		return fmt.Errorf("templ live reload failed: %w", err)
 	}
-	return nil
+	commandDone := make(chan error, 1)
+	go func() {
+		commandDone <- command.Wait()
+	}()
+	watcherDone := make(chan error, 1)
+	client := &http.Client{Timeout: defaultReloadNotifyTimeout}
+	go func() {
+		watcherDone <- watcher.Run(runCtx, func(notifyCtx context.Context) error {
+			return notifyDevProxy(notifyCtx, client, devProxyURL(config), defaultReloadRetryDelay, defaultReloadNotifyTimeout)
+		}, stderr)
+	}()
+
+	select {
+	case commandErr := <-commandDone:
+		cancel()
+		<-watcherDone
+		stopErr := stopDevCommand(config.wrapperPath)
+		if stopErr != nil {
+			return fmt.Errorf("goldr dev: stop app process: %w", stopErr)
+		}
+		if ctx.Err() != nil {
+			return nil
+		}
+		if commandErr != nil {
+			return fmt.Errorf("templ live reload failed: %w", commandErr)
+		}
+		return nil
+	case watcherErr := <-watcherDone:
+		cancel()
+		stopErr := stopDevCommand(config.wrapperPath)
+		<-commandDone
+		if stopErr != nil {
+			return fmt.Errorf("goldr dev: stop app process: %w", stopErr)
+		}
+		if ctx.Err() != nil {
+			return nil
+		}
+		if watcherErr != nil {
+			return fmt.Errorf("goldr dev: %w", watcherErr)
+		}
+		return nil
+	}
+}
+
+func devCommandPIDPath(wrapperPath string) string {
+	return wrapperPath + ".pid"
+}
+
+func resolveDevTemplExecutable(ctx context.Context, root string) (string, error) {
+	command := exec.CommandContext(ctx, "go", "tool", "-n", "templ")
+	command.Dir = root
+	output, err := command.Output()
+	if err != nil {
+		return "", fmt.Errorf("resolve templ executable: %w", err)
+	}
+	executable := strings.TrimSpace(string(output))
+	if executable == "" || strings.ContainsAny(executable, "\r\n") {
+		return "", fmt.Errorf("resolve templ executable: unexpected go tool output %q", executable)
+	}
+	if strings.HasPrefix(executable, `"`) {
+		executable, err = strconv.Unquote(executable)
+		if err != nil {
+			return "", fmt.Errorf("resolve templ executable: %w", err)
+		}
+	}
+	return executable, nil
 }
 
 func resolveDevConfig(ctx context.Context, options devOptions) (devConfig, error) {
@@ -166,6 +298,10 @@ func resolveDevConfig(ctx context.Context, options devOptions) (devConfig, error
 	if strings.TrimSpace(options.command) == "" {
 		return devConfig{}, errors.New("--cmd must not be empty")
 	}
+	reloadPaths, err := resolveReloadPaths(options.reloadPaths)
+	if err != nil {
+		return devConfig{}, err
+	}
 	goldrExecutable, err := os.Executable()
 	if err != nil {
 		return devConfig{}, fmt.Errorf("resolve current executable: %w", err)
@@ -179,6 +315,7 @@ func resolveDevConfig(ctx context.Context, options devOptions) (devConfig, error
 		proxyPort:       proxyPort,
 		command:         options.command,
 		goldrExecutable: goldrExecutable,
+		reloadPaths:     reloadPaths,
 	}
 	wrapperPath, err := writeDevWrapper(config)
 	if err != nil {
@@ -316,6 +453,7 @@ func writeUnixDevWrapper(config devConfig, tempDir string) (string, error) {
 		"set -eu",
 		unixDevGenerateCommand(config, path),
 		"cd " + shellQuote(devCommandDir(config)),
+		"printf '%s\\n' \"$$\" > " + shellQuote(devCommandPIDPath(path)),
 	}
 	for _, line := range devProxyBannerLines(config) {
 		lines = append(lines, "printf '%s\\n' "+shellQuote(line))
