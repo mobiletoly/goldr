@@ -219,6 +219,18 @@ check_cli_module_self_contained() {
   fi
 }
 
+check_content_owned_by_root_module() {
+  note "check content package belongs to root module"
+
+  local content_module
+  if ! content_module="$(go list -f '{{.Module.Path}}' ./content)"; then
+    fail "content package is not available from the root module"
+  fi
+  if [[ "$content_module" != "github.com/mobiletoly/goldr" ]]; then
+    fail "content package belongs to unexpected module: $content_module"
+  fi
+}
+
 check_downstream_tool_install() {
   note "check downstream go get -tool goldr"
 
@@ -247,6 +259,7 @@ run_in "$check_tools_dir" go mod tidy -diff
 check_gofmt
 run go mod tidy -diff
 run go list ./...
+check_content_owned_by_root_module
 run go test ./...
 run go vet ./...
 
@@ -270,17 +283,6 @@ fi
 
 run_in cmd/goldr go run . --help
 check_downstream_tool_install
-
-run_in content go mod tidy -diff
-run_in content go list ./...
-run_in content go test ./...
-run_in content go vet ./...
-
-if [[ "${GOLDR_SKIP_RACE:-0}" == "1" ]]; then
-  note "skip content go test -race (GOLDR_SKIP_RACE=1)"
-else
-  run_in content go test -race ./...
-fi
 
 example_modules=(
   "examples/full_feature"

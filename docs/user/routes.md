@@ -877,7 +877,7 @@ paths remain rejected. A nil fallback preserves the previous behavior.
 Use keyed `HandlerOptions` literals. Adding generated option fields can break
 positional literals when an application regenerates its route package.
 
-The optional [Content Pages](content-pages.md) module provides one first-party
+The optional [Content Pages](content-pages.md) package provides one first-party
 fallback implementation. Applications can also compose their own sources in
 ordinary Go.
 

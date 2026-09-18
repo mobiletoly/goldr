@@ -1,18 +1,19 @@
 # Content Pages
 
-The optional `github.com/mobiletoly/goldr/content` module loads trusted,
+The optional `github.com/mobiletoly/goldr/content` package loads trusted,
 first-party HTML and Markdown pages from an `fs.FS`. Generated application
 routes keep priority. Only an ordinary router miss reaches the configured
 fallback.
 
-Install the content module alongside the Goldr runtime:
+Select the Goldr runtime and content package with one root module version:
 
 ```bash
-go get github.com/mobiletoly/goldr/content@${GOLDR_VERSION}
+go get github.com/mobiletoly/goldr@${GOLDR_VERSION}
 ```
 
-The parser dependencies belong only to the optional content module. An
-application that does not import it does not acquire them.
+Goldmark is a direct dependency in the root Goldr module graph, but only the
+optional content package imports it. Applications that do not import the
+content package do not compile or link the Markdown parser into their binaries.
 
 ## Directory Layout
 

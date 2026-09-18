@@ -1,6 +1,6 @@
 # Content Pages
 
-Use Goldr's optional content module for trusted, first-party HTML or Markdown
+Use Goldr's optional content package for trusted, first-party HTML or Markdown
 pages that do not need one generated route declaration per page. Examples
 include product documentation, policies, help pages, and other editorial
 content maintained with the application.
@@ -26,20 +26,21 @@ Markdown uses CommonMark through Goldmark without optional extensions. Raw
 block and inline HTML and potentially dangerous link or image destinations are
 emitted as authored. Goldr does not parse or validate the rendered HTML.
 
-Never use this module as a sanitizer. An application-owned CSP is separate
+Never use this package as a sanitizer. An application-owned CSP is separate
 defense in depth and does not replace author trust. Do not execute or click
 dangerous destinations while testing their preservation.
 
-## Install The Optional Module
+## Install The Optional Package
 
-Install the content module at the same version as the Goldr runtime:
+Select the Goldr runtime and content package with one root module version:
 
 ```bash
-go get github.com/mobiletoly/goldr/content@${GOLDR_VERSION}
+go get github.com/mobiletoly/goldr@${GOLDR_VERSION}
 ```
 
-The optional module owns its Markdown parser dependency. Applications that do
-not import the content module do not acquire that dependency.
+Goldmark is a direct dependency in the root Goldr module graph, but only the
+content package imports it. Applications that do not import the content
+package do not compile or link the Markdown parser into their binaries.
 
 ## Directory Layout
 

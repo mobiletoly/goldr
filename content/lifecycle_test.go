@@ -29,7 +29,9 @@ func TestResolveObservesExternalChangesAndRecovers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer root.Close()
+	defer func() {
+		_ = root.Close()
+	}()
 	pages, err := New(Config{FS: root.FS()})
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +128,9 @@ func TestCheckRejectsRealSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer root.Close()
+	defer func() {
+		_ = root.Close()
+	}()
 	if err := Check(root.FS()); err == nil || !strings.Contains(err.Error(), "symbolic links") {
 		t.Fatalf("Check() error = %v, want symlink rejection", err)
 	}

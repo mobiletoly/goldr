@@ -8,10 +8,11 @@ misses and before final not-found handling. Static, parameterized, and mounted
 matches, matched method mismatches, endpoint responses, endpoint errors, and
 explicit invalid-path rejections never enter fallback.
 
-The optional `github.com/mobiletoly/goldr/content` module owns filesystem
-loading, metadata decoding, operational body validation, Markdown conversion,
-trusted raw insertion, and page construction. The generator has no content
-import, file-format knowledge, resolver registry, or automatic source discovery.
+The optional `github.com/mobiletoly/goldr/content` package lives in the root
+Goldr module and owns filesystem loading, metadata decoding, operational body
+validation, Markdown conversion, trusted raw insertion, and page construction.
+The generator has no content import, file-format knowledge, resolver registry,
+or automatic source discovery.
 
 ```text
 request
@@ -47,9 +48,13 @@ across multiple files are not transactional. Supported external deployments
 use a confined `os.OpenRoot(...).FS()` rooted at trusted, checked release files.
 Hostile writable filesystems are outside the trust model.
 
-Goldmark lives only in the nested `content` module and consumers that import it.
-The root runtime and CLI module graphs stay unchanged. Applications that do not
-import content do not acquire the parser dependency.
+Goldmark is a direct dependency in the root Goldr module graph. Only the
+content package imports it, so applications that do not import content do not
+compile or link the Markdown parser into their binaries. The separately
+versioned CLI module remains isolated from both the root runtime and Goldmark.
+
+Runtime and content releases use the root `vX.Y.Z` tag together. The CLI keeps
+its `cmd/goldr/vX.Y.Z` tag. There is no separate `content/vX.Y.Z` release tag.
 
 Content authors are trusted like application template authors. `body.html`
 bytes cross a private `templ.Raw` boundary without parsing, repair,

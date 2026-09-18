@@ -142,7 +142,7 @@ Load only the references needed for the current request:
 - Do not patch generated `goldr_gen.go`, `*_templ.go`, asset manifests, or
   generated URL helpers by hand.
 - Treat content pages as trusted application input. Do not use the content
-  module for public uploads or otherwise untrusted HTML or Markdown, and do not
+  package for public uploads or otherwise untrusted HTML or Markdown, and do not
   describe `content.Check` as an HTML safety check.
 - Do not depend on template-inspection comments or overlay elements in
   production behavior or tests.

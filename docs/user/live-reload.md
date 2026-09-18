@@ -111,7 +111,7 @@ Do not use `--reload-path` for content embedded in the executable. Embedded
 bytes change only when the application is rebuilt and restarted. Keep content
 external when it must be editable and served by the current process.
 
-The runnable content example uses the optional content module and the existing
+The runnable content example uses the optional content package and the existing
 reload-only path:
 
 ```bash

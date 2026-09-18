@@ -9,7 +9,6 @@ tool github.com/a-h/templ/cmd/templ
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/mobiletoly/goldr v0.0.0
-	github.com/mobiletoly/goldr/content v0.0.0
 )
 
 require (
@@ -35,5 +34,3 @@ require (
 replace github.com/mobiletoly/goldr => ../..
 
 replace github.com/mobiletoly/goldr/cmd/goldr => ../../cmd/goldr
-
-replace github.com/mobiletoly/goldr/content => ../../content
