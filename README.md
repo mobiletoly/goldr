@@ -60,6 +60,10 @@ The example includes pages, nested layouts, HTMX fragments, POST actions,
 forms, generated URL helpers, custom errors, middleware, request parsing,
 CSRF, route-rendered error pages, and fingerprinted static assets.
 
+For optional trusted HTML and Markdown pages that do not need per-page route
+declarations, see [Content Pages](docs/user/content-pages.md) and the runnable
+`examples/content_pages` application.
+
 ## Quick Start
 
 Use Go 1.26 or newer. Goldr applications use

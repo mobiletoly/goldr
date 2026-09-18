@@ -74,6 +74,18 @@ Nil hooks keep Goldr defaults:
 - delegated route errors, nil components, invalid route responses, and render
   failures return `500`
 
+An optional `HandlerOptions.Fallback` runs before final not-found handling on a
+router miss. It is not an error hook. A declined fallback reaches
+`RouteNotFound` once. A handled `goldr.RouteError`, nil response, invalid
+response, or rendering failure reaches `RouteError` with the root layout
+renderer. A handled explicit 404 remains terminal and does not call
+`RouteNotFound`.
+
+Matched routes retain ownership: a matched handler's 404 or error and a matched
+path's 405 never invoke fallback. If a custom `RouteError` response itself
+fails, Goldr writes the existing generic 500 without retrying fallback or
+calling another hook.
+
 ## Router Errors
 
 `RouteNotFound` handles generated router misses. It is not used for business
@@ -101,6 +113,8 @@ func RouteMethodNotAllowed(r *http.Request) goldr.RouteResponse {
 ```
 
 Full 404 and 405 pages use the root layout when available.
+
+Fallback pages also use the root layout because no route subtree matched.
 
 ## Matched Route Errors
 

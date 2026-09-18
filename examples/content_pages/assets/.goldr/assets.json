@@ -1,0 +1,10 @@
+{
+  "version": "v0",
+  "managed": [
+    {
+      "logical": "app.css",
+      "dist": "assets/dist/app.7e043f18.css",
+      "hash": "7e043f18"
+    }
+  ]
+}

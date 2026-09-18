@@ -303,6 +303,7 @@ func handledRouteError(r *http.Request, err error) goldr.RouteResponse {
 }
 
 func TestMountedKitConstructorError(t *testing.T) {
+	fallbackCalls := 0
 	tests := []struct {
 		method string
 		path   string
@@ -314,6 +315,10 @@ func TestMountedKitConstructorError(t *testing.T) {
 	for _, test := range tests {
 		recorder := httptest.NewRecorder()
 		HandlerWithOptions(HandlerOptions{
+			Fallback: func(r *http.Request) (goldr.PageRouteResponse, bool) {
+				fallbackCalls++
+				return nil, false
+			},
 			ErrorHandlers: ErrorHandlers{RouteError: handledRouteError},
 		}).ServeHTTP(recorder, httptest.NewRequest(test.method, test.path, nil))
 		if recorder.Code != http.StatusTeapot {
@@ -322,6 +327,9 @@ func TestMountedKitConstructorError(t *testing.T) {
 		if recorder.Body.String() != "handled mounted kit failed" {
 			t.Fatalf("%s %s body = %q, want handled error", test.method, test.path, recorder.Body.String())
 		}
+	}
+	if fallbackCalls != 0 {
+		t.Fatalf("mounted route fallback calls = %d, want 0", fallbackCalls)
 	}
 }
 `)

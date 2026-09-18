@@ -257,12 +257,24 @@ fi
 run_in cmd/goldr go run . --help
 check_downstream_tool_install
 
+run_in content go mod tidy -diff
+run_in content go list ./...
+run_in content go test ./...
+run_in content go vet ./...
+
+if [[ "${GOLDR_SKIP_RACE:-0}" == "1" ]]; then
+  note "skip content go test -race (GOLDR_SKIP_RACE=1)"
+else
+  run_in content go test -race ./...
+fi
+
 example_modules=(
   "examples/full_feature"
   "examples/chat"
   "examples/kit_routes"
   "examples/react_island"
   "examples/svelte_island"
+  "examples/content_pages"
 )
 
 for example_module in "${example_modules[@]}"; do
@@ -271,6 +283,8 @@ for example_module in "${example_modules[@]}"; do
   run_in "$example_module" go tool goldr check
   run_in "$example_module" go test ./...
 done
+
+run_in examples/content_pages go run . -check-content
 
 layout_map_unicode_pathspecs=(
   "."

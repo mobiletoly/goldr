@@ -111,6 +111,20 @@ Do not use `--reload-path` for content embedded in the executable. Embedded
 bytes change only when the application is rebuilt and restarted. Keep content
 external when it must be editable and served by the current process.
 
+The runnable content example uses the optional content module and the existing
+reload-only path:
+
+```bash
+cd examples/content_pages
+go tool goldr dev --reload-path content --cmd "go run . -dev"
+```
+
+Content is read on each request, so edits and newly added pages appear without
+route generation or a Go restart. A multi-file save is not transactional: an
+incomplete or invalid live entry returns the application's normal route-error
+response until the files are valid again. Run `go run . -check-content` before
+deployment. Embedded content still requires a rebuild and restart.
+
 A missing, inaccessible, or non-regular/non-directory path fails before templ
 or the app starts. Removing or renaming a configured directory root stops the
 development session with an error; removing and recreating an exact configured

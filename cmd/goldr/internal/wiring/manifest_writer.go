@@ -175,6 +175,7 @@ type goldrRouteNav struct {
 type HandlerOptions struct {
 	BasePath           string
 	ErrorHandlers       ErrorHandlers
+	Fallback           func(*http.Request) (goldr.PageRouteResponse, bool)
 	TemplateInspection goldr.TemplateInspectionMode
 }
 

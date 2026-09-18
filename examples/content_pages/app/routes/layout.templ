@@ -1,0 +1,31 @@
+package routes
+
+import (
+	"github.com/mobiletoly/goldr"
+	"github.com/mobiletoly/goldr/examples/content_pages/assets"
+)
+
+templ LayoutView(metadata goldr.PageMetadata, requestURI, contextValue string, child templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ pageTitle(metadata) }</title>
+			if metadata.Description != "" {
+				<meta name="description" content={ metadata.Description }/>
+			}
+			<link rel="stylesheet" href={ assets.Path("app.css") }/>
+		</head>
+		<body>
+			<header class="site-header"><a href="/">Goldr content pages</a></header>
+			<main>
+				@child
+			</main>
+			<footer data-request-uri={ requestURI } data-outer-context={ contextValue }>
+				Request: { requestURI } - Context: { contextValue }
+			</footer>
+			@goldr.TemplateInspector()
+		</body>
+	</html>
+}

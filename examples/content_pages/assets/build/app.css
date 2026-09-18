@@ -1,0 +1,39 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  color: #1f2937;
+  background: #f4f7f8;
+}
+
+body {
+  margin: 0;
+}
+
+.site-header,
+main,
+footer {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.site-header {
+  font-weight: 700;
+}
+
+.card,
+.goldr-content {
+  padding: 24px;
+  border: 1px solid #d6dee3;
+  border-radius: 8px;
+  background: white;
+}
+
+footer {
+  color: #596774;
+  font-size: 0.875rem;
+}
+
+a {
+  color: #075985;
+}

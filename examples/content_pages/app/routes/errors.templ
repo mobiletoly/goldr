@@ -1,0 +1,15 @@
+package routes
+
+templ NotFoundView(path string) {
+	<section class="card">
+		<h1>Page not found</h1>
+		<p>No application route or content page matches { path }.</p>
+	</section>
+}
+
+templ InternalErrorView() {
+	<section class="card">
+		<h1>Content unavailable</h1>
+		<p>The page could not be loaded. Check the application log for details.</p>
+	</section>
+}

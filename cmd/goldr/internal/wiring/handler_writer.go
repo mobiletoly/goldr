@@ -63,7 +63,7 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 			goldrDispatchRoot(%s, nil)
 			return
 		}
-		goldrRouteNotFound(options, w, r)
+		goldrRouteMiss(options, w, r)
 	})
 }
 `, dispatchArgs)
@@ -78,6 +78,19 @@ func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Compo
 		return nil, goldr.ErrNilComponent
 	}
 	return component, nil
+}
+
+func goldrRouteMiss(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
+	if options.Fallback != nil {
+		response, handled := options.Fallback(r)
+		if handled {
+			if err := goldr.WritePageRouteResponse(w, r, response, goldrRootErrorRoutePageRenderer); err != nil {
+				goldrRouteError(options, w, r, err, goldrRootErrorRoutePageRenderer)
+			}
+			return
+		}
+	}
+	goldrRouteNotFound(options, w, r)
 }
 
 func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
@@ -627,7 +640,7 @@ func writeDispatchNode(buffer *bytes.Buffer, node *dispatchNode, helpers handler
 	}
 	if node.path == nil {
 		fmt.Fprintf(buffer, "\tif len(segments) <= %d {\n", node.depth)
-		buffer.WriteString("\t\tgoldrRouteNotFound(options, w, r)\n")
+		buffer.WriteString("\t\tgoldrRouteMiss(options, w, r)\n")
 		buffer.WriteString("\t\treturn\n")
 		buffer.WriteString("\t}\n")
 	}
@@ -661,7 +674,7 @@ func writeDispatchNode(buffer *bytes.Buffer, node *dispatchNode, helpers handler
 		buffer.WriteString("\t\treturn\n")
 		buffer.WriteString("\t}\n")
 	}
-	buffer.WriteString("\tgoldrRouteNotFound(options, w, r)\n")
+	buffer.WriteString("\tgoldrRouteMiss(options, w, r)\n")
 	buffer.WriteString("}\n")
 }
 

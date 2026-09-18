@@ -923,6 +923,25 @@ func HandlerWithOptions(options HandlerOptions) http.Handler
 
 `Handler()` delegates to `HandlerWithOptions(HandlerOptions{})`.
 
+Generated `HandlerOptions` includes one optional router-miss callback:
+
+```go
+Fallback func(*http.Request) (goldr.PageRouteResponse, bool)
+```
+
+The dispatch boundary is strict. Ordinary route misses call the configured
+fallback at most once before any response is written. Static, parameterized,
+and mounted matches retain priority. Matched endpoint responses and errors,
+matched-path method handling, and explicit invalid-path rejection never call
+fallback. A nil callback goes directly to existing final not-found handling.
+
+A handled response is written by `goldr.WritePageRouteResponse` with the root
+layout renderer. Response errors use the existing root route-error path. A
+decline ignores the returned response and invokes the existing custom or
+default final 404 exactly once. The generator owns this sequencing but has no
+knowledge of content formats or source chaining. See [Content
+Architecture](content.md) for the optional first-party resolver boundary.
+
 Generated dispatch splits `r.URL.EscapedPath()` into path segments once per
 request, then routes through private generated segment functions. Static
 segments are matched before the single dynamic fallback at a directory level.

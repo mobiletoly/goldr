@@ -25,6 +25,8 @@ HTML, and HTMX stays visible in the markup.
   hooks, full-page errors, and HTMX error fragments.
 - [Assets](assets.md) - fingerprinted static files, cache headers, and
   app-owned asset tooling.
+- [Content Pages](content-pages.md) - optional trusted HTML and Markdown pages
+  resolved after generated application routes.
 - [SSE](sse.md) - app-owned streams, event IDs, and named SSE swaps.
 - [CSRF](csrf.md) - signed-cookie tokens for unsafe form and HTMX requests.
 - [Composition](composition.md) - mux, middleware, static assets, and app-owned

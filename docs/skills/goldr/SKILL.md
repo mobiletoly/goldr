@@ -1,6 +1,6 @@
 ---
 name: goldr-app
-description: Create, bootstrap, edit, debug, review, or extend applications that use the Goldr Go web framework. Use when Codex needs to add Goldr to an app, work on Goldr routes, layouts, pages, fragments, actions, templ templates, HTMX behavior, forms, CSRF, assets, SSE, generated output, or local development workflows.
+description: Create, bootstrap, edit, debug, review, or extend applications that use the Goldr Go web framework. Use when Codex needs to add Goldr to an app, work on Goldr routes, layouts, pages, fragments, actions, templ templates, trusted first-party HTML or Markdown content pages, HTMX behavior, forms, CSRF, assets, SSE, generated output, or local development workflows.
 ---
 
 # Goldr App Development
@@ -27,6 +27,8 @@ the user explicitly asks for framework development.
 - `github.com/mobiletoly/goldr/csrf`: signed-cookie CSRF token helpers.
 - `github.com/mobiletoly/goldr/browser`: optional browser helper scripts.
 - `github.com/mobiletoly/goldr/sse`: server-sent event wire helpers.
+- `github.com/mobiletoly/goldr/content`: optional trusted first-party HTML and
+  Markdown pages loaded from an `fs.FS` on router miss.
 
 ## Default Workflow
 
@@ -86,6 +88,9 @@ Load only the references needed for the current request:
   `references/forms-csrf-dependencies.md`.
 - For fingerprinted assets, `goldr dev`, browser helpers, or SSE streams: read
   `references/assets-dev-sse.md`.
+- For trusted first-party HTML or Markdown content pages, filesystem-backed
+  editorial pages, content validation, or content fallback wiring: read
+  `references/content-pages.md`.
 - For local render-unit debugging with comments or overlays: read
   `references/template-inspection.md`.
 - Before finalizing non-trivial app changes: read `references/validation.md`.
@@ -136,6 +141,9 @@ Load only the references needed for the current request:
   external or not represented by Goldr routes.
 - Do not patch generated `goldr_gen.go`, `*_templ.go`, asset manifests, or
   generated URL helpers by hand.
+- Treat content pages as trusted application input. Do not use the content
+  module for public uploads or otherwise untrusted HTML or Markdown, and do not
+  describe `content.Check` as an HTML safety check.
 - Do not depend on template-inspection comments or overlay elements in
   production behavior or tests.
 

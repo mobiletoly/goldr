@@ -839,6 +839,7 @@ Generated route dispatch provides:
 
 ```go
 func Handler() http.Handler
+func HandlerWithOptions(options HandlerOptions) http.Handler
 ```
 
 It renders generated page and fragment routes for `GET` and `HEAD`, and
@@ -854,6 +855,31 @@ POST /users -> PostIndex
 
 For matched paths with unsupported methods, generated dispatch returns `405`
 and sets `Allow` to the supported methods for that path.
+
+`HandlerOptions` can configure one optional router-miss fallback:
+
+```go
+type HandlerOptions struct {
+	BasePath           string
+	ErrorHandlers      ErrorHandlers
+	Fallback           func(*http.Request) (goldr.PageRouteResponse, bool)
+	TemplateInspection goldr.TemplateInspectionMode
+}
+```
+
+Generated static, parameterized, and mounted routes retain priority. The
+fallback runs at most once only when no route matches. `handled=true` is
+terminal and uses Goldr's normal root-layout and error machinery;
+`handled=false` continues to the existing `RouteNotFound` hook or default 404.
+A matched route's response, error, or 405 never falls back. Explicit invalid
+paths remain rejected. A nil fallback preserves the previous behavior.
+
+Use keyed `HandlerOptions` literals. Adding generated option fields can break
+positional literals when an application regenerates its route package.
+
+The optional [Content Pages](content-pages.md) module provides one first-party
+fallback implementation. Applications can also compose their own sources in
+ordinary Go.
 
 ## Route-Tree Middleware
 

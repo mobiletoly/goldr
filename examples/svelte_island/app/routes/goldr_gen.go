@@ -89,6 +89,7 @@ type ErrorHandlers struct {
 type HandlerOptions struct {
 	BasePath           string
 	ErrorHandlers      ErrorHandlers
+	Fallback           func(*http.Request) (goldr.PageRouteResponse, bool)
 	TemplateInspection goldr.TemplateInspectionMode
 }
 
@@ -158,7 +159,7 @@ func goldrDispatchRoot(options HandlerOptions, handlers *goldrHandlers, w http.R
 		goldrDispatchRootStaticSave(options, handlers, w, r, segments)
 		return
 	}
-	goldrRouteNotFound(options, w, r)
+	goldrRouteMiss(options, w, r)
 }
 
 func goldrDispatchRootStaticAbout(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
@@ -171,7 +172,7 @@ func goldrDispatchRootStaticAbout(options HandlerOptions, handlers *goldrHandler
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteNotFound(options, w, r)
+	goldrRouteMiss(options, w, r)
 }
 
 func goldrDispatchRootStaticSave(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
@@ -184,7 +185,7 @@ func goldrDispatchRootStaticSave(options HandlerOptions, handlers *goldrHandlers
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteNotFound(options, w, r)
+	goldrRouteMiss(options, w, r)
 }
 
 type goldrLayoutFunc func(*http.Request, goldr.LayoutContext) templ.Component
@@ -290,6 +291,19 @@ func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Compo
 		return nil, goldr.ErrNilComponent
 	}
 	return component, nil
+}
+
+func goldrRouteMiss(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
+	if options.Fallback != nil {
+		response, handled := options.Fallback(r)
+		if handled {
+			if err := goldr.WritePageRouteResponse(w, r, response, goldrRootErrorRoutePageRenderer); err != nil {
+				goldrRouteError(options, w, r, err, goldrRootErrorRoutePageRenderer)
+			}
+			return
+		}
+	}
+	goldrRouteNotFound(options, w, r)
 }
 
 func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
