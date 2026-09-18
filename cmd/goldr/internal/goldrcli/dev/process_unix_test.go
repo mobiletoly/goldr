@@ -333,13 +333,13 @@ func TestDevCommandSignalHelper(t *testing.T) {
 	if os.Getenv("GOLDR_TEST_DEV_SIGNAL_HELPER") != "1" {
 		return
 	}
+	interrupts := make(chan os.Signal, 1)
+	signal.Notify(interrupts, os.Interrupt, syscall.SIGTERM)
 	child := exec.Command("/bin/sleep", "30")
 	if err := child.Start(); err != nil {
 		os.Exit(2)
 	}
 	fmt.Println(child.Process.Pid)
-	interrupts := make(chan os.Signal, 1)
-	signal.Notify(interrupts, os.Interrupt, syscall.SIGTERM)
 	<-interrupts
 	_ = child.Process.Kill()
 	_ = child.Wait()
