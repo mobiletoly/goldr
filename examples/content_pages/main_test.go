@@ -176,8 +176,7 @@ func runCheckHelper(t *testing.T, directory string) checkResult {
 	if err == nil {
 		return checkResult{output: string(output)}
 	}
-	var exitError *exec.ExitError
-	if errors.As(err, &exitError) {
+	if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
 		return checkResult{output: string(output), exitCode: exitError.ExitCode()}
 	}
 	t.Fatalf("run check helper: %v", err)

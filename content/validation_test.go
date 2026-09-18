@@ -147,7 +147,7 @@ func entryFS(directory, metadata, bodyName, body string) fstest.MapFS {
 
 func entryFSBytes(directory string, metadata []byte, bodyName string, body []byte) fstest.MapFS {
 	files := make(fstest.MapFS)
-	if metadata != nil && len(metadata) > 0 {
+	if len(metadata) > 0 {
 		name := "page.json"
 		if directory != "." {
 			name = directory + "/" + name

@@ -4,6 +4,19 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
+module_go_version=""
+while read -r directive value _; do
+  if [[ "$directive" == "go" ]]; then
+    module_go_version="$value"
+    break
+  fi
+done < go.mod
+if [[ -z "$module_go_version" ]]; then
+  printf "error: root go.mod has no Go version\n" >&2
+  exit 1
+fi
+export GOTOOLCHAIN="go${module_go_version}"
+
 check_tools_dir="tools/check"
 
 require_cmd() {
@@ -229,6 +242,7 @@ require_cmd go
 require_cmd gofmt
 require_cmd git
 
+run go version
 run_in "$check_tools_dir" go mod tidy -diff
 check_gofmt
 run go mod tidy -diff

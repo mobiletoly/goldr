@@ -117,8 +117,7 @@ func TestReloadWatcherHandlesRecursiveEditorEventsAndDebounces(t *testing.T) {
 	}
 	defer watcher.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithCancel(t.Context())
 	reloads := make(chan struct{}, 10)
 	errs := make(chan error, 1)
 	go func() {
@@ -193,8 +192,7 @@ func TestReloadWatcherExactFileSupportsRemovalAndRecreation(t *testing.T) {
 	}
 	defer watcher.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	reloads := make(chan struct{}, 4)
 	go func() {
 		_ = watcher.Run(ctx, func(context.Context) error {
@@ -282,8 +280,7 @@ func TestReloadWatcherDefersTemplOwnedInputsInsideAppRoot(t *testing.T) {
 	}
 	defer watcher.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	reloads := make(chan struct{}, 2)
 	go func() {
 		_ = watcher.Run(ctx, func(context.Context) error {
@@ -314,8 +311,7 @@ func TestReloadWatcherWarnsAndContinuesAfterNotificationFailure(t *testing.T) {
 	}
 	defer watcher.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	var attempts atomic.Int32
 	var stderr strings.Builder
 	succeeded := make(chan struct{}, 1)

@@ -92,11 +92,9 @@ func TestEmbeddedAndConcurrentResolve(t *testing.T) {
 	const requestsPerWorker = 40
 	var wait sync.WaitGroup
 	errors := make(chan error, workers)
-	for worker := 0; worker < workers; worker++ {
-		wait.Add(1)
-		go func() {
-			defer wait.Done()
-			for requestIndex := 0; requestIndex < requestsPerWorker; requestIndex++ {
+	for range workers {
+		wait.Go(func() {
+			for range requestsPerWorker {
 				response, handled := pages.Resolve(newRequest(http.MethodGet, "/about", ""))
 				if !handled {
 					errors <- fmt.Errorf("Resolve() handled = false")
@@ -108,7 +106,7 @@ func TestEmbeddedAndConcurrentResolve(t *testing.T) {
 					return
 				}
 			}
-		}()
+		})
 	}
 	wait.Wait()
 	close(errors)
