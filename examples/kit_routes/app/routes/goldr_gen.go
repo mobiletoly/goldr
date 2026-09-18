@@ -91,10 +91,11 @@ type ErrorHandlers struct {
 }
 
 type HandlerOptions struct {
-	BasePath           string
-	ErrorHandlers      ErrorHandlers
-	Fallback           func(*http.Request) (goldr.PageRouteResponse, bool)
-	TemplateInspection goldr.TemplateInspectionMode
+	BasePath      string
+	ErrorHandlers ErrorHandlers
+	// AdditionalPageSource resolves pages after an ordinary generated route miss.
+	AdditionalPageSource func(*http.Request) (goldr.PageRouteResponse, bool)
+	TemplateInspection   goldr.TemplateInspectionMode
 }
 
 var goldrGeneratedManifest = goldrManifest{
@@ -119,13 +120,14 @@ func Handler() http.Handler {
 }
 
 func HandlerWithOptions(options HandlerOptions) http.Handler {
+	additionalPageHandlers := goldrNewAdditionalPageHandlers(options)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if options.TemplateInspection != goldr.TemplateInspectionOff {
 			r = r.WithContext(goldrinspect.WithMode(r.Context(), options.TemplateInspection))
 		}
 		routePath := r.URL.EscapedPath()
 		if routePath == "/" {
-			goldrDispatchRoot(options, w, r, nil)
+			goldrDispatchRoot(options, additionalPageHandlers, w, r, routePath, nil)
 			return
 		}
 		segments := goldrPathSegments(routePath)
@@ -133,11 +135,11 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 			goldrRouteNotFound(options, w, r)
 			return
 		}
-		goldrDispatchRoot(options, w, r, segments)
+		goldrDispatchRoot(options, additionalPageHandlers, w, r, routePath, segments)
 	})
 }
 
-func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRoot(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 0 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			// expected in file: app/routes/route.go
@@ -152,29 +154,29 @@ func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Re
 	}
 	switch segments[0] {
 	case "admin":
-		goldrDispatchRootStaticAdmin(options, w, r, segments)
+		goldrDispatchRootStaticAdmin(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "user":
-		goldrDispatchRootStaticUser(options, w, r, segments)
+		goldrDispatchRootStaticUser(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticAdmin(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticAdmin(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 1 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	switch segments[1] {
 	case "reports":
-		goldrDispatchRootStaticAdminStaticReports(options, w, r, segments)
+		goldrDispatchRootStaticAdminStaticReports(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticAdminStaticReports(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticAdminStaticReports(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			// expected in file: app/routes/admin/reports/route.go
@@ -189,16 +191,16 @@ func goldrDispatchRootStaticAdminStaticReports(options HandlerOptions, w http.Re
 	}
 	switch segments[2] {
 	case "audit":
-		goldrDispatchRootStaticAdminStaticReportsStaticAudit(options, w, r, segments)
+		goldrDispatchRootStaticAdminStaticReportsStaticAudit(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "table":
-		goldrDispatchRootStaticAdminStaticReportsStaticTable(options, w, r, segments)
+		goldrDispatchRootStaticAdminStaticReportsStaticTable(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticAdminStaticReportsStaticAudit(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticAdminStaticReportsStaticAudit(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 3 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			// expected in file: app/routes/admin/reports/route.go
@@ -211,10 +213,10 @@ func goldrDispatchRootStaticAdminStaticReportsStaticAudit(options HandlerOptions
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticAdminStaticReportsStaticTable(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticAdminStaticReportsStaticTable(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 3 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			// expected in file: app/routes/admin/reports/route.go
@@ -228,23 +230,23 @@ func goldrDispatchRootStaticAdminStaticReportsStaticTable(options HandlerOptions
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticUser(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticUser(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 1 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	switch segments[1] {
 	case "reports":
-		goldrDispatchRootStaticUserStaticReports(options, w, r, segments)
+		goldrDispatchRootStaticUserStaticReports(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticUserStaticReports(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticUserStaticReports(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			// expected in file: app/routes/user/reports/route.go
@@ -259,13 +261,13 @@ func goldrDispatchRootStaticUserStaticReports(options HandlerOptions, w http.Res
 	}
 	switch segments[2] {
 	case "table":
-		goldrDispatchRootStaticUserStaticReportsStaticTable(options, w, r, segments)
+		goldrDispatchRootStaticUserStaticReportsStaticTable(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticUserStaticReportsStaticTable(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticUserStaticReportsStaticTable(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 3 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			// expected in file: app/routes/user/reports/route.go
@@ -279,7 +281,7 @@ func goldrDispatchRootStaticUserStaticReportsStaticTable(options HandlerOptions,
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
 type goldrLayoutFunc func(*http.Request, goldr.LayoutContext) templ.Component
@@ -342,6 +344,36 @@ func goldrRoutePageRenderer0(r *http.Request, page goldr.Page) (templ.Component,
 	return goldrRenderPage(r, page, goldrLayoutStack0)
 }
 
+type goldrAdditionalPageHandlers struct {
+	plan0 http.Handler
+}
+
+func goldrNewAdditionalPageHandlers(options HandlerOptions) *goldrAdditionalPageHandlers {
+	if options.AdditionalPageSource == nil {
+		return nil
+	}
+	return &goldrAdditionalPageHandlers{
+		plan0: goldrNewAdditionalPageHandler(options, goldrRoutePageRenderer0),
+	}
+}
+
+func goldrNewAdditionalPageHandler(options HandlerOptions, render goldr.RoutePageRenderer) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response, handled := options.AdditionalPageSource(r)
+		if !handled {
+			goldrRouteNotFound(options, w, r)
+			return
+		}
+		if err := goldr.WritePageRouteResponse(w, r, response, render); err != nil {
+			goldrRouteError(options, w, r, err, goldrAdditionalPageErrorRoutePageRenderer)
+		}
+	})
+}
+
+func goldrAdditionalPageHandler(handlers *goldrAdditionalPageHandlers, routePath string) http.Handler {
+	return handlers.plan0
+}
+
 func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
 	component := page.Component
 	if component == nil {
@@ -350,15 +382,10 @@ func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Compo
 	return component, nil
 }
 
-func goldrRouteMiss(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
-	if options.Fallback != nil {
-		response, handled := options.Fallback(r)
-		if handled {
-			if err := goldr.WritePageRouteResponse(w, r, response, goldrRootErrorRoutePageRenderer); err != nil {
-				goldrRouteError(options, w, r, err, goldrRootErrorRoutePageRenderer)
-			}
-			return
-		}
+func goldrRouteMiss(options HandlerOptions, handlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string) {
+	if handlers != nil {
+		goldrAdditionalPageHandler(handlers, routePath).ServeHTTP(w, r)
+		return
 	}
 	goldrRouteNotFound(options, w, r)
 }
@@ -366,7 +393,7 @@ func goldrRouteMiss(options HandlerOptions, w http.ResponseWriter, r *http.Reque
 func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
 	if handlers.RouteNotFound != nil {
-		goldrWriteRouteFallbackResponse(w, r, handlers.RouteNotFound(r), goldrRootErrorRoutePageRenderer)
+		goldrWriteRouteErrorHandlerResponse(w, r, handlers.RouteNotFound(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.NotFound(w, r)
@@ -375,7 +402,7 @@ func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.R
 func goldrRouteMethodNotAllowed(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
 	if handlers.RouteMethodNotAllowed != nil {
-		goldrWriteRouteFallbackResponse(w, r, handlers.RouteMethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
+		goldrWriteRouteErrorHandlerResponse(w, r, handlers.RouteMethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -405,7 +432,7 @@ func goldrWriteFragmentEndpointResponse(options HandlerOptions, w http.ResponseW
 	}
 }
 
-func goldrWriteRouteFallbackResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
+func goldrWriteRouteErrorHandlerResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
 	r = goldr.WithRoutePageRenderer(r, render)
 	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -420,6 +447,10 @@ func goldrWriteRouteErrorResponse(w http.ResponseWriter, r *http.Request, respon
 }
 
 func goldrRootErrorRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
+	return goldrRoutePageRenderer0(r, page)
+}
+
+func goldrAdditionalPageErrorRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
 	return goldrRoutePageRenderer0(r, page)
 }
 

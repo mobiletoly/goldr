@@ -36,13 +36,13 @@ func TestExampleHandler(t *testing.T) {
 			name:     "HTML content uses root layout and metadata",
 			path:     "/privacy",
 			status:   http.StatusOK,
-			contains: []string{"<title>Privacy</title>", `name="description" content="Privacy description"`, `<script data-trusted="html">window.contentPage = true</script>`, `onclick="trusted()"`, "outer middleware"},
+			contains: []string{"<title>Privacy</title>", `name="description" content="Privacy description"`, `class="privacy-shell"`, `data-privacy-context="privacy middleware"`, "Privacy area - privacy middleware", `<script data-trusted="html">window.contentPage = true</script>`, `onclick="trusted()"`, "outer middleware"},
 		},
 		{
 			name:     "nested Markdown keeps original URL",
 			path:     "/privacy/p1?source=test",
 			status:   http.StatusOK,
-			contains: []string{"<title>Privacy Part One</title>", `id="nested-markdown-body"`, `<table>`, `type="checkbox"`, `disabled=""`, `checked=""`, "Trusted raw HTML", "<del>No legacy Markdown mode</del>", `<a href="https://example.com/docs">https://example.com/docs</a>`, `<span data-trusted="markdown">raw HTML</span>`, `<a href="javascript:trusted()">trusted destination</a>`, `data-request-uri="/privacy/p1?source=test"`, "outer middleware"},
+			contains: []string{"<title>Privacy Part One</title>", `class="privacy-shell"`, `data-privacy-context="privacy middleware"`, `id="nested-markdown-body"`, `<table>`, `type="checkbox"`, `disabled=""`, `checked=""`, "Trusted raw HTML", "<del>No legacy Markdown mode</del>", `<a href="https://example.com/docs">https://example.com/docs</a>`, `<span data-trusted="markdown">raw HTML</span>`, `<a href="javascript:trusted()">trusted destination</a>`, `data-request-uri="/privacy/p1?source=test"`, "outer middleware"},
 		},
 		{
 			name:       "generated route wins content collision",
@@ -56,6 +56,13 @@ func TestExampleHandler(t *testing.T) {
 			path:     "/missing",
 			status:   http.StatusNotFound,
 			contains: []string{"Page not found", "No application route or content page matches /missing."},
+		},
+		{
+			name:       "privacy decline stays in middleware without success layout",
+			path:       "/privacy/missing",
+			status:     http.StatusNotFound,
+			contains:   []string{"Page not found", "No application route or content page matches /privacy/missing.", "outer middleware"},
+			notContain: "privacy-shell",
 		},
 		{
 			name:       "content sources are not public files",
@@ -84,6 +91,14 @@ func TestExampleHandler(t *testing.T) {
 			if test.notContain != "" && strings.Contains(recorder.Body.String(), test.notContain) {
 				t.Fatalf("body unexpectedly contains %q: %s", test.notContain, recorder.Body.String())
 			}
+			privacyHeaders := recorder.Header().Values("X-Privacy-Middleware")
+			if strings.HasPrefix(test.path, "/privacy") {
+				if len(privacyHeaders) != 1 || privacyHeaders[0] != "privacy" {
+					t.Fatalf("X-Privacy-Middleware = %#v, want one privacy value", privacyHeaders)
+				}
+			} else if len(privacyHeaders) != 0 {
+				t.Fatalf("X-Privacy-Middleware = %#v, want none", privacyHeaders)
+			}
 		})
 	}
 
@@ -93,8 +108,13 @@ func TestExampleHandler(t *testing.T) {
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("invalid content status = %d, want %d", recorder.Code, http.StatusInternalServerError)
 	}
-	if !strings.Contains(recorder.Body.String(), "Content unavailable") || strings.Contains(recorder.Body.String(), "private invalid body") {
+	if !strings.Contains(recorder.Body.String(), "Content unavailable") ||
+		strings.Contains(recorder.Body.String(), "privacy-shell") ||
+		strings.Contains(recorder.Body.String(), "private invalid body") {
 		t.Fatalf("invalid content body = %q", recorder.Body.String())
+	}
+	if got := recorder.Header().Values("X-Privacy-Middleware"); len(got) != 1 || got[0] != "privacy" {
+		t.Fatalf("invalid content middleware header = %#v", got)
 	}
 	if !strings.Contains(logs.String(), "privacy/body.html") || strings.Contains(logs.String(), "private invalid body") {
 		t.Fatalf("invalid content log = %q", logs.String())

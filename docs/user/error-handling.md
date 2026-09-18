@@ -74,17 +74,18 @@ Nil hooks keep Goldr defaults:
 - delegated route errors, nil components, invalid route responses, and render
   failures return `500`
 
-An optional `HandlerOptions.Fallback` runs before final not-found handling on a
-router miss. It is not an error hook. A declined fallback reaches
-`RouteNotFound` once. A handled `goldr.RouteError`, nil response, invalid
-response, or rendering failure reaches `RouteError` with the root layout
-renderer. A handled explicit 404 remains terminal and does not call
+An optional `HandlerOptions.AdditionalPageSource` runs before final not-found
+handling on an ordinary router miss. It is not an error hook. A declined source
+reaches `RouteNotFound` once. A handled `goldr.RouteError`, nil response,
+invalid response, or rendering failure reaches `RouteError`. Additional-page
+error pages use only the live `app/routes` root layout when present, excluding
+mounted-root layouts. A handled explicit 404 remains terminal and does not call
 `RouteNotFound`.
 
 Matched routes retain ownership: a matched handler's 404 or error and a matched
-path's 405 never invoke fallback. If a custom `RouteError` response itself
-fails, Goldr writes the existing generic 500 without retrying fallback or
-calling another hook.
+path's 405 never invoke the source. Explicit invalid-path rejection also skips
+the source. If a custom `RouteError` response itself fails, Goldr writes the
+existing generic 500 without retrying the source or calling another hook.
 
 ## Router Errors
 
@@ -114,7 +115,10 @@ func RouteMethodNotAllowed(r *http.Request) goldr.RouteResponse {
 
 Full 404 and 405 pages use the root layout when available.
 
-Fallback pages also use the root layout because no route subtree matched.
+Additional-source success pages use the eligible static layout ancestry
+selected from the original escaped request path. A decline runs this final 404
+inside the selected static middleware chain while preserving the existing root
+404 renderer.
 
 ## Matched Route Errors
 

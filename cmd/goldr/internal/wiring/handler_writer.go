@@ -14,16 +14,18 @@ import (
 	"github.com/mobiletoly/goldr/cmd/goldr/internal/routing"
 )
 
-func writeHandler(buffer *bytes.Buffer, routes []runtimeRoute, rootLayouts []routing.ManifestLayout) {
+func writeHandler(buffer *bytes.Buffer, routes []runtimeRoute, rootLayouts []routing.ManifestLayout, additionalPlans []additionalPagePlan, additionalErrorLayouts []routing.ManifestLayout, routeAliases map[string]string) {
 	paths := runtimePaths(routes)
 	root := buildDispatchTree(paths)
-	helpers := newHandlerHelperPlan(routes, rootLayouts)
+	helpers := newHandlerHelperPlan(routes, rootLayouts, additionalPlans, additionalErrorLayouts, routeAliases)
 	buffer.WriteString(`
 func Handler() http.Handler {
 	return HandlerWithOptions(HandlerOptions{})
 }
 
 func HandlerWithOptions(options HandlerOptions) http.Handler {
+`)
+	buffer.WriteString(`	additionalPageHandlers := goldrNewAdditionalPageHandlers(options)
 `)
 	if helpers.hasEndpointHandlers() {
 		buffer.WriteString(`	handlers := goldrNewHandlers(options)
@@ -40,9 +42,9 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 		buffer.WriteString(`		r = goldr.WithRoutePageRenderer(r, goldrDirectRoutePageRenderer)
 `)
 	}
-	dispatchArgs := "options, w, r"
+	dispatchArgs := "options, additionalPageHandlers, w, r, routePath"
 	if helpers.hasEndpointHandlers() {
-		dispatchArgs = "options, handlers, w, r"
+		dispatchArgs = "options, handlers, additionalPageHandlers, w, r, routePath"
 	}
 	if hasSegmentRoutes(routes) {
 		fmt.Fprintf(buffer, `		if routePath == "/" {
@@ -63,13 +65,14 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 			goldrDispatchRoot(%s, nil)
 			return
 		}
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 	})
 }
 `, dispatchArgs)
 	}
 	writeDispatchNodes(buffer, root, helpers)
 	writeHandlerHelpers(buffer, helpers)
+	writeAdditionalPageHandlers(buffer, helpers)
 
 	buffer.WriteString(`
 func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
@@ -80,15 +83,10 @@ func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Compo
 	return component, nil
 }
 
-func goldrRouteMiss(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
-	if options.Fallback != nil {
-		response, handled := options.Fallback(r)
-		if handled {
-			if err := goldr.WritePageRouteResponse(w, r, response, goldrRootErrorRoutePageRenderer); err != nil {
-				goldrRouteError(options, w, r, err, goldrRootErrorRoutePageRenderer)
-			}
-			return
-		}
+func goldrRouteMiss(options HandlerOptions, handlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string) {
+	if handlers != nil {
+		goldrAdditionalPageHandler(handlers, routePath).ServeHTTP(w, r)
+		return
 	}
 	goldrRouteNotFound(options, w, r)
 }
@@ -96,7 +94,7 @@ func goldrRouteMiss(options HandlerOptions, w http.ResponseWriter, r *http.Reque
 func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
 	if handlers.RouteNotFound != nil {
-		goldrWriteRouteFallbackResponse(w, r, handlers.RouteNotFound(r), goldrRootErrorRoutePageRenderer)
+		goldrWriteRouteErrorHandlerResponse(w, r, handlers.RouteNotFound(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.NotFound(w, r)
@@ -105,7 +103,7 @@ func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.R
 func goldrRouteMethodNotAllowed(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
 	if handlers.RouteMethodNotAllowed != nil {
-		goldrWriteRouteFallbackResponse(w, r, handlers.RouteMethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
+		goldrWriteRouteErrorHandlerResponse(w, r, handlers.RouteMethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -123,7 +121,7 @@ func goldrRouteError(options HandlerOptions, w http.ResponseWriter, r *http.Requ
 	writeEndpointResponseHelpers(buffer, routes)
 	buffer.WriteString(`
 
-func goldrWriteRouteFallbackResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
+func goldrWriteRouteErrorHandlerResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
 	r = goldr.WithRoutePageRenderer(r, render)
 	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -139,6 +137,7 @@ func goldrWriteRouteErrorResponse(w http.ResponseWriter, r *http.Request, respon
 `)
 
 	writeRootErrorRoutePageRenderer(buffer, rootLayouts, helpers)
+	writeAdditionalPageErrorRoutePageRenderer(buffer, additionalErrorLayouts, helpers)
 
 	if hasSegmentRoutes(routes) {
 		buffer.WriteString(`
@@ -310,6 +309,9 @@ type handlerHelperPlan struct {
 	middlewareStackNames   map[string]string
 	endpointHandlers       []endpointHandlerHelper
 	endpointHandlerNames   map[string]string
+	additionalPagePlans    []additionalPageHandlerHelper
+	additionalErrorLayouts []routing.ManifestLayout
+	routeAliases           map[string]string
 	needsPageRenderHelpers bool
 }
 
@@ -329,14 +331,34 @@ type endpointHandlerHelper struct {
 	route runtimeRoute
 }
 
-func newHandlerHelperPlan(routes []runtimeRoute, rootLayouts []routing.ManifestLayout) handlerHelperPlan {
+type additionalPageHandlerHelper struct {
+	name        string
+	routePrefix string
+	layouts     []routing.ManifestLayout
+	middlewares []routing.ManifestMiddleware
+}
+
+func newHandlerHelperPlan(routes []runtimeRoute, rootLayouts []routing.ManifestLayout, additionalPlans []additionalPagePlan, additionalErrorLayouts []routing.ManifestLayout, routeAliases map[string]string) handlerHelperPlan {
 	plan := handlerHelperPlan{
-		layoutStackNames:     make(map[string]string),
-		layoutRendererNames:  make(map[string]string),
-		middlewareStackNames: make(map[string]string),
-		endpointHandlerNames: make(map[string]string),
+		layoutStackNames:       make(map[string]string),
+		layoutRendererNames:    make(map[string]string),
+		middlewareStackNames:   make(map[string]string),
+		endpointHandlerNames:   make(map[string]string),
+		additionalErrorLayouts: additionalErrorLayouts,
+		routeAliases:           routeAliases,
 	}
 	plan.addLayoutStack(rootLayouts)
+	plan.addLayoutStack(additionalErrorLayouts)
+	for index, additionalPlan := range additionalPlans {
+		plan.addLayoutStack(additionalPlan.layouts)
+		plan.addMiddlewareStack(additionalPlan.middlewares)
+		plan.additionalPagePlans = append(plan.additionalPagePlans, additionalPageHandlerHelper{
+			name:        fmt.Sprintf("plan%d", index),
+			routePrefix: additionalPlan.routePrefix,
+			layouts:     additionalPlan.layouts,
+			middlewares: additionalPlan.middlewares,
+		})
+	}
 	for _, route := range routes {
 		if route.page != nil {
 			plan.addLayoutStack(route.page.layouts)
@@ -557,7 +579,7 @@ func goldrRenderPageLayouts(r *http.Request, component templ.Component, metadata
 	}
 
 	for _, stack := range helpers.layoutStacks {
-		writeLayoutStackHelper(buffer, stack)
+		writeLayoutStackHelper(buffer, stack, helpers.routeAliases)
 	}
 	for _, stack := range helpers.layoutStacks {
 		fmt.Fprintf(buffer, "\nfunc %s(r *http.Request, page goldr.Page) (templ.Component, error) {\n", stack.rendererName)
@@ -565,32 +587,52 @@ func goldrRenderPageLayouts(r *http.Request, component templ.Component, metadata
 		buffer.WriteString("}\n")
 	}
 	for _, stack := range helpers.middlewareStacks {
-		writeMiddlewareStackHelper(buffer, stack)
+		writeMiddlewareStackHelper(buffer, stack, helpers.routeAliases)
 	}
 	writeEndpointHandlerHelpers(buffer, helpers)
 }
 
-func writeLayoutStackHelper(buffer *bytes.Buffer, stack layoutStackHelper) {
+func writeLayoutStackHelper(buffer *bytes.Buffer, stack layoutStackHelper, routeAliases map[string]string) {
 	fmt.Fprintf(buffer, "\nvar %s = []goldrLayoutStep{\n", stack.name)
 	for _, layout := range stack.layouts {
 		writeLayoutCallComment(buffer, "\t", layout)
 		buffer.WriteString("\t{\n")
-		fmt.Fprintf(buffer, "\t\trender: %s,\n", routeFunc(layout.Unit.GoFile, "Layout"))
+		fmt.Fprintf(buffer, "\t\trender: %s,\n", routeFunc(routeAliases, layout.Unit.GoFile, "Layout"))
 		fmt.Fprintf(buffer, "\t\tmarker: %s,\n", templateMarker("layout", layout.RoutePrefix, layout.Unit))
 		buffer.WriteString("\t},\n")
 	}
 	buffer.WriteString("}\n")
 }
 
-func writeMiddlewareStackHelper(buffer *bytes.Buffer, stack middlewareStackHelper) {
-	fmt.Fprintf(buffer, "\nfunc %s(next http.Handler) http.Handler {\n", stack.name)
+func writeMiddlewareStackHelper(buffer *bytes.Buffer, stack middlewareStackHelper, routeAliases map[string]string) {
+	nextName := middlewareNextName(routeAliases)
+	fmt.Fprintf(buffer, "\nfunc %s(%s http.Handler) http.Handler {\n", stack.name, nextName)
 	for index := len(stack.middlewares) - 1; index >= 0; index-- {
-		middlewareCall := routeFunc(stack.middlewares[index].GoFile, "Middleware")
+		middlewareCall := routeFunc(routeAliases, stack.middlewares[index].GoFile, "Middleware")
 		writeMiddlewareCallComment(buffer, "\t", stack.middlewares[index])
-		fmt.Fprintf(buffer, "\tnext = %s(next)\n", middlewareCall)
+		fmt.Fprintf(buffer, "\t%s = %s(%s)\n", nextName, middlewareCall, nextName)
 	}
-	buffer.WriteString("\treturn next\n")
+	fmt.Fprintf(buffer, "\treturn %s\n", nextName)
 	buffer.WriteString("}\n")
+}
+
+func middlewareNextName(routeAliases map[string]string) string {
+	for suffix := 1; ; suffix++ {
+		name := "next"
+		if suffix > 1 {
+			name += "_" + strconv.Itoa(suffix)
+		}
+		used := false
+		for _, alias := range routeAliases {
+			if alias == name {
+				used = true
+				break
+			}
+		}
+		if !used {
+			return name
+		}
+	}
 }
 
 func writeEndpointHandlerHelpers(buffer *bytes.Buffer, helpers handlerHelperPlan) {
@@ -614,6 +656,49 @@ func writeEndpointHandlerHelpers(buffer *bytes.Buffer, helpers handlerHelperPlan
 	buffer.WriteString("}\n")
 }
 
+func writeAdditionalPageHandlers(buffer *bytes.Buffer, helpers handlerHelperPlan) {
+	buffer.WriteString("\ntype goldrAdditionalPageHandlers struct {\n")
+	for _, plan := range helpers.additionalPagePlans {
+		fmt.Fprintf(buffer, "\t%s http.Handler\n", plan.name)
+	}
+	buffer.WriteString("}\n")
+
+	buffer.WriteString("\nfunc goldrNewAdditionalPageHandlers(options HandlerOptions) *goldrAdditionalPageHandlers {\n")
+	buffer.WriteString("\tif options.AdditionalPageSource == nil {\n\t\treturn nil\n\t}\n")
+	buffer.WriteString("\treturn &goldrAdditionalPageHandlers{\n")
+	for _, plan := range helpers.additionalPagePlans {
+		handler := fmt.Sprintf("goldrNewAdditionalPageHandler(options, %s)", helpers.routePageRendererName(plan.layouts))
+		if middleware := helpers.middlewareStackName(plan.middlewares); middleware != "" {
+			handler = middleware + "(" + handler + ")"
+		}
+		fmt.Fprintf(buffer, "\t\t%s: %s,\n", plan.name, handler)
+	}
+	buffer.WriteString("\t}\n}\n")
+
+	buffer.WriteString(`
+func goldrNewAdditionalPageHandler(options HandlerOptions, render goldr.RoutePageRenderer) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response, handled := options.AdditionalPageSource(r)
+		if !handled {
+			goldrRouteNotFound(options, w, r)
+			return
+		}
+		if err := goldr.WritePageRouteResponse(w, r, response, render); err != nil {
+			goldrRouteError(options, w, r, err, goldrAdditionalPageErrorRoutePageRenderer)
+		}
+	})
+}
+
+func goldrAdditionalPageHandler(handlers *goldrAdditionalPageHandlers, routePath string) http.Handler {
+`)
+	for index := len(helpers.additionalPagePlans) - 1; index >= 1; index-- {
+		plan := helpers.additionalPagePlans[index]
+		fmt.Fprintf(buffer, "\tif routePath == %s || strings.HasPrefix(routePath, %s) {\n", strconv.Quote(plan.routePrefix), strconv.Quote(plan.routePrefix+"/"))
+		fmt.Fprintf(buffer, "\t\treturn handlers.%s\n\t}\n", plan.name)
+	}
+	fmt.Fprintf(buffer, "\treturn handlers.%s\n}\n", helpers.additionalPagePlans[0].name)
+}
+
 func writeRouteEndpointBody(buffer *bytes.Buffer, route runtimeRoute, helpers handlerHelperPlan, indent string) {
 	if route.action != nil {
 		writeActionRoute(buffer, route, helpers, indent)
@@ -634,13 +719,13 @@ func writeDispatchNodes(buffer *bytes.Buffer, root *dispatchNode, helpers handle
 
 func writeDispatchNode(buffer *bytes.Buffer, node *dispatchNode, helpers handlerHelperPlan) {
 	if helpers.hasEndpointHandlers() {
-		fmt.Fprintf(buffer, "\nfunc %s(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {\n", node.name)
+		fmt.Fprintf(buffer, "\nfunc %s(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {\n", node.name)
 	} else {
-		fmt.Fprintf(buffer, "\nfunc %s(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {\n", node.name)
+		fmt.Fprintf(buffer, "\nfunc %s(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {\n", node.name)
 	}
 	if node.path == nil {
 		fmt.Fprintf(buffer, "\tif len(segments) <= %d {\n", node.depth)
-		buffer.WriteString("\t\tgoldrRouteMiss(options, w, r)\n")
+		buffer.WriteString("\t\tgoldrRouteMiss(options, additionalPageHandlers, w, r, routePath)\n")
 		buffer.WriteString("\t\treturn\n")
 		buffer.WriteString("\t}\n")
 	}
@@ -656,9 +741,9 @@ func writeDispatchNode(buffer *bytes.Buffer, node *dispatchNode, helpers handler
 		for _, child := range children {
 			fmt.Fprintf(buffer, "\tcase %s:\n", strconv.Quote(child.segment))
 			if helpers.hasEndpointHandlers() {
-				fmt.Fprintf(buffer, "\t\t%s(options, handlers, w, r, segments)\n", child.node.name)
+				fmt.Fprintf(buffer, "\t\t%s(options, handlers, additionalPageHandlers, w, r, routePath, segments)\n", child.node.name)
 			} else {
-				fmt.Fprintf(buffer, "\t\t%s(options, w, r, segments)\n", child.node.name)
+				fmt.Fprintf(buffer, "\t\t%s(options, additionalPageHandlers, w, r, routePath, segments)\n", child.node.name)
 			}
 			buffer.WriteString("\t\treturn\n")
 		}
@@ -667,14 +752,14 @@ func writeDispatchNode(buffer *bytes.Buffer, node *dispatchNode, helpers handler
 	if node.dynamicChild != nil {
 		fmt.Fprintf(buffer, "\tif segments[%d] != \"\" {\n", node.depth)
 		if helpers.hasEndpointHandlers() {
-			fmt.Fprintf(buffer, "\t\t%s(options, handlers, w, r, segments)\n", node.dynamicChild.name)
+			fmt.Fprintf(buffer, "\t\t%s(options, handlers, additionalPageHandlers, w, r, routePath, segments)\n", node.dynamicChild.name)
 		} else {
-			fmt.Fprintf(buffer, "\t\t%s(options, w, r, segments)\n", node.dynamicChild.name)
+			fmt.Fprintf(buffer, "\t\t%s(options, additionalPageHandlers, w, r, routePath, segments)\n", node.dynamicChild.name)
 		}
 		buffer.WriteString("\t\treturn\n")
 		buffer.WriteString("\t}\n")
 	}
-	buffer.WriteString("\tgoldrRouteMiss(options, w, r)\n")
+	buffer.WriteString("\tgoldrRouteMiss(options, additionalPageHandlers, w, r, routePath)\n")
 	buffer.WriteString("}\n")
 }
 
@@ -733,7 +818,7 @@ func writeEndpointDispatch(buffer *bytes.Buffer, route runtimeRoute, helpers han
 }
 
 func writeActionRoute(buffer *bytes.Buffer, route runtimeRoute, helpers handlerHelperPlan, indent string) {
-	actionCall := routeFunc(route.action.action.GoFile, route.action.action.Function)
+	actionCall := routeFunc(helpers.routeAliases, route.action.action.GoFile, route.action.action.Function)
 	writeActionCallComment(buffer, indent, route.action.action)
 	writeRoutePageRendererAssignment(buffer, route.action.layouts, helpers, indent)
 	if route.action.action.Writer {
@@ -755,13 +840,13 @@ func writeActionRoute(buffer *bytes.Buffer, route runtimeRoute, helpers handlerH
 
 func writeRenderRoute(buffer *bytes.Buffer, route runtimeRoute, helpers handlerHelperPlan, indent string) {
 	if route.page != nil {
-		pageCall := routeFunc(route.page.page.Unit.GoFile, pageFuncName(route.page.page))
+		pageCall := routeFunc(helpers.routeAliases, route.page.page.Unit.GoFile, pageFuncName(route.page.page))
 		writePageCallComment(buffer, indent, route.page.page)
 		writeRoutePageRendererAssignment(buffer, route.page.layouts, helpers, indent)
 		fmt.Fprintf(buffer, "%srouteResponse := %s(r)\n", indent, pageCall)
 		fmt.Fprintf(buffer, "%sgoldrWritePageEndpointResponse(options, w, r, routeResponse, %s, %s, %s)\n", indent, templateMarker("page", route.page.page.Route, route.page.page.Unit), helpers.layoutStackName(route.page.layouts), helpers.routePageRendererName(route.page.layouts))
 	} else {
-		fragmentCall := routeFunc(route.fragment.fragment.Unit.GoFile, manifestFragmentFuncName(route.fragment.fragment))
+		fragmentCall := routeFunc(helpers.routeAliases, route.fragment.fragment.Unit.GoFile, manifestFragmentFuncName(route.fragment.fragment))
 		writeFragmentCallComment(buffer, indent, *route.fragment)
 		writeRoutePageRendererAssignment(buffer, route.fragment.layouts, helpers, indent)
 		fmt.Fprintf(buffer, "%srouteResponse := %s(r)\n", indent, fragmentCall)
@@ -866,6 +951,20 @@ func goldrRootErrorRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Co
 `)
 }
 
+func writeAdditionalPageErrorRoutePageRenderer(buffer *bytes.Buffer, layouts []routing.ManifestLayout, helpers handlerHelperPlan) {
+	buffer.WriteString(`
+func goldrAdditionalPageErrorRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
+`)
+	if len(layouts) == 0 {
+		buffer.WriteString(`	return goldrDirectRoutePageRenderer(r, page)
+`)
+	} else {
+		fmt.Fprintf(buffer, "\treturn %s(r, page)\n", helpers.layoutRendererName(layouts))
+	}
+	buffer.WriteString(`}
+`)
+}
+
 func writeRoutePageRendererAssignment(buffer *bytes.Buffer, layouts []routing.ManifestLayout, helpers handlerHelperPlan, indent string) {
 	if len(layouts) == 0 {
 		return
@@ -953,12 +1052,12 @@ func paramSegmentIndex(segments []string, name string, fallback int) int {
 	return fallback
 }
 
-func routeFunc(goFile, name string) string {
+func routeFunc(routeAliases map[string]string, goFile, name string) string {
 	dir := path.Dir(goFile)
 	if dir == "." {
 		return name
 	}
-	return routeImportAlias(dir) + "." + name
+	return routeAliases[dir] + "." + name
 }
 
 func pageFuncName(page routing.ManifestPage) string {

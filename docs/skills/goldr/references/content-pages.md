@@ -6,8 +6,9 @@ include product documentation, policies, help pages, and other editorial
 content maintained with the application.
 
 Do not confuse content pages with static asset serving. Content pages render
-through Goldr's root layout. Images and other browser resources still belong
-to the application's asset pipeline or another app-owned file handler.
+through eligible static `app/routes` layouts selected by generated routing.
+Images and other browser resources still belong to the application's asset
+pipeline or another app-owned file handler.
 
 ## Trust Boundary
 
@@ -112,7 +113,7 @@ if err != nil {
 }
 
 handler := routes.HandlerWithOptions(routes.HandlerOptions{
-	Fallback: pages.Resolve,
+	AdditionalPageSource: pages.Resolve,
 })
 ```
 
@@ -122,9 +123,12 @@ request without route generation or a server restart. A recognized entry made
 invalid by a live edit returns an error until it is corrected. Multi-file saves
 are not transactional and there is no last-known-good cache.
 
-Configure shared request context in mux-level middleware outside the generated
-handler. Route-tree middleware belongs to matched generated routes and does not
-run for fallback content.
+Configure shared request context that must cover every request in mux-level
+middleware outside the generated handler. On an ordinary miss with a configured
+additional page source, eligible static route-tree middleware runs before source
+resolution and wraps handled responses, errors, and declined final 404 handling.
+It does not run for nil-source misses, matched method mismatches, or explicit
+invalid-path rejection.
 
 ## Add A Check-Only Mode
 
@@ -149,10 +153,10 @@ is not an HTML safety check.
 
 ## Preserve Route And Error Ownership
 
-Generated static, parameterized, and mounted routes run before the fallback.
+Generated static, parameterized, and mounted routes run before the source.
 A generated `/about` route therefore wins over a `content/about` entry. A
 matched route keeps ownership of its 404, error, and method mismatch. Content
-fallback is attempted at most once only after an ordinary router miss.
+resolution is attempted at most once only after an ordinary router miss.
 
 `Pages.Resolve` handles valid `GET` and `HEAD` content requests. Missing pages,
 organizational containers, unsupported methods, and invalid URL identifiers
@@ -160,15 +164,24 @@ decline. Existing but incomplete or operationally invalid entries return a
 terminal `goldr.RouteError`. The generated `RouteError` hook should log the
 source-local error and return an app-owned generic response.
 
-Resolved content uses the ordinary root layout, request context, buffered
-rendering, and `HEAD` behavior. A declined content request continues to the
-configured `RouteNotFound` hook or default 404.
+Generated routing selects eligible static layouts and root-to-leaf middleware
+from the original escaped path before resolution. Layout-only and
+middleware-only directories participate after generation. Dynamic ancestry
+and mounted layouts are excluded, no path values or generated navigation
+identity are inferred, and middleware changes do not reselect ancestry.
+Resolved content keeps normal metadata, layout data, buffered rendering, and
+`HEAD` behavior. A declined content request continues to the configured
+`RouteNotFound` hook or default 404 inside the selected middleware chain.
+Eligible static middleware may authenticate or supply request context before
+resolution. Keep policy that must cover requests outside this configured miss
+branch at the mux level. Content pages and middleware-only directories do not
+gain route inventory rows, route identity, or URL helpers.
 
-Goldr exposes one `HandlerOptions.Fallback`. Compose multiple sources
+Goldr exposes one `HandlerOptions.AdditionalPageSource`. Compose multiple sources
 explicitly when needed:
 
 ```go
-Fallback: func(r *http.Request) (goldr.PageRouteResponse, bool) {
+AdditionalPageSource: func(r *http.Request) (goldr.PageRouteResponse, bool) {
 	if response, handled := pages.Resolve(r); handled {
 		return response, true
 	}
@@ -222,7 +235,9 @@ go run . -check-content
 ```
 
 Verify at least one generated route still wins over content at the same URL,
-one content page renders through the root layout, a missing URL reaches the
-final 404, and operational content errors use the application's generic error
-response. For external content, verify an edit and a newly added nested page
-appear without route generation or a server restart.
+one content page renders through its eligible static layout and middleware, a
+missing URL reaches the final 404, and operational content errors use the
+application's generic error response without a nested success layout. For
+external content, verify an edit and a newly added nested page appear without
+route generation or a server restart. Adding route-tree layouts or middleware
+does require generation.

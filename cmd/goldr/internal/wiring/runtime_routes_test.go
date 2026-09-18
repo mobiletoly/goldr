@@ -206,6 +206,42 @@ func TestGenerateManifestDoesNotRejectURLHelperCollisions(t *testing.T) {
 	}
 }
 
+func TestRouteImportsAssignStableCollisionFreeAliases(t *testing.T) {
+	plans := []additionalPagePlan{{
+		layouts: []routing.ManifestLayout{
+			{Unit: completeUnit("a/b/layout.go")},
+			{Unit: completeUnit("a_b/layout.go")},
+			{Unit: completeUnit("c/d/layout.go")},
+			{Unit: completeUnit("c_d/layout.go")},
+			{Unit: completeUnit("shared/layout.go")},
+		},
+	}}
+	adapters := []routeAdapterImport{
+		{Name: "goldrroute_a_b", Path: "example.com/adapter"},
+		{Name: "sharedadapter", Path: "example.com/app/routes/shared"},
+	}
+
+	plan, err := routeImports(nil, nil, plans, adapters, "example.com/app/routes")
+	if err != nil {
+		t.Fatalf("routeImports() error = %v", err)
+	}
+	wantAliases := map[string]string{
+		"a/b":    "goldrroute_a_b_2",
+		"a_b":    "goldrroute_a_b_3",
+		"c/d":    "goldrroute_c_d",
+		"c_d":    "goldrroute_c_d_2",
+		"shared": "sharedadapter",
+	}
+	if !reflect.DeepEqual(plan.Aliases, wantAliases) {
+		t.Fatalf("aliases = %#v, want %#v", plan.Aliases, wantAliases)
+	}
+	for _, item := range plan.Imports {
+		if item.ImportPath == "example.com/app/routes/shared" {
+			t.Fatalf("shared package duplicated adapter import: %#v", item)
+		}
+	}
+}
+
 func TestRuntimeRoutesUseMountedLiveRoutePathForMiddleware(t *testing.T) {
 	manifest := routing.Manifest{
 		Routes: []routing.ManifestRouteDeclaration{

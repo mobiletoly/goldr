@@ -856,29 +856,40 @@ POST /users -> PostIndex
 For matched paths with unsupported methods, generated dispatch returns `405`
 and sets `Allow` to the supported methods for that path.
 
-`HandlerOptions` can configure one optional router-miss fallback:
+`HandlerOptions` can configure one optional additional page source:
 
 ```go
 type HandlerOptions struct {
-	BasePath           string
-	ErrorHandlers      ErrorHandlers
-	Fallback           func(*http.Request) (goldr.PageRouteResponse, bool)
-	TemplateInspection goldr.TemplateInspectionMode
+	BasePath             string
+	ErrorHandlers        ErrorHandlers
+	AdditionalPageSource func(*http.Request) (goldr.PageRouteResponse, bool)
+	TemplateInspection   goldr.TemplateInspectionMode
 }
 ```
 
-Generated static, parameterized, and mounted routes retain priority. The
-fallback runs at most once only when no route matches. `handled=true` is
-terminal and uses Goldr's normal root-layout and error machinery;
+Generated static, parameterized, and mounted routes retain priority. The source
+runs at most once only after an ordinary route miss. `handled=true` is terminal;
 `handled=false` continues to the existing `RouteNotFound` hook or default 404.
-A matched route's response, error, or 405 never falls back. Explicit invalid
-paths remain rejected. A nil fallback preserves the previous behavior.
+A matched route's response, error, or 405 never invokes the source. Explicit
+invalid paths remain rejected. A nil source preserves the previous behavior.
+
+Before invoking a configured source, generated routing selects eligible static
+`app/routes` middleware and layouts from the captured `r.URL.EscapedPath()`.
+Middleware runs root to leaf around source resolution and response handling.
+Page layouts render outer to inner. Static layout-only and middleware-only
+directories participate after regeneration. Dynamic ancestry and mounted
+layouts are excluded, and additional pages do not receive path values or a
+generated navigation identity. Redirect and text responses bypass layouts.
+
+The handler API is generated even when the manifest has no endpoints, enabling
+content-only applications with route-tree layouts, middleware, error handlers,
+and template inspection.
 
 Use keyed `HandlerOptions` literals. Adding generated option fields can break
 positional literals when an application regenerates its route package.
 
 The optional [Content Pages](content-pages.md) package provides one first-party
-fallback implementation. Applications can also compose their own sources in
+source implementation. Applications can also compose their own sources in
 ordinary Go.
 
 ## Route-Tree Middleware
@@ -928,14 +939,18 @@ to `/users/create`.
 
 Goldr does not own CSRF, auth, roles, rate limits, sessions, or adapter policy.
 Middleware remains application code. Use mux-level middleware for concerns that
-must also run on generated 404 and 405 responses. Common route-tree patterns
-are:
+must cover every request, including nil-source misses, generated method
+mismatches, explicit invalid-path rejection, or handlers outside generated
+dispatch. Common route-tree patterns are:
 
 - `app/routes/middleware.go` issuing CSRF tokens for a cookie/session HTML app
 - `app/routes/main/admin/middleware.go` authenticating, checking an admin role,
   and attaching a principal to request context for `/main/admin/**`
 
-Generated 404 and 405 responses do not run route-tree middleware.
+Generated 405 responses do not run route-tree middleware. Final 404 handling
+normally does not either. The exception is an ordinary miss with a configured
+`AdditionalPageSource`: if the source declines, final 404 handling runs inside
+the eligible static middleware chain selected for that request path.
 
 ## Custom Error Responses
 

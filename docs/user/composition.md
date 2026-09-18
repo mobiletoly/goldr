@@ -64,18 +64,19 @@ Application policy stays application-owned. Keeping middleware as plain
 `net/http` keeps behavior explicit and lets applications use ordinary Go
 libraries.
 
-Router-miss fallbacks also run inside mux-level middleware. They receive the
-original request URL, query, and context presented to the generated handler.
-Because no route endpoint matched, route-tree middleware does not run and no
-subtree layout or navigation identity is inferred. A fallback page uses the
-root layout with its own metadata and layout data.
+Additional page sources also run inside mux-level middleware. They receive the
+request URL, query, and context presented to the generated handler. On an
+ordinary route miss, generated routing additionally applies eligible static
+`app/routes` middleware and layouts selected from the original escaped path.
+This selection does not infer a generated route or navigation identity and
+does not bind dynamic path values.
 
-Applications can chain fallback sources explicitly while keeping order and
+Applications can chain additional page sources explicitly while keeping order and
 terminal errors visible:
 
 ```go
 routes.HandlerWithOptions(routes.HandlerOptions{
-	Fallback: func(r *http.Request) (goldr.PageRouteResponse, bool) {
+	AdditionalPageSource: func(r *http.Request) (goldr.PageRouteResponse, bool) {
 		if response, handled := pages.Resolve(r); handled {
 			return response, true
 		}
@@ -86,7 +87,9 @@ routes.HandlerWithOptions(routes.HandlerOptions{
 
 Register more-specific mux handlers, such as assets, before the generated
 handler. Deliberate wrappers such as `http.StripPrefix` define the URL seen by
-both generated routes and fallback.
+both generated routes and the additional page source. Keep concerns that must
+run outside every generated branch, including invalid-path rejection and
+requests with a nil source, at the mux level.
 
 Goldr's `csrf` package provides a small signed-cookie token guard. Applications
 still choose where to mount it:

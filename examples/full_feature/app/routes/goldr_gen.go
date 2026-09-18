@@ -106,10 +106,11 @@ type ErrorHandlers struct {
 }
 
 type HandlerOptions struct {
-	BasePath           string
-	ErrorHandlers      ErrorHandlers
-	Fallback           func(*http.Request) (goldr.PageRouteResponse, bool)
-	TemplateInspection goldr.TemplateInspectionMode
+	BasePath      string
+	ErrorHandlers ErrorHandlers
+	// AdditionalPageSource resolves pages after an ordinary generated route miss.
+	AdditionalPageSource func(*http.Request) (goldr.PageRouteResponse, bool)
+	TemplateInspection   goldr.TemplateInspectionMode
 }
 
 var goldrGeneratedManifest = goldrManifest{
@@ -148,6 +149,7 @@ func Handler() http.Handler {
 }
 
 func HandlerWithOptions(options HandlerOptions) http.Handler {
+	additionalPageHandlers := goldrNewAdditionalPageHandlers(options)
 	handlers := goldrNewHandlers(options)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -156,7 +158,7 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 		}
 		routePath := r.URL.EscapedPath()
 		if routePath == "/" {
-			goldrDispatchRoot(options, handlers, w, r, nil)
+			goldrDispatchRoot(options, handlers, additionalPageHandlers, w, r, routePath, nil)
 			return
 		}
 		segments := goldrPathSegments(routePath)
@@ -164,11 +166,11 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 			goldrRouteNotFound(options, w, r)
 			return
 		}
-		goldrDispatchRoot(options, handlers, w, r, segments)
+		goldrDispatchRoot(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 	})
 }
 
-func goldrDispatchRoot(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRoot(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 0 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			handlers.endpoint0.ServeHTTP(w, r)
@@ -180,25 +182,25 @@ func goldrDispatchRoot(options HandlerOptions, handlers *goldrHandlers, w http.R
 	}
 	switch segments[0] {
 	case "admin":
-		goldrDispatchRootStaticAdmin(options, handlers, w, r, segments)
+		goldrDispatchRootStaticAdmin(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "protected-resource-demo":
-		goldrDispatchRootStaticProtectedResourceDemo(options, handlers, w, r, segments)
+		goldrDispatchRootStaticProtectedResourceDemo(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "settings":
-		goldrDispatchRootStaticSettings(options, handlers, w, r, segments)
+		goldrDispatchRootStaticSettings(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "sign-in":
-		goldrDispatchRootStaticSignIn(options, handlers, w, r, segments)
+		goldrDispatchRootStaticSignIn(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "users":
-		goldrDispatchRootStaticUsers(options, handlers, w, r, segments)
+		goldrDispatchRootStaticUsers(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticAdmin(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticAdmin(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			handlers.endpoint7.ServeHTTP(w, r)
@@ -208,10 +210,10 @@ func goldrDispatchRootStaticAdmin(options HandlerOptions, handlers *goldrHandler
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticProtectedResourceDemo(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticProtectedResourceDemo(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			handlers.endpoint8.ServeHTTP(w, r)
@@ -223,16 +225,16 @@ func goldrDispatchRootStaticProtectedResourceDemo(options HandlerOptions, handle
 	}
 	switch segments[1] {
 	case "reveal-secret":
-		goldrDispatchRootStaticProtectedResourceDemoStaticRevealSecret(options, handlers, w, r, segments)
+		goldrDispatchRootStaticProtectedResourceDemoStaticRevealSecret(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "sign-out":
-		goldrDispatchRootStaticProtectedResourceDemoStaticSignOut(options, handlers, w, r, segments)
+		goldrDispatchRootStaticProtectedResourceDemoStaticSignOut(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticProtectedResourceDemoStaticRevealSecret(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticProtectedResourceDemoStaticRevealSecret(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
 			handlers.endpoint1.ServeHTTP(w, r)
@@ -242,10 +244,10 @@ func goldrDispatchRootStaticProtectedResourceDemoStaticRevealSecret(options Hand
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticProtectedResourceDemoStaticSignOut(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticProtectedResourceDemoStaticSignOut(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
 			handlers.endpoint2.ServeHTTP(w, r)
@@ -255,10 +257,10 @@ func goldrDispatchRootStaticProtectedResourceDemoStaticSignOut(options HandlerOp
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticSettings(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticSettings(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			handlers.endpoint9.ServeHTTP(w, r)
@@ -268,10 +270,10 @@ func goldrDispatchRootStaticSettings(options HandlerOptions, handlers *goldrHand
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticSignIn(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticSignIn(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			handlers.endpoint10.ServeHTTP(w, r)
@@ -285,10 +287,10 @@ func goldrDispatchRootStaticSignIn(options HandlerOptions, handlers *goldrHandle
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticUsers(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticUsers(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			handlers.endpoint12.ServeHTTP(w, r)
@@ -300,26 +302,26 @@ func goldrDispatchRootStaticUsers(options HandlerOptions, handlers *goldrHandler
 	}
 	switch segments[1] {
 	case "create":
-		goldrDispatchRootStaticUsersStaticCreate(options, handlers, w, r, segments)
+		goldrDispatchRootStaticUsersStaticCreate(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "save-preview":
-		goldrDispatchRootStaticUsersStaticSavePreview(options, handlers, w, r, segments)
+		goldrDispatchRootStaticUsersStaticSavePreview(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "status-options":
-		goldrDispatchRootStaticUsersStaticStatusOptions(options, handlers, w, r, segments)
+		goldrDispatchRootStaticUsersStaticStatusOptions(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "table":
-		goldrDispatchRootStaticUsersStaticTable(options, handlers, w, r, segments)
+		goldrDispatchRootStaticUsersStaticTable(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
 	if segments[1] != "" {
-		goldrDispatchRootStaticUsersParamID(options, handlers, w, r, segments)
+		goldrDispatchRootStaticUsersParamID(options, handlers, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticUsersStaticCreate(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticUsersStaticCreate(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
 			handlers.endpoint3.ServeHTTP(w, r)
@@ -329,10 +331,10 @@ func goldrDispatchRootStaticUsersStaticCreate(options HandlerOptions, handlers *
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticUsersStaticSavePreview(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticUsersStaticSavePreview(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodPost {
 			handlers.endpoint4.ServeHTTP(w, r)
@@ -342,10 +344,10 @@ func goldrDispatchRootStaticUsersStaticSavePreview(options HandlerOptions, handl
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticUsersStaticStatusOptions(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticUsersStaticStatusOptions(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			handlers.endpoint5.ServeHTTP(w, r)
@@ -355,10 +357,10 @@ func goldrDispatchRootStaticUsersStaticStatusOptions(options HandlerOptions, han
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticUsersStaticTable(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticUsersStaticTable(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			handlers.endpoint6.ServeHTTP(w, r)
@@ -368,10 +370,10 @@ func goldrDispatchRootStaticUsersStaticTable(options HandlerOptions, handlers *g
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticUsersParamID(options HandlerOptions, handlers *goldrHandlers, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticUsersParamID(options HandlerOptions, handlers *goldrHandlers, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		goldrParam0, ok := goldrPathParam(segments[1])
 		if !ok {
@@ -387,7 +389,7 @@ func goldrDispatchRootStaticUsersParamID(options HandlerOptions, handlers *goldr
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
 type goldrLayoutFunc func(*http.Request, goldr.LayoutContext) templ.Component
@@ -592,6 +594,41 @@ func goldrNewHandlers(options HandlerOptions) *goldrHandlers {
 	}
 }
 
+type goldrAdditionalPageHandlers struct {
+	plan0 http.Handler
+	plan1 http.Handler
+}
+
+func goldrNewAdditionalPageHandlers(options HandlerOptions) *goldrAdditionalPageHandlers {
+	if options.AdditionalPageSource == nil {
+		return nil
+	}
+	return &goldrAdditionalPageHandlers{
+		plan0: goldrMiddlewareStack0(goldrNewAdditionalPageHandler(options, goldrRoutePageRenderer0)),
+		plan1: goldrMiddlewareStack0(goldrNewAdditionalPageHandler(options, goldrRoutePageRenderer1)),
+	}
+}
+
+func goldrNewAdditionalPageHandler(options HandlerOptions, render goldr.RoutePageRenderer) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response, handled := options.AdditionalPageSource(r)
+		if !handled {
+			goldrRouteNotFound(options, w, r)
+			return
+		}
+		if err := goldr.WritePageRouteResponse(w, r, response, render); err != nil {
+			goldrRouteError(options, w, r, err, goldrAdditionalPageErrorRoutePageRenderer)
+		}
+	})
+}
+
+func goldrAdditionalPageHandler(handlers *goldrAdditionalPageHandlers, routePath string) http.Handler {
+	if routePath == "/users" || strings.HasPrefix(routePath, "/users/") {
+		return handlers.plan1
+	}
+	return handlers.plan0
+}
+
 func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
 	component := page.Component
 	if component == nil {
@@ -600,15 +637,10 @@ func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Compo
 	return component, nil
 }
 
-func goldrRouteMiss(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
-	if options.Fallback != nil {
-		response, handled := options.Fallback(r)
-		if handled {
-			if err := goldr.WritePageRouteResponse(w, r, response, goldrRootErrorRoutePageRenderer); err != nil {
-				goldrRouteError(options, w, r, err, goldrRootErrorRoutePageRenderer)
-			}
-			return
-		}
+func goldrRouteMiss(options HandlerOptions, handlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string) {
+	if handlers != nil {
+		goldrAdditionalPageHandler(handlers, routePath).ServeHTTP(w, r)
+		return
 	}
 	goldrRouteNotFound(options, w, r)
 }
@@ -616,7 +648,7 @@ func goldrRouteMiss(options HandlerOptions, w http.ResponseWriter, r *http.Reque
 func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
 	if handlers.RouteNotFound != nil {
-		goldrWriteRouteFallbackResponse(w, r, handlers.RouteNotFound(r), goldrRootErrorRoutePageRenderer)
+		goldrWriteRouteErrorHandlerResponse(w, r, handlers.RouteNotFound(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.NotFound(w, r)
@@ -625,7 +657,7 @@ func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.R
 func goldrRouteMethodNotAllowed(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
 	if handlers.RouteMethodNotAllowed != nil {
-		goldrWriteRouteFallbackResponse(w, r, handlers.RouteMethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
+		goldrWriteRouteErrorHandlerResponse(w, r, handlers.RouteMethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -661,7 +693,7 @@ func goldrWriteEndpointResponse(options HandlerOptions, w http.ResponseWriter, r
 	}
 }
 
-func goldrWriteRouteFallbackResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
+func goldrWriteRouteErrorHandlerResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
 	r = goldr.WithRoutePageRenderer(r, render)
 	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -676,6 +708,10 @@ func goldrWriteRouteErrorResponse(w http.ResponseWriter, r *http.Request, respon
 }
 
 func goldrRootErrorRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
+	return goldrRoutePageRenderer0(r, page)
+}
+
+func goldrAdditionalPageErrorRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
 	return goldrRoutePageRenderer0(r, page)
 }
 

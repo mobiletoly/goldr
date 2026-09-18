@@ -303,7 +303,7 @@ func handledRouteError(r *http.Request, err error) goldr.RouteResponse {
 }
 
 func TestMountedKitConstructorError(t *testing.T) {
-	fallbackCalls := 0
+	additionalPageSourceCalls := 0
 	tests := []struct {
 		method string
 		path   string
@@ -315,8 +315,8 @@ func TestMountedKitConstructorError(t *testing.T) {
 	for _, test := range tests {
 		recorder := httptest.NewRecorder()
 		HandlerWithOptions(HandlerOptions{
-			Fallback: func(r *http.Request) (goldr.PageRouteResponse, bool) {
-				fallbackCalls++
+			AdditionalPageSource: func(r *http.Request) (goldr.PageRouteResponse, bool) {
+				additionalPageSourceCalls++
 				return nil, false
 			},
 			ErrorHandlers: ErrorHandlers{RouteError: handledRouteError},
@@ -328,8 +328,8 @@ func TestMountedKitConstructorError(t *testing.T) {
 			t.Fatalf("%s %s body = %q, want handled error", test.method, test.path, recorder.Body.String())
 		}
 	}
-	if fallbackCalls != 0 {
-		t.Fatalf("mounted route fallback calls = %d, want 0", fallbackCalls)
+	if additionalPageSourceCalls != 0 {
+		t.Fatalf("mounted route additional page source calls = %d, want 0", additionalPageSourceCalls)
 	}
 }
 `)

@@ -465,9 +465,14 @@ Examples:
 
 Goldr does not own CSRF validation policy, auth, roles, rate limits, sessions,
 or adapters through this convention. Keep those rules in app-owned middleware.
-Use mux-level middleware for concerns that must also run on generated 404 and
-405 responses.
-Generated 404 and 405 responses do not run route-tree middleware.
+Use mux-level middleware for concerns that must cover every request, including
+nil-source misses, generated method mismatches, explicit invalid-path rejection,
+or handlers outside generated dispatch.
+
+Generated 405 responses do not run route-tree middleware. Final 404 handling
+normally does not either. When a configured `AdditionalPageSource` declines on
+an ordinary miss, final 404 handling runs inside the eligible static middleware
+chain selected for that request path.
 
 ## URL Helpers
 
@@ -561,7 +566,17 @@ func HandlerWithOptions(options HandlerOptions) http.Handler
 ```
 
 `Handler()` is the normal generated route handler. `HandlerWithOptions` is for
-custom error responses and template inspection.
+custom error responses, template inspection, and an optional
+`AdditionalPageSource`. Both APIs are emitted for zero-endpoint applications.
+
+After an ordinary route miss, a configured additional page source runs inside
+eligible static `app/routes` middleware and renders handled pages through the
+eligible static layout stack. Selection uses the captured escaped path without
+cleaning, decoding, dynamic parameter binding, or generated navigation
+identity. Layout-only and middleware-only directories participate after
+generation. Dynamic ancestry and mounted layouts are excluded. Matched routes,
+method mismatches, explicit invalid paths, and a nil source retain existing
+ownership and do not enter this branch.
 
 Error hooks are optional:
 

@@ -122,10 +122,11 @@ type ErrorHandlers struct {
 }
 
 type HandlerOptions struct {
-	BasePath           string
-	ErrorHandlers      ErrorHandlers
-	Fallback           func(*http.Request) (goldr.PageRouteResponse, bool)
-	TemplateInspection goldr.TemplateInspectionMode
+	BasePath      string
+	ErrorHandlers ErrorHandlers
+	// AdditionalPageSource resolves pages after an ordinary generated route miss.
+	AdditionalPageSource func(*http.Request) (goldr.PageRouteResponse, bool)
+	TemplateInspection   goldr.TemplateInspectionMode
 }
 
 var goldrGeneratedManifest = goldrManifest{
@@ -158,6 +159,7 @@ func Handler() http.Handler {
 }
 
 func HandlerWithOptions(options HandlerOptions) http.Handler {
+	additionalPageHandlers := goldrNewAdditionalPageHandlers(options)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if options.TemplateInspection != goldr.TemplateInspectionOff {
 			r = r.WithContext(goldrinspect.WithMode(r.Context(), options.TemplateInspection))
@@ -165,7 +167,7 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 		routePath := r.URL.EscapedPath()
 		r = goldr.WithRoutePageRenderer(r, goldrDirectRoutePageRenderer)
 		if routePath == "/" {
-			goldrDispatchRoot(options, w, r, nil)
+			goldrDispatchRoot(options, additionalPageHandlers, w, r, routePath, nil)
 			return
 		}
 		segments := goldrPathSegments(routePath)
@@ -173,11 +175,11 @@ func HandlerWithOptions(options HandlerOptions) http.Handler {
 			goldrRouteNotFound(options, w, r)
 			return
 		}
-		goldrDispatchRoot(options, w, r, segments)
+		goldrDispatchRoot(options, additionalPageHandlers, w, r, routePath, segments)
 	})
 }
 
-func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRoot(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 0 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}}, []string{goldrNavHref(options.BasePath)}, 0)
@@ -192,16 +194,16 @@ func goldrDispatchRoot(options HandlerOptions, w http.ResponseWriter, r *http.Re
 	}
 	switch segments[0] {
 	case "about":
-		goldrDispatchRootStaticAbout(options, w, r, segments)
+		goldrDispatchRootStaticAbout(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "main":
-		goldrDispatchRootStaticMain(options, w, r, segments)
+		goldrDispatchRootStaticMain(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticAbout(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticAbout(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "About"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "about")}, 1)
@@ -214,10 +216,10 @@ func goldrDispatchRootStaticAbout(options HandlerOptions, w http.ResponseWriter,
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMain(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMain(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 1 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main")}, 1)
@@ -232,19 +234,19 @@ func goldrDispatchRootStaticMain(options HandlerOptions, w http.ResponseWriter, 
 	}
 	switch segments[1] {
 	case "hq":
-		goldrDispatchRootStaticMainStaticHq(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHq(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "regional":
-		goldrDispatchRootStaticMainStaticRegional(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegional(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "reports":
-		goldrDispatchRootStaticMainStaticReports(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticReports(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHq(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHq(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "HQ"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "hq")}, 2)
@@ -259,25 +261,25 @@ func goldrDispatchRootStaticMainStaticHq(options HandlerOptions, w http.Response
 	}
 	switch segments[2] {
 	case "teams":
-		goldrDispatchRootStaticMainStaticHqStaticTeams(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeams(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeams(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeams(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 3 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	if segments[3] != "" {
-		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamID(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamID(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamID(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamID(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 4 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -298,16 +300,16 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamID(options HandlerOp
 	}
 	switch segments[4] {
 	case "analytics":
-		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalytics(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalytics(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "customers":
-		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomers(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomers(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalytics(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalytics(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 5 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -328,38 +330,38 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalytics(op
 	}
 	switch segments[5] {
 	case "customers":
-		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomers(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomers(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomers(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomers(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 6 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	if segments[6] != "" {
-		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerID(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerID(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerID(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerID(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 7 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	switch segments[7] {
 	case "report":
-		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerIDStaticReport(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerIDStaticReport(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerIDStaticReport(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerIDStaticReport(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 8 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -384,22 +386,22 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticAnalyticsSta
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomers(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomers(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 5 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	if segments[5] != "" {
-		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerID(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerID(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerID(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerID(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 6 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -426,13 +428,13 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersPar
 	}
 	switch segments[6] {
 	case "report":
-		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReport(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReport(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReport(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReport(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 7 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -460,16 +462,16 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersPar
 	}
 	switch segments[7] {
 	case "brief":
-		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticBrief(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticBrief(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "detailed":
-		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticDetailed(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticDetailed(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticBrief(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticBrief(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 8 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -495,10 +497,10 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersPar
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticDetailed(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticDetailed(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 8 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -524,10 +526,10 @@ func goldrDispatchRootStaticMainStaticHqStaticTeamsParamTeamIDStaticCustomersPar
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegional(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegional(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 2 {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			r = goldr.WithRequestNav(r, "", []goldr.RouteNav{{Label: "Home"}, {Label: "Main"}, {Label: "Regional"}}, []string{goldrNavHref(options.BasePath), goldrNavHref(options.BasePath, "main"), goldrNavHref(options.BasePath, "main", "regional")}, 2)
@@ -542,25 +544,25 @@ func goldrDispatchRootStaticMainStaticRegional(options HandlerOptions, w http.Re
 	}
 	switch segments[2] {
 	case "offices":
-		goldrDispatchRootStaticMainStaticRegionalStaticOffices(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOffices(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOffices(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOffices(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 3 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	if segments[3] != "" {
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeID(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeID(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeID(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeID(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 4 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -581,25 +583,25 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeID(options
 	}
 	switch segments[4] {
 	case "teams":
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeams(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeams(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeams(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeams(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 5 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	if segments[5] != "" {
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamID(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamID(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamID(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamID(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 6 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -626,16 +628,16 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 	}
 	switch segments[6] {
 	case "analytics":
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalytics(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalytics(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "customers":
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomers(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomers(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalytics(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalytics(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 7 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -662,38 +664,38 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 	}
 	switch segments[7] {
 	case "customers":
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomers(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomers(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomers(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomers(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 8 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	if segments[8] != "" {
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerID(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerID(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerID(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerID(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 9 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	switch segments[9] {
 	case "report":
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerIDStaticReport(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerIDStaticReport(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerIDStaticReport(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticAnalyticsStaticCustomersParamCustomerIDStaticReport(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 10 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -724,22 +726,22 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomers(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomers(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 7 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	if segments[7] != "" {
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerID(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerID(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerID(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerID(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 8 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -772,13 +774,13 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 	}
 	switch segments[8] {
 	case "report":
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReport(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReport(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReport(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReport(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 9 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -812,16 +814,16 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 	}
 	switch segments[9] {
 	case "brief":
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticBrief(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticBrief(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	case "detailed":
-		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticDetailed(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticDetailed(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticBrief(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticBrief(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 10 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -853,10 +855,10 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticDetailed(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTeamsParamTeamIDStaticCustomersParamCustomerIDStaticReportStaticDetailed(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 10 {
 		goldrParam0, ok := goldrPathParam(segments[3])
 		if !ok {
@@ -888,22 +890,22 @@ func goldrDispatchRootStaticMainStaticRegionalStaticOfficesParamOfficeIDStaticTe
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticReports(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticReports(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) <= 2 {
-		goldrRouteMiss(options, w, r)
+		goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 		return
 	}
 	if segments[2] != "" {
-		goldrDispatchRootStaticMainStaticReportsParamCustomerID(options, w, r, segments)
+		goldrDispatchRootStaticMainStaticReportsParamCustomerID(options, additionalPageHandlers, w, r, routePath, segments)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
-func goldrDispatchRootStaticMainStaticReportsParamCustomerID(options HandlerOptions, w http.ResponseWriter, r *http.Request, segments []string) {
+func goldrDispatchRootStaticMainStaticReportsParamCustomerID(options HandlerOptions, additionalPageHandlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string, segments []string) {
 	if len(segments) == 3 {
 		goldrParam0, ok := goldrPathParam(segments[2])
 		if !ok {
@@ -922,7 +924,7 @@ func goldrDispatchRootStaticMainStaticReportsParamCustomerID(options HandlerOpti
 		goldrRouteMethodNotAllowed(options, w, r)
 		return
 	}
-	goldrRouteMiss(options, w, r)
+	goldrRouteMiss(options, additionalPageHandlers, w, r, routePath)
 }
 
 type goldrLayoutFunc func(*http.Request, goldr.LayoutContext) templ.Component
@@ -997,6 +999,36 @@ func goldrRoutePageRenderer1(r *http.Request, page goldr.Page) (templ.Component,
 	return goldrRenderPage(r, page, goldrLayoutStack1)
 }
 
+type goldrAdditionalPageHandlers struct {
+	plan0 http.Handler
+}
+
+func goldrNewAdditionalPageHandlers(options HandlerOptions) *goldrAdditionalPageHandlers {
+	if options.AdditionalPageSource == nil {
+		return nil
+	}
+	return &goldrAdditionalPageHandlers{
+		plan0: goldrNewAdditionalPageHandler(options, goldrDirectRoutePageRenderer),
+	}
+}
+
+func goldrNewAdditionalPageHandler(options HandlerOptions, render goldr.RoutePageRenderer) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response, handled := options.AdditionalPageSource(r)
+		if !handled {
+			goldrRouteNotFound(options, w, r)
+			return
+		}
+		if err := goldr.WritePageRouteResponse(w, r, response, render); err != nil {
+			goldrRouteError(options, w, r, err, goldrAdditionalPageErrorRoutePageRenderer)
+		}
+	})
+}
+
+func goldrAdditionalPageHandler(handlers *goldrAdditionalPageHandlers, routePath string) http.Handler {
+	return handlers.plan0
+}
+
 func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
 	component := page.Component
 	if component == nil {
@@ -1005,15 +1037,10 @@ func goldrDirectRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Compo
 	return component, nil
 }
 
-func goldrRouteMiss(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
-	if options.Fallback != nil {
-		response, handled := options.Fallback(r)
-		if handled {
-			if err := goldr.WritePageRouteResponse(w, r, response, goldrRootErrorRoutePageRenderer); err != nil {
-				goldrRouteError(options, w, r, err, goldrRootErrorRoutePageRenderer)
-			}
-			return
-		}
+func goldrRouteMiss(options HandlerOptions, handlers *goldrAdditionalPageHandlers, w http.ResponseWriter, r *http.Request, routePath string) {
+	if handlers != nil {
+		goldrAdditionalPageHandler(handlers, routePath).ServeHTTP(w, r)
+		return
 	}
 	goldrRouteNotFound(options, w, r)
 }
@@ -1021,7 +1048,7 @@ func goldrRouteMiss(options HandlerOptions, w http.ResponseWriter, r *http.Reque
 func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
 	if handlers.RouteNotFound != nil {
-		goldrWriteRouteFallbackResponse(w, r, handlers.RouteNotFound(r), goldrRootErrorRoutePageRenderer)
+		goldrWriteRouteErrorHandlerResponse(w, r, handlers.RouteNotFound(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.NotFound(w, r)
@@ -1030,7 +1057,7 @@ func goldrRouteNotFound(options HandlerOptions, w http.ResponseWriter, r *http.R
 func goldrRouteMethodNotAllowed(options HandlerOptions, w http.ResponseWriter, r *http.Request) {
 	handlers := options.ErrorHandlers
 	if handlers.RouteMethodNotAllowed != nil {
-		goldrWriteRouteFallbackResponse(w, r, handlers.RouteMethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
+		goldrWriteRouteErrorHandlerResponse(w, r, handlers.RouteMethodNotAllowed(r), goldrRootErrorRoutePageRenderer)
 		return
 	}
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1054,7 +1081,7 @@ func goldrWritePageEndpointResponse(options HandlerOptions, w http.ResponseWrite
 	}
 }
 
-func goldrWriteRouteFallbackResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
+func goldrWriteRouteErrorHandlerResponse(w http.ResponseWriter, r *http.Request, response goldr.RouteResponse, render goldr.RoutePageRenderer) {
 	r = goldr.WithRoutePageRenderer(r, render)
 	if err := goldr.WriteRouteResponse(w, r, response); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -1069,6 +1096,10 @@ func goldrWriteRouteErrorResponse(w http.ResponseWriter, r *http.Request, respon
 }
 
 func goldrRootErrorRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
+	return goldrDirectRoutePageRenderer(r, page)
+}
+
+func goldrAdditionalPageErrorRoutePageRenderer(r *http.Request, page goldr.Page) (templ.Component, error) {
 	return goldrDirectRoutePageRenderer(r, page)
 }
 

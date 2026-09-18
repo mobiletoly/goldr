@@ -1296,6 +1296,14 @@ func Middleware(next http.Handler) http.Handler {
 	})
 }
 `)
+	writeTempFile(t, tempDir, "routes/users/create/middleware.go", `package create
+
+import "net/http"
+
+func Middleware(next http.Handler) http.Handler {
+	return next
+}
+`)
 	writeTempFile(t, tempDir, "routes/page.go", `package routes
 
 import (

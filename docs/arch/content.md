@@ -3,10 +3,10 @@
 Goldr content support is split at the generated router miss boundary.
 
 The generated route package owns selection and response writing. It invokes at
-most one configured `HandlerOptions.Fallback` after ordinary route selection
+most one configured `HandlerOptions.AdditionalPageSource` after ordinary route selection
 misses and before final not-found handling. Static, parameterized, and mounted
 matches, matched method mismatches, endpoint responses, endpoint errors, and
-explicit invalid-path rejections never enter fallback.
+explicit invalid-path rejections never enter the source branch.
 
 The optional `github.com/mobiletoly/goldr/content` package lives in the root
 Goldr module and owns filesystem loading, metadata decoding, operational body
@@ -18,21 +18,34 @@ or automatic source discovery.
 request
   -> generated route selection
      -> match: existing endpoint ownership
-     -> miss: application fallback
-        -> handled: existing page writer and root layout/error machinery
-        -> decline: existing RouteNotFound hook or default 404
+     -> miss: select eligible static middleware and layout ancestry
+        -> middleware: application additional page source
+           -> handled: existing page writer with selected layouts
+           -> decline: existing RouteNotFound hook or default 404
 ```
 
 `handled=true` is terminal. It may carry a page, redirect, text response, or
 `goldr.RouteError`. Writer validation and rendering failures use the existing
-root-level route error path. A custom error-hook failure remains terminal and
+additional-page route error path. A custom error-hook failure remains terminal and
 does not recurse. `handled=false` ignores the response and runs final not-found
 handling once.
 
-Content pages use only the root layout because no route subtree matched. They
-do not acquire route-tree middleware or generated navigation identity. Outer
-application middleware still sees the original request and provides any shared
-context needed by the root layout.
+Generated routing captures `r.URL.EscapedPath()` before middleware and matches
+eligible static `app/routes` prefixes without cleaning or decoding. It composes
+matching middleware root to leaf and layouts outer to inner. Layout-only and
+middleware-only directories participate. Dynamic ancestry and mounted layouts
+are excluded; mounted middleware is invalid. The selected middleware wraps the
+source, handled response writing, final 404, and route-error handling. A changed
+request passed by middleware reaches the source and renderers without
+reselecting ancestry.
+
+Handled pages use the selected layout stack and preserve metadata and layout
+data. Redirects and text bypass layouts. Additional-page errors use only the
+eligible live `app/routes` root layout, excluding mounted-root layouts. Content
+pages do not acquire generated navigation identity or dynamic path values.
+Outer application middleware continues to provide broader application policy.
+Route inventory and URL helpers remain derived from generated routes. Content
+entries and middleware-only directories do not acquire route identity.
 
 ## Validation Flow
 

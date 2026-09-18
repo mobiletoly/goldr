@@ -1,0 +1,8 @@
+package privacy
+
+templ LayoutView(contextValue string, child templ.Component) {
+	<section class="privacy-shell" data-privacy-context={ contextValue }>
+		<p>Privacy area - { contextValue }</p>
+		@child
+	</section>
+}

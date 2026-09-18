@@ -58,7 +58,9 @@ func GenerateManifest(manifest routing.Manifest, options GenerateOptions) ([]byt
 		return nil, err
 	}
 	rootLayouts := layoutStack("/", manifest.Layouts)
-	imports, err := routeImports(routes, rootLayouts, options.RouteRootImportPath)
+	additionalPlans := additionalPagePlans(manifest.Layouts, manifest.Middlewares)
+	additionalErrorLayouts := layoutStack("/", additionalPageLayouts(manifest.Layouts))
+	importPlan, err := routeImports(routes, rootLayouts, additionalPlans, adapterImports, options.RouteRootImportPath)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +68,7 @@ func GenerateManifest(manifest routing.Manifest, options GenerateOptions) ([]byt
 	if inspectorImportPath == "" {
 		inspectorImportPath = defaultInspectorImportPath(options.RouteRootImportPath)
 	}
-	if inspectorImportPath == "" && len(routes) > 0 {
+	if inspectorImportPath == "" {
 		return nil, ErrInvalidRouteRootImportPath
 	}
 	inboundDestinations, err := inboundDestinationTrailEdgesByRoute(manifest.Routes)
@@ -77,13 +79,10 @@ func GenerateManifest(manifest routing.Manifest, options GenerateOptions) ([]byt
 	var buffer bytes.Buffer
 	writeGeneratedFileHeader(&buffer, routeSurfaceRows(manifest, routes, inboundDestinations))
 	fmt.Fprintf(&buffer, "package %s\n\n", options.PackageName)
-	needsRouteRenderer := len(routes) > 0
-	writeImports(&buffer, imports, adapterImports, inspectorImportPath, hasDynamicRoutes(routes), len(routes) > 0, needsRouteRenderer, hasSegmentRoutes(routes) || hasRequestNavRoutes(routes), hasRequestNavRoutes(routes), len(routes) > 0)
-	writeTypes(&buffer, len(routes) > 0)
+	writeImports(&buffer, importPlan.Imports, adapterImports, inspectorImportPath, hasDynamicRoutes(routes), true, true, hasSegmentRoutes(routes) || hasRequestNavRoutes(routes) || hasNonRootAdditionalPagePlan(additionalPlans), hasRequestNavRoutes(routes), true)
+	writeTypes(&buffer, true)
 	writeManifestValue(&buffer, manifest)
-	if len(routes) > 0 {
-		writeHandler(&buffer, routes, rootLayouts)
-	}
+	writeHandler(&buffer, routes, rootLayouts, additionalPlans, additionalErrorLayouts, importPlan.Aliases)
 	if err := writeRouteDeclarationReference(&buffer, rootRoutes, options.RouteRootImportPath); err != nil {
 		return nil, err
 	}
@@ -97,6 +96,10 @@ func GenerateManifest(manifest routing.Manifest, options GenerateOptions) ([]byt
 		return nil, fmt.Errorf("format generated manifest: %w", err)
 	}
 	return source, nil
+}
+
+func hasNonRootAdditionalPagePlan(plans []additionalPagePlan) bool {
+	return len(plans) > 1
 }
 
 func isPackageName(value string) bool {

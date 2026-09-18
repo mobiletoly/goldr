@@ -897,8 +897,12 @@ Layouts are not middleware endpoints. Layout rendering happens inside the
 already wrapped page request or inside an action request when the action
 returns a page response.
 
-Generated 404 and 405 responses do not run route-tree middleware. Custom error
-hooks still apply only inside generated route dispatch.
+Generated 405 responses do not run route-tree middleware. Final 404 handling
+normally does not either. For an ordinary miss with a configured additional
+page source, eligible static middleware wraps source resolution and the final
+404 path when the source declines. Nil-source misses and explicit invalid-path
+rejection stay outside that chain. Custom error hooks still apply only inside
+generated route dispatch.
 
 Generated error hooks apply only inside generated route dispatch. They do not
 customize errors returned by application-owned static asset handlers or other
@@ -914,7 +918,7 @@ without a separate spec.
 
 Generated wiring owns runtime page dispatch.
 
-When a manifest contains at least one runtime route, `goldr_gen.go` includes:
+`goldr_gen.go` includes these APIs even when a manifest has no endpoints:
 
 ```go
 func Handler() http.Handler
@@ -923,23 +927,28 @@ func HandlerWithOptions(options HandlerOptions) http.Handler
 
 `Handler()` delegates to `HandlerWithOptions(HandlerOptions{})`.
 
-Generated `HandlerOptions` includes one optional router-miss callback:
+Generated `HandlerOptions` includes one optional additional page source:
 
 ```go
-Fallback func(*http.Request) (goldr.PageRouteResponse, bool)
+AdditionalPageSource func(*http.Request) (goldr.PageRouteResponse, bool)
 ```
 
 The dispatch boundary is strict. Ordinary route misses call the configured
-fallback at most once before any response is written. Static, parameterized,
+source at most once before any response is written. Static, parameterized,
 and mounted matches retain priority. Matched endpoint responses and errors,
 matched-path method handling, and explicit invalid-path rejection never call
-fallback. A nil callback goes directly to existing final not-found handling.
+the source. A nil callback goes directly to existing final not-found handling
+without additional-page route-tree middleware.
 
-A handled response is written by `goldr.WritePageRouteResponse` with the root
-layout renderer. Response errors use the existing root route-error path. A
-decline ignores the returned response and invokes the existing custom or
-default final 404 exactly once. The generator owns this sequencing but has no
-knowledge of content formats or source chaining. See [Content
+For an ordinary miss with a configured source, generated routing selects
+eligible static middleware and layout ancestry from the captured escaped path.
+It does not clean or decode the path, bind dynamic parameters, or infer route
+identity. Matching middleware wraps the source, response writer, final 404,
+and route-error path. Matching layouts render handled pages. Static
+layout-only and middleware-only packages are imported and participate;
+dynamic ancestry and mounted layouts are excluded. Additional-page errors use
+only the eligible live root layout. The generator owns this sequencing but has
+no knowledge of content formats or source chaining. See [Content
 Architecture](content.md) for the optional first-party resolver boundary.
 
 Generated dispatch splits `r.URL.EscapedPath()` into path segments once per

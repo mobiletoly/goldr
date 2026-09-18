@@ -3,7 +3,7 @@
 The optional `github.com/mobiletoly/goldr/content` package loads trusted,
 first-party HTML and Markdown pages from an `fs.FS`. Generated application
 routes keep priority. Only an ordinary router miss reaches the configured
-fallback.
+additional page source.
 
 Select the Goldr runtime and content package with one root module version:
 
@@ -73,7 +73,7 @@ if err != nil {
 }
 
 handler := routes.HandlerWithOptions(routes.HandlerOptions{
-	Fallback: pages.Resolve,
+	AdditionalPageSource: pages.Resolve,
 })
 ```
 
@@ -90,26 +90,55 @@ normal generated `RouteError` hook can log and present a generic error.
 
 ## Route And Error Ownership
 
-Generated static, parameterized, and mounted routes run before fallback. A
-matched route keeps ownership of its 404, error, and method mismatch. Fallback
-is not response interception and is not invoked from an error hook.
+Generated static, parameterized, and mounted routes run before the additional
+page source. A matched route keeps ownership of its 404, error, and method
+mismatch. The source is not response interception and is not invoked from an
+error hook or an explicit invalid-path rejection.
 
-When content resolves, Goldr writes the returned page through the ordinary
-root layout. Metadata, body, request context, buffered rendering, and `HEAD`
-behavior match other pages. Route-tree middleware belongs to matched generated
-endpoints and does not run for content. Put shared request context outside the
-generated handler in mux-level middleware.
+On an ordinary miss, generated routing selects static `app/routes` ancestry
+from the original `r.URL.EscapedPath()`. Matching root-to-leaf middleware wraps
+source resolution, response writing, final not-found handling, and route-error
+handling. Matching layouts render handled pages in outer-to-inner order and
+receive the page metadata and layout data unchanged. Layout-only and
+middleware-only static directories participate after regeneration.
+
+Goldr does not clean or decode the path, infer dynamic ownership, or bind path
+values for an additional page. Layouts and middleware at or below a dynamic
+directory are excluded, as are layouts from `app/mounts`. Mounted middleware is
+invalid. A real static owner at the same URL prefix still participates. A
+middleware change to the request reaches the source and renderers but does not
+reselect ancestry.
+
+An eligible static middleware such as `app/routes/admin/middleware.go` may
+authenticate or add request context before resolving an additional page below
+`/admin`. Keep policy that must cover nil-source misses, invalid-path rejection,
+and handlers outside this branch in mux-level middleware.
 
 If content declines, the configured `RouteNotFound` hook or default 404 remains
-the final response. If content returns an error with `handled=true`, resolution
-is terminal and uses `RouteError` handling.
+the final response inside the selected middleware chain. If content returns an
+error with `handled=true`, resolution is terminal and uses `RouteError`
+handling. Additional-page errors render through only the live
+`app/routes/layout.go` root layout when present; success pages may use the full
+selected static layout stack. Existing final not-found rendering keeps its
+current root and mounted-root behavior.
+
+If no endpoint is declared, generation still emits `Handler` and
+`HandlerWithOptions`; a configured source can therefore serve a content-only
+application with eligible static layouts and middleware. Adding or changing a
+layout or middleware file requires `goldr generate`. Editing external content
+does not.
+
+Route inventory remains generated-route inventory. Content pages and
+middleware-only directories do not gain route rows, route identity, or URL
+helpers; layout inventory may show the application-owned static layouts that
+can wrap them.
 
 ## Source Chaining
 
 Compose sources explicitly in the single application callback:
 
 ```go
-Fallback: func(r *http.Request) (goldr.PageRouteResponse, bool) {
+AdditionalPageSource: func(r *http.Request) (goldr.PageRouteResponse, bool) {
 	if response, handled := pages.Resolve(r); handled {
 		return response, true
 	}

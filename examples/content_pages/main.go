@@ -106,8 +106,8 @@ func exampleHandler(files fs.FS, logOutput io.Writer, dev bool) (http.Handler, e
 				return routes.InternalError()
 			},
 		},
-		Fallback:           pages.Resolve,
-		TemplateInspection: inspection,
+		AdditionalPageSource: pages.Resolve,
+		TemplateInspection:   inspection,
 	})
 
 	mux := http.NewServeMux()

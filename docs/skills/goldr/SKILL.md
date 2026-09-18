@@ -89,7 +89,7 @@ Load only the references needed for the current request:
 - For fingerprinted assets, `goldr dev`, browser helpers, or SSE streams: read
   `references/assets-dev-sse.md`.
 - For trusted first-party HTML or Markdown content pages, filesystem-backed
-  editorial pages, content validation, or content fallback wiring: read
+  editorial pages, content validation, or additional page source wiring: read
   `references/content-pages.md`.
 - For local render-unit debugging with comments or overlays: read
   `references/template-inspection.md`.

@@ -71,6 +71,17 @@ type routeImport struct {
 	ImportPath string
 }
 
+type routeImportPlan struct {
+	Imports []routeImport
+	Aliases map[string]string
+}
+
+type additionalPagePlan struct {
+	routePrefix string
+	layouts     []routing.ManifestLayout
+	middlewares []routing.ManifestMiddleware
+}
+
 func runtimeRoutes(manifest routing.Manifest) ([]runtimeRoute, error) {
 	pages, fragments, actions := executableRouteSurface(manifest)
 	routes := make([]runtimeRoute, 0, len(pages)+len(fragments)+len(actions))
@@ -494,6 +505,74 @@ func middlewareStack(goFile string, middlewares []routing.ManifestMiddleware) []
 	return stack
 }
 
+func additionalPagePlans(layouts []routing.ManifestLayout, middlewares []routing.ManifestMiddleware) []additionalPagePlan {
+	eligibleLayouts := additionalPageLayouts(layouts)
+	eligibleMiddlewares := additionalPageMiddlewares(middlewares)
+	prefixes := map[string]bool{"/": true}
+	for _, layout := range eligibleLayouts {
+		prefixes[layout.RoutePrefix] = true
+	}
+	for _, middleware := range eligibleMiddlewares {
+		prefixes[middleware.RoutePrefix] = true
+	}
+
+	plans := make([]additionalPagePlan, 0, len(prefixes))
+	for routePrefix := range prefixes {
+		plans = append(plans, additionalPagePlan{
+			routePrefix: routePrefix,
+			layouts:     layoutStack(routePrefix, eligibleLayouts),
+			middlewares: additionalPageMiddlewareStack(routePrefix, eligibleMiddlewares),
+		})
+	}
+	slices.SortFunc(plans, func(a, b additionalPagePlan) int {
+		depthA := len(routeSegments(a.routePrefix))
+		depthB := len(routeSegments(b.routePrefix))
+		if depthA != depthB {
+			return depthA - depthB
+		}
+		return strings.Compare(a.routePrefix, b.routePrefix)
+	})
+	return plans
+}
+
+func additionalPageLayouts(layouts []routing.ManifestLayout) []routing.ManifestLayout {
+	result := make([]routing.ManifestLayout, 0, len(layouts))
+	for _, layout := range layouts {
+		if len(layout.Params) == 0 && !isMountedGoFile(layout.Unit.GoFile) {
+			result = append(result, layout)
+		}
+	}
+	return result
+}
+
+func additionalPageMiddlewares(middlewares []routing.ManifestMiddleware) []routing.ManifestMiddleware {
+	result := make([]routing.ManifestMiddleware, 0, len(middlewares))
+	for _, middleware := range middlewares {
+		if len(middleware.Params) == 0 {
+			result = append(result, middleware)
+		}
+	}
+	return result
+}
+
+func additionalPageMiddlewareStack(route string, middlewares []routing.ManifestMiddleware) []routing.ManifestMiddleware {
+	stack := make([]routing.ManifestMiddleware, 0, len(middlewares))
+	for _, middleware := range middlewares {
+		if routePrefixMatches(middleware.RoutePrefix, route) {
+			stack = append(stack, middleware)
+		}
+	}
+	slices.SortFunc(stack, func(a, b routing.ManifestMiddleware) int {
+		depthA := len(routeSegments(a.RoutePrefix))
+		depthB := len(routeSegments(b.RoutePrefix))
+		if depthA != depthB {
+			return depthA - depthB
+		}
+		return strings.Compare(a.RoutePrefix, b.RoutePrefix)
+	})
+	return stack
+}
+
 func routeSourceDir(goFile string) string {
 	dir := path.Dir(goFile)
 	if dir == "." {
@@ -527,7 +606,7 @@ func routePrefixMatches(prefix, route string) bool {
 	return true
 }
 
-func routeImports(routes []runtimeRoute, rootLayouts []routing.ManifestLayout, routeRootImportPath string) ([]routeImport, error) {
+func routeImports(routes []runtimeRoute, rootLayouts []routing.ManifestLayout, additionalPlans []additionalPagePlan, adapterImports []routeAdapterImport, routeRootImportPath string) (routeImportPlan, error) {
 	dirs := make(map[string]bool)
 	for _, layout := range rootLayouts {
 		addImportDir(dirs, layout.Unit.GoFile)
@@ -555,26 +634,72 @@ func routeImports(routes []runtimeRoute, rootLayouts []routing.ManifestLayout, r
 			addImportDir(dirs, middleware.GoFile)
 		}
 	}
+	for _, plan := range additionalPlans {
+		for _, layout := range plan.layouts {
+			addImportDir(dirs, layout.Unit.GoFile)
+		}
+		for _, middleware := range plan.middlewares {
+			addImportDir(dirs, middleware.GoFile)
+		}
+	}
 	delete(dirs, "")
 	if len(dirs) == 0 {
-		return nil, nil
+		return routeImportPlan{Aliases: make(map[string]string)}, nil
 	}
 	if routeRootImportPath == "" {
-		return nil, fmt.Errorf("%w: required for nested runtime route imports", ErrInvalidRouteRootImportPath)
+		return routeImportPlan{}, fmt.Errorf("%w: required for nested runtime route imports", ErrInvalidRouteRootImportPath)
 	}
 
-	result := make([]routeImport, 0, len(dirs))
+	candidates := make([]routeImport, 0, len(dirs))
 	for dir := range dirs {
-		result = append(result, routeImport{
+		candidates = append(candidates, routeImport{
 			Dir:        dir,
-			Alias:      routeImportAlias(dir),
 			ImportPath: routeImportPath(dir, routeRootImportPath),
 		})
 	}
-	slices.SortFunc(result, func(a, b routeImport) int {
-		return strings.Compare(a.ImportPath, b.ImportPath)
+	slices.SortFunc(candidates, func(a, b routeImport) int {
+		if a.ImportPath != b.ImportPath {
+			return strings.Compare(a.ImportPath, b.ImportPath)
+		}
+		return strings.Compare(a.Dir, b.Dir)
 	})
-	return result, nil
+
+	usedNames := map[string]bool{
+		"http": true, "url": true, "strings": true, "slices": true,
+		"templ": true, "goldr": true, "goldrinspect": true,
+	}
+	adapterAliases := make(map[string]string)
+	for _, item := range adapterImports {
+		usedNames[item.Name] = true
+		if _, ok := adapterAliases[item.Path]; !ok {
+			adapterAliases[item.Path] = item.Name
+		}
+	}
+
+	plan := routeImportPlan{Aliases: make(map[string]string)}
+	runtimeAliases := make(map[string]string)
+	for _, candidate := range candidates {
+		if alias, ok := adapterAliases[candidate.ImportPath]; ok {
+			plan.Aliases[candidate.Dir] = alias
+			continue
+		}
+		if alias, ok := runtimeAliases[candidate.ImportPath]; ok {
+			plan.Aliases[candidate.Dir] = alias
+			continue
+		}
+
+		base := routeImportAlias(candidate.Dir)
+		alias := base
+		for suffix := 2; usedNames[alias]; suffix++ {
+			alias = base + "_" + strconv.Itoa(suffix)
+		}
+		candidate.Alias = alias
+		usedNames[alias] = true
+		runtimeAliases[candidate.ImportPath] = alias
+		plan.Aliases[candidate.Dir] = alias
+		plan.Imports = append(plan.Imports, candidate)
+	}
+	return plan, nil
 }
 
 func addImportDir(dirs map[string]bool, goFile string) {

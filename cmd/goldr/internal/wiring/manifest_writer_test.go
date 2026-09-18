@@ -24,8 +24,8 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 		"RouteMethodNotAllowed func(*http.Request) goldr.RouteResponse",
 		"RouteError            func(*http.Request, error) goldr.RouteResponse",
 		"type HandlerOptions struct",
-		"Fallback           func(*http.Request) (goldr.PageRouteResponse, bool)",
-		"TemplateInspection goldr.TemplateInspectionMode",
+		"AdditionalPageSource func(*http.Request) (goldr.PageRouteResponse, bool)",
+		"TemplateInspection   goldr.TemplateInspectionMode",
 		"var goldrGeneratedManifest = goldrManifest",
 		"func Handler() http.Handler",
 		"func HandlerWithOptions(options HandlerOptions) http.Handler",
@@ -41,6 +41,9 @@ func TestGenerateManifestWritesMetadataAndHandler(t *testing.T) {
 	}
 	if strings.Contains(source, "InspectTemplates") {
 		t.Fatalf("generated source contains removed InspectTemplates field:\n%s", source)
+	}
+	if strings.Contains(source, "Fallback") {
+		t.Fatalf("generated source contains removed Fallback field:\n%s", source)
 	}
 	for _, reject := range []string{
 		"NotFound            func(*http.Request) goldr.RouteResponse",

@@ -173,10 +173,11 @@ type goldrRouteNav struct {
 }
 
 type HandlerOptions struct {
-	BasePath           string
-	ErrorHandlers       ErrorHandlers
-	Fallback           func(*http.Request) (goldr.PageRouteResponse, bool)
-	TemplateInspection goldr.TemplateInspectionMode
+	BasePath     string
+	ErrorHandlers ErrorHandlers
+	// AdditionalPageSource resolves pages after an ordinary generated route miss.
+	AdditionalPageSource func(*http.Request) (goldr.PageRouteResponse, bool)
+	TemplateInspection   goldr.TemplateInspectionMode
 }
 
 `)
