@@ -418,7 +418,11 @@ They must explain:
 - why the new API surface is necessary now
 - what long-term maintenance burden is being accepted
 
-Use the latest stable Go release during v0 development.
+Use the `go` directive for the oldest Go release Goldr actively supports and
+the `toolchain` directive for the patched Go release used during development,
+CI, and release qualification. During v0, keep that toolchain on the latest
+security-supported patch of the minimum Go release and test newer stable Go
+releases before raising the published minimum.
 
 Prefer recent standard library APIs available in the project target Go version over custom helpers.
 

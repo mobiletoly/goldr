@@ -66,7 +66,9 @@ declarations, see [Content Pages](docs/user/content-pages.md) and the runnable
 
 ## Quick Start
 
-Use Go 1.26 or newer. Goldr applications use
+Goldr supports Go 1.26.0 or newer. Use the latest patch release in your
+supported Go line; Goldr currently develops and qualifies releases with Go
+1.26.8. Goldr applications use
 [templ](https://github.com/a-h/templ) for HTML rendering and keep both CLI
 tools pinned in the application module.
 

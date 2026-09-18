@@ -1,6 +1,8 @@
 module github.com/mobiletoly/goldr/cmd/goldr
 
-go 1.26.3
+go 1.26.0
+
+toolchain go1.26.8
 
 require (
 	github.com/a-h/templ v0.3.1020

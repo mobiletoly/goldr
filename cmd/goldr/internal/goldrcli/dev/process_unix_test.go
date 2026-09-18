@@ -100,7 +100,7 @@ func TestRunDevChecksReloadDirectoriesBeforeTempl(t *testing.T) {
 		t.Skip("root can read mode-000 directories")
 	}
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/page.go", "package routes\n")
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 	content := filepath.Join(root, "content")
@@ -141,7 +141,7 @@ func TestRunDevChecksReloadDirectoriesBeforeTempl(t *testing.T) {
 
 func TestRunDevSIGTERMDuringTemplCheckCleansStartupResources(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/page.go", "package routes\n")
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 	content := filepath.Join(root, "content")

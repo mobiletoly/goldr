@@ -140,7 +140,7 @@ func TestRunGenerateCheckReportsStaleAssets(t *testing.T) {
 
 func TestRunGenerateReportsMissingTemplTool(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/notempltool\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/notempltool\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/route.go", routeDeclarationSource("routes", "page", routeDeclarationOptions{Page: true}))
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 
@@ -216,7 +216,7 @@ func TestRunGenerateCheckReportsStaleTemplGeneratedFiles(t *testing.T) {
 
 func TestRunGenerateRejectsMissingRouteDeclarationHandler(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/missinghandler\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/missinghandler\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/route.go", routeDeclarationSourceWithoutHandlers("routes", "page", routeDeclarationOptions{Page: true}))
 
 	var stdout bytes.Buffer
@@ -402,7 +402,7 @@ func TestRunGenerateRequiresModule(t *testing.T) {
 
 func TestRunGenerateRequiresRoutesDirectory(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/missingroutes\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/missingroutes\n\ngo 1.26.0\n")
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 

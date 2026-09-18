@@ -1,6 +1,8 @@
 module github.com/mobiletoly/goldr/examples/kit_routes
 
-go 1.26.3
+go 1.26.0
+
+toolchain go1.26.8
 
 tool github.com/mobiletoly/goldr/cmd/goldr
 

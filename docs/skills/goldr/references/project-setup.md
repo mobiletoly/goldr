@@ -15,7 +15,9 @@ follow the user's requested project setup first; the Goldr-specific steps below
 start once `go.mod` exists.
 
 Use a Go version that supports app-local tool dependencies with
-`go get -tool` and `go tool`. Current Goldr modules target Go 1.26.3.
+`go get -tool` and `go tool`. Goldr modules require Go 1.26.0 or newer. Use the
+latest available patch release in the supported Go line; Goldr currently
+develops and qualifies releases with Go 1.26.8.
 
 If the app already has `go.mod`, inspect it first:
 

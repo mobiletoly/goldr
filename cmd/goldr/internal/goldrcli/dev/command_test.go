@@ -314,7 +314,7 @@ func TestWriteDevWrapperSkipsWhitespaceTMPDIR(t *testing.T) {
 
 func TestResolveDevConfigRejectsInvalidOptionsBeforeTemplLookup(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/page.go", "package routes\n")
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 
@@ -392,7 +392,7 @@ func TestResolveDevConfigRejectsInvalidOptionsBeforeTemplLookup(t *testing.T) {
 
 func TestResolveDevConfigDefaultsCommandDirToAppRoot(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/page.go", "package routes\n")
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 
@@ -416,7 +416,7 @@ func TestResolveDevConfigDefaultsCommandDirToAppRoot(t *testing.T) {
 
 func TestResolveDevConfigUsesCommandDir(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/page.go", "package routes\n")
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 	cmdDir := filepath.Join(root, "cmdroot")
@@ -450,7 +450,7 @@ func TestResolveDevConfigUsesCommandDir(t *testing.T) {
 func TestResolveDevConfigResolvesRelativeCommandDirFromCurrentDirectory(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "webapp")
-	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/page.go", "package routes\n")
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 	cmdDir := filepath.Join(parent, "server")
@@ -485,7 +485,7 @@ func TestResolveDevConfigResolvesRelativeCommandDirFromCurrentDirectory(t *testi
 func TestResolveDevConfigResolvesReloadPathsFromCurrentDirectory(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "webapp")
-	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/devapp\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/page.go", "package routes\n")
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 	writeFile(t, parent, "content/page.html", "page")

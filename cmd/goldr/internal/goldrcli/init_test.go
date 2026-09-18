@@ -168,7 +168,7 @@ func TestRunInitRefusesExistingAppPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := t.TempDir()
-			writeFile(t, root, "go.mod", "module example.com/existingapp\n\ngo 1.26.3\n")
+			writeFile(t, root, "go.mod", "module example.com/existingapp\n\ngo 1.26.0\n")
 			tt.setup(t, root)
 
 			code, stdout, stderr := runGoldr(t, "init", "--app-root", root)

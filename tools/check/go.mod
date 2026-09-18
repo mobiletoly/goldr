@@ -1,6 +1,8 @@
 module github.com/mobiletoly/goldr/tools/check
 
-go 1.26.3
+go 1.26.0
+
+toolchain go1.26.8
 
 tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint

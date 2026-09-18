@@ -15,7 +15,9 @@ Goldr and templ will still create their generated files. Do not write
 
 ## Before You Start
 
-Install Go 1.26 or newer, then confirm your Go installation:
+Install Go 1.26.0 or newer, using the latest available patch release in your
+supported Go line. Goldr currently develops and qualifies releases with Go
+1.26.8. Confirm your Go installation:
 
 ```bash
 go version

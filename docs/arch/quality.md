@@ -28,6 +28,19 @@ Validation tool versions are pinned in `tools/check/go.mod`. CI and local
 `scripts/check-all.sh` runs use those tools instead of whichever `gopls` or
 `golangci-lint` happens to be installed on `PATH`.
 
+Each module's `go` directive declares Goldr's minimum supported Go version.
+The `toolchain` directive selects the patched Go release used for development,
+CI, and release qualification without raising the minimum for applications
+that import Goldr. All repository modules and examples keep these two
+directives aligned. `scripts/check-all.sh` enforces that alignment and runs
+with the root module's preferred toolchain.
+
+CI also runs `scripts/check-minimum-go.sh` with automatic toolchain switching
+disabled and the exact version from the root `go` directive. That lane tests
+the root runtime, CLI, and every example with the minimum supported Go release.
+It does not replace the full quality and vulnerability gates, which run with
+the preferred patched toolchain.
+
 The golangci-lint configuration is explicit. It enables only selected linters and does not inherit default linter sets.
 
 Current linter groups:

@@ -5,17 +5,26 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
 module_go_version=""
+module_toolchain=""
 while read -r directive value _; do
-  if [[ "$directive" == "go" ]]; then
-    module_go_version="$value"
-    break
-  fi
+  case "$directive" in
+    go)
+      module_go_version="$value"
+      ;;
+    toolchain)
+      module_toolchain="$value"
+      ;;
+  esac
 done < go.mod
 if [[ -z "$module_go_version" ]]; then
   printf "error: root go.mod has no Go version\n" >&2
   exit 1
 fi
-export GOTOOLCHAIN="go${module_go_version}"
+if [[ -z "$module_toolchain" ]]; then
+  printf "error: root go.mod has no preferred Go toolchain\n" >&2
+  exit 1
+fi
+export GOTOOLCHAIN="$module_toolchain"
 
 check_tools_dir="tools/check"
 
@@ -75,6 +84,26 @@ check_gofmt() {
     printf "%s\n" "$files"
     fail "Go files need gofmt"
   fi
+}
+
+check_module_go_policy() {
+  note "check module Go version policy"
+
+  local module_file
+  local go_version
+  local toolchain
+  local module_files=(go.mod cmd/goldr/go.mod tools/check/go.mod examples/*/go.mod)
+
+  for module_file in "${module_files[@]}"; do
+    go_version="$(awk '$1 == "go" { print $2; exit }' "$module_file")"
+    toolchain="$(awk '$1 == "toolchain" { print $2; exit }' "$module_file")"
+    if [[ "$go_version" != "$module_go_version" ]]; then
+      fail "$module_file has Go minimum $go_version, want $module_go_version"
+    fi
+    if [[ "$toolchain" != "$module_toolchain" ]]; then
+      fail "$module_file has Go toolchain $toolchain, want $module_toolchain"
+    fi
+  done
 }
 
 check_no_git_grep_matches() {
@@ -256,6 +285,7 @@ require_cmd git
 
 run go version
 run_in "$check_tools_dir" go mod tidy -diff
+check_module_go_policy
 check_gofmt
 run go mod tidy -diff
 run go list ./...

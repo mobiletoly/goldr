@@ -18,7 +18,7 @@ func TestRunCheckCleanApp(t *testing.T) {
 
 func TestRunGenerateAndCheckAcceptPageWithoutTempl(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/pageonly\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/pageonly\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/route.go", routeDeclarationSource("routes", "page", routeDeclarationOptions{Page: true}))
 
 	requireRunSuccess(t, "generate", "--app-root", root)
@@ -27,7 +27,7 @@ func TestRunGenerateAndCheckAcceptPageWithoutTempl(t *testing.T) {
 
 func TestRunCheckAcceptsOpaqueRouteDeclarationMetadata(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/routemeta\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/routemeta\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/users/route.go", routeDeclarationSource("users", "page", routeDeclarationOptions{
 		Page:  true,
 		Name:  "users.index",
@@ -44,7 +44,7 @@ func TestRunCheckAcceptsOpaqueRouteDeclarationMetadata(t *testing.T) {
 
 func TestRunCheckRejectsMissingRouteDeclarationHandler(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/missinghandler\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/missinghandler\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/route.go", routeDeclarationSourceWithoutHandlers("routes", "page", routeDeclarationOptions{Page: true}))
 
 	requireCheckFailureContains(t, root, "goldr check:", checkCodeRouteGenerate, "route.go", "page", "route-package declaration")
@@ -103,7 +103,7 @@ func TestRunCheckReportsRootResolutionProblems(t *testing.T) {
 
 func TestRunCheckReportsMissingRoutesDirectory(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/missingroutes\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/missingroutes\n\ngo 1.26.0\n")
 
 	requireCheckFailureContains(t, root, "goldr check:", checkCodeAppRoot, "app/routes")
 }
@@ -136,7 +136,7 @@ func TestRunCheckReportsMissingMountedURLHelperFile(t *testing.T) {
 
 func TestRunCheckReportsMissingTemplTool(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/notempltool\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/notempltool\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/route.go", routeDeclarationSource("routes", "page", routeDeclarationOptions{Page: true}))
 	writeFile(t, root, "app/routes/page.templ", "package routes\n\ntempl PageView() {}\n")
 
@@ -154,7 +154,7 @@ func TestRunCheckReportsStaleTemplGeneratedFiles(t *testing.T) {
 
 func TestRunCheckReportsInvalidRouteNames(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/invalidroutes\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/invalidroutes\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/Users/page.go", "package Users\n")
 
 	requireCheckFailureContains(t, root, "goldr check:", checkCodeRouteScan, "app/routes/Users", "static route directories must use lowercase Go-safe names")
@@ -162,7 +162,7 @@ func TestRunCheckReportsInvalidRouteNames(t *testing.T) {
 
 func TestRunCheckReportsMissingRenderUnitPairs(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/missingpairs\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/missingpairs\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/layout.go", "package routes\n")
 
 	requireCheckFailureContains(t, root, checkCodeRenderUnit, "app/routes/layout.go", "layout /", "missing matching .templ file")
@@ -170,7 +170,7 @@ func TestRunCheckReportsMissingRenderUnitPairs(t *testing.T) {
 
 func TestRunCheckRejectsOldRouteSurfaceFiles(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/oldsurface\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/oldsurface\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/page.go", "package routes\n")
 	writeFile(t, root, "app/routes/users/frag_table.go", "package users\n")
 	writeFile(t, root, "app/routes/users/actions.go", "package users\n")
@@ -180,7 +180,7 @@ func TestRunCheckRejectsOldRouteSurfaceFiles(t *testing.T) {
 
 func TestRunCheckReportsRuntimeGenerationErrors(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/ambiguousroutes\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/ambiguousroutes\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/users/by_id/route.go", routeDeclarationSource("by_id", "page", routeDeclarationOptions{Page: true}))
 	writeFile(t, root, "app/routes/users/by_id/page.templ", "package by_id\n\ntempl PageView() {}\n")
 	writeFile(t, root, "app/routes/users/by_slug/route.go", routeDeclarationSource("by_slug", "page", routeDeclarationOptions{Page: true}))
@@ -191,7 +191,7 @@ func TestRunCheckReportsRuntimeGenerationErrors(t *testing.T) {
 
 func TestRunCheckReportsURLHelperGenerationErrors(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module example.com/badurls\n\ngo 1.26.3\n")
+	writeFile(t, root, "go.mod", "module example.com/badurls\n\ngo 1.26.0\n")
 	writeFile(t, root, "app/routes/users/route.go", routeDeclarationSource("users", "page", routeDeclarationOptions{
 		Actions: []routeDeclarationAction{{Helper: "Action", Name: "path", Func: "postPath"}},
 	}))
