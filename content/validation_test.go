@@ -129,6 +129,79 @@ func TestTrustedHTMLAndMarkdownPassThrough(t *testing.T) {
 	}
 }
 
+func TestMarkdownRendersGFM(t *testing.T) {
+	pages, err := New(Config{FS: entryFS("about", `{"title":"About"}`, "body.md", `| Feature | State |
+| --- | --- |
+| Content pages | Ready |
+
+- [x] Trusted HTML
+- [ ] Automatic publishing
+
+~~Obsolete guidance~~
+
+https://example.com/docs
+`)})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	body := renderPage(t, mustPage(t, pages, "/about"))
+	for _, want := range []string{
+		"<table>",
+		"<th>Feature</th>",
+		"<input ",
+		`type="checkbox"`,
+		`disabled=""`,
+		"Trusted HTML",
+		"Automatic publishing",
+		"<del>Obsolete guidance</del>",
+		`<a href="https://example.com/docs">https://example.com/docs</a>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing %q: %s", want, body)
+		}
+	}
+	if got := strings.Count(body, `type="checkbox"`); got != 2 {
+		t.Fatalf("checkbox count = %d, want 2: %s", got, body)
+	}
+	if got := strings.Count(body, `disabled=""`); got != 2 {
+		t.Fatalf("disabled checkbox count = %d, want 2: %s", got, body)
+	}
+	if got := strings.Count(body, `checked=""`); got != 1 {
+		t.Fatalf("checked checkbox count = %d, want 1: %s", got, body)
+	}
+}
+
+func TestMarkdownHeadingsReceiveGoldmarkIDs(t *testing.T) {
+	pages, err := New(Config{FS: entryFS("about", `{"title":"About"}`, "body.md", `# Install Goldr
+
+Install Goldr
+---
+
+## What's New?!
+
+## !!!
+
+## !!!
+`)})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	body := renderPage(t, mustPage(t, pages, "/about"))
+	for _, want := range []string{
+		`<h1 id="install-goldr">Install Goldr</h1>`,
+		`<h2 id="install-goldr-1">Install Goldr</h2>`,
+		`<h2 id="whats-new">`,
+		`<h2 id="heading">!!!</h2>`,
+		`<h2 id="heading-1">!!!</h2>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing %q: %s", want, body)
+		}
+	}
+}
+
 func TestRenderedMarkdownLimitIsSourceLocal(t *testing.T) {
 	const sensitive = "sensitive-body-marker"
 	body := append([]byte(sensitive+"\n\n"), bytes.Repeat([]byte("&"), maxBodyBytes-len(sensitive)-2)...)

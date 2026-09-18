@@ -59,11 +59,19 @@ its `cmd/goldr/vX.Y.Z` tag. There is no separate `content/vX.Y.Z` release tag.
 Content authors are trusted like application template authors. `body.html`
 bytes cross a private `templ.Raw` boundary without parsing, repair,
 normalization, serialization, allowlisting, URL checks, or element-depth
-checks. Markdown uses Goldmark CommonMark without optional extensions and with
-`html.WithUnsafe()`, so raw HTML and potentially dangerous destinations are
-emitted as authored. Rendered HTML is not parsed or validated. Both formats
-retain the article wrapper, but authored HTML can affect or escape it in the
-browser, so it is not a DOM containment boundary.
+checks. `body.md` uses one Goldmark parser with `extension.GFMParser` and
+`parser.WithAutoHeadingID()`, then one HTML renderer with
+`html.WithUnsafe()` and `extension.GFMHTMLRenderer`. This enables GFM tables,
+strikethrough, task lists, and bare URL linking, and emits Goldmark-generated
+document-local heading IDs. Duplicate heading IDs receive Goldmark numeric
+suffixes beginning at `-1`; Goldr does not implement or promise GitHub's exact
+slug algorithm. Raw HTML headings are not rewritten.
+
+The unsafe renderer leaves raw HTML and potentially dangerous destinations
+authored in Markdown unfiltered. Rendered HTML is not parsed or validated.
+Rendered-size validation runs after GFM output and heading attributes are
+emitted. Both formats retain the article wrapper, but authored HTML can affect
+or escape it in the browser, so it is not a DOM containment boundary.
 
 `Check` enforces operational filesystem, metadata, UTF-8, nonblank-body, size,
 symlink, special-file, and I/O rules. It is not an HTML safety check. Public or

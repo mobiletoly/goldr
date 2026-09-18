@@ -134,10 +134,17 @@ private raw boundary and keeps an `<article class="goldr-content">` wrapper,
 but trusted markup can affect or escape that wrapper in the browser. The
 wrapper is not a DOM containment promise.
 
-Markdown uses CommonMark through Goldmark without optional extensions. Its
-unsafe renderer emits raw block and inline HTML and potentially dangerous link
-and image destinations as authored. Goldr does not parse or validate the
-rendered HTML.
+Markdown uses Goldmark's built-in GitHub-Flavored Markdown (GFM) support.
+Tables, strikethrough, task lists, and bare URL linking are available for every
+`body.md`. Markdown headings receive automatic Goldmark `id` attributes. IDs
+use Goldmark normalization and document-local duplicate suffixes such as
+`-1`; Goldr does not promise byte-for-byte GitHub slug compatibility. Raw HTML
+headings are not rewritten.
+
+The unsafe renderer emits raw block and inline HTML and potentially dangerous
+link and image destinations as authored. Goldr does not parse or validate the
+rendered HTML, and it adds no CSS for GFM's semantic elements. Applications own
+their styling.
 
 Metadata is limited to 16 KiB and source bodies to 512 KiB. Rendered Markdown
 is limited to 2 MiB. Bodies must be valid UTF-8 and contain non-whitespace

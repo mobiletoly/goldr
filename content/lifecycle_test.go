@@ -47,7 +47,7 @@ func TestResolveObservesExternalChangesAndRecovers(t *testing.T) {
 
 	writeContentFile(t, directory, "privacy/p1/page.json", `{"title":"Part One"}`)
 	writeContentFile(t, directory, "privacy/p1/body.md", "# New page\n")
-	if body := renderPage(t, mustPage(t, pages, "/privacy/p1")); !strings.Contains(body, "<h1>New page</h1>") {
+	if body := renderPage(t, mustPage(t, pages, "/privacy/p1")); !strings.Contains(body, `<h1 id="new-page">New page</h1>`) {
 		t.Fatalf("new page body = %q", body)
 	}
 
@@ -86,7 +86,7 @@ func TestEmbeddedAndConcurrentResolve(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if body := renderPage(t, mustPage(t, pages, "/about")); !strings.Contains(body, "<h1>Embedded</h1>") {
+	if body := renderPage(t, mustPage(t, pages, "/about")); !strings.Contains(body, `<h1 id="embedded">Embedded</h1>`) {
 		t.Fatalf("embedded body = %q", body)
 	}
 

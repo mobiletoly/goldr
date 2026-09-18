@@ -22,9 +22,16 @@ private raw boundary and keeps an `<article class="goldr-content">` wrapper,
 but trusted markup can affect or escape that wrapper in the browser. The
 wrapper is not a DOM containment boundary.
 
-Markdown uses CommonMark through Goldmark without optional extensions. Raw
-block and inline HTML and potentially dangerous link or image destinations are
-emitted as authored. Goldr does not parse or validate the rendered HTML.
+Markdown uses Goldmark's built-in GitHub-Flavored Markdown (GFM) support.
+Every `body.md` supports tables, strikethrough, task lists, and bare URL
+linking. Markdown headings receive automatic Goldmark IDs with document-local
+duplicate suffixes such as `-1`. IDs use Goldmark normalization and are not
+promised to match GitHub slugs byte for byte. Raw HTML headings are not
+rewritten.
+
+Raw block and inline HTML and potentially dangerous link or image destinations
+are emitted as authored. Goldr does not parse or validate the rendered HTML and
+adds no CSS for GFM output; applications own styling.
 
 Never use this package as a sanitizer. An application-owned CSP is separate
 defense in depth and does not replace author trust. Do not execute or click

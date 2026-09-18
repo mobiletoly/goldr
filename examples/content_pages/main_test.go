@@ -42,7 +42,7 @@ func TestExampleHandler(t *testing.T) {
 			name:     "nested Markdown keeps original URL",
 			path:     "/privacy/p1?source=test",
 			status:   http.StatusOK,
-			contains: []string{"<title>Privacy Part One</title>", "Nested Markdown body", `<span data-trusted="markdown">raw HTML</span>`, `<a href="javascript:trusted()">trusted destination</a>`, `data-request-uri="/privacy/p1?source=test"`, "outer middleware"},
+			contains: []string{"<title>Privacy Part One</title>", `id="nested-markdown-body"`, `<table>`, `type="checkbox"`, `disabled=""`, `checked=""`, "Trusted raw HTML", "<del>No legacy Markdown mode</del>", `<a href="https://example.com/docs">https://example.com/docs</a>`, `<span data-trusted="markdown">raw HTML</span>`, `<a href="javascript:trusted()">trusted destination</a>`, `data-request-uri="/privacy/p1?source=test"`, "outer middleware"},
 		},
 		{
 			name:       "generated route wins content collision",
@@ -139,7 +139,7 @@ func exampleContentFS() fstest.MapFS {
 		"privacy/page.json":    &fstest.MapFile{Data: []byte(`{"title":"Privacy","description":"Privacy description"}`)},
 		"privacy/body.html":    &fstest.MapFile{Data: []byte(`<script data-trusted="html">window.contentPage = true</script><h1 onclick="trusted()">HTML privacy body</h1>`)},
 		"privacy/p1/page.json": &fstest.MapFile{Data: []byte(`{"title":"Privacy Part One"}`)},
-		"privacy/p1/body.md":   &fstest.MapFile{Data: []byte("# Nested Markdown body\n\n<span data-trusted=\"markdown\">raw HTML</span> and [trusted destination](javascript:trusted()).\n")},
+		"privacy/p1/body.md":   &fstest.MapFile{Data: []byte("# Nested Markdown body\n\n<span data-trusted=\"markdown\">raw HTML</span> and [trusted destination](javascript:trusted()).\n\n## GFM example\n\n| Content feature | Status |\n| --- | --- |\n| GFM tables | Ready |\n\n- [x] Trusted raw HTML\n- [ ] Application-owned styling\n\n~~No legacy Markdown mode~~\n\nhttps://example.com/docs\n")},
 	}
 }
 

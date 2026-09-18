@@ -33,6 +33,11 @@ The application configures one `HandlerOptions.Fallback`, keeps content and
 assets outside `app/`, serves fingerprinted assets through its own mux, and
 uses the ordinary root layout and error hooks for content responses.
 
+The nested Markdown example uses GitHub-Flavored Markdown (GFM) tables, task
+lists, strikethrough, and bare URL linking. Markdown headings receive automatic
+Goldmark IDs, so the opening `Privacy part one` heading is linkable as
+`#privacy-part-one`.
+
 The content files are trusted application input. Goldr does not validate or
 sanitize HTML. Markdown permits raw HTML and potentially dangerous link and
 image destinations. Content authors must be trusted like template authors;

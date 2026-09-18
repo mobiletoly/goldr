@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/a-h/templ"
+	"github.com/yuin/goldmark/v2/extension"
 	"github.com/yuin/goldmark/v2/parser"
 	markdownhtml "github.com/yuin/goldmark/v2/renderer/html"
 )
@@ -27,10 +28,16 @@ func renderEntryBody(entry loadedEntry) (templ.Component, error) {
 }
 
 func renderMarkdown(source string, markdown []byte) ([]byte, error) {
-	document := parser.New().Parse(markdown)
+	document := parser.New(
+		parser.WithExtensions(extension.GFMParser),
+		parser.WithAutoHeadingID(),
+	).Parse(markdown)
 
 	var rendered bytes.Buffer
-	if err := markdownhtml.New(markdownhtml.WithUnsafe()).Render(&rendered, markdown, document); err != nil {
+	if err := markdownhtml.New(
+		markdownhtml.WithUnsafe(),
+		markdownhtml.WithExtensions(extension.GFMHTMLRenderer),
+	).Render(&rendered, markdown, document); err != nil {
 		return nil, contentError(source, "render Markdown", err)
 	}
 	if rendered.Len() > maxRenderedMarkdownBytes {

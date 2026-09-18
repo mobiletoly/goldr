@@ -56,7 +56,7 @@ func TestResolveOutcomes(t *testing.T) {
 		t.Fatalf("metadata = %#v", page.Metadata)
 	}
 	body := renderPage(t, page)
-	for _, want := range []string{`<article class="goldr-content">`, "<h1>Part One</h1>", `<a href="/privacy">Privacy</a>`} {
+	for _, want := range []string{`<article class="goldr-content">`, `<h1 id="part-one">Part One</h1>`, `<a href="/privacy">Privacy</a>`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("body missing %q: %s", want, body)
 		}
