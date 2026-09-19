@@ -47,6 +47,24 @@ Outer application middleware continues to provide broader application policy.
 Route inventory and URL helpers remain derived from generated routes. Content
 entries and middleware-only directories do not acquire route identity.
 
+## Source Composition
+
+Applications can compose sources explicitly in the single
+`HandlerOptions.AdditionalPageSource` callback:
+
+```go
+AdditionalPageSource: func(r *http.Request) (goldr.PageRouteResponse, bool) {
+	if response, handled := pages.Resolve(r); handled {
+		return response, true
+	}
+	return otherPages.Resolve(r)
+},
+```
+
+The first handled response wins, including a handled error. If every source
+declines, final not-found handling runs once. Goldr does not provide a source
+registry or chain helper.
+
 ## Validation Flow
 
 `New` calls `Check` before returning private resolver state. Tree validation

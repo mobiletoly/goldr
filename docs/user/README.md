@@ -8,8 +8,8 @@ HTML, and HTMX stays visible in the markup.
 
 ## Documentation
 
-- [Getting Started](getting-started.md) - build a two-page app by hand, inspect
-  its dynamic route, then see where `go tool goldr init` fits.
+- [Getting Started](getting-started.md) - scaffold an app, understand its code,
+  then add a dynamic page and an HTMX interaction.
 - [Concepts](concepts.md) - pages, layouts, fragments, actions, render units,
   generated handlers, and URL helpers.
 - [CLI](cli.md) - app-local `go tool goldr` commands.

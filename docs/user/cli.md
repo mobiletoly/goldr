@@ -77,7 +77,8 @@ Use `--app-root` from outside the application root:
 go tool goldr init --app-root ./hello-goldr
 ```
 
-For a manual first-app walkthrough, read [Getting Started](getting-started.md).
+For a walkthrough of the scaffold and your first application, read
+[Getting Started](getting-started.md).
 
 ## Generate
 
