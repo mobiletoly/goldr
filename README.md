@@ -11,7 +11,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/mobiletoly/goldr?sort=semver)](https://github.com/mobiletoly/goldr/releases/latest)
 [![License](https://img.shields.io/github/license/mobiletoly/goldr?logo=apache&label=License)](LICENSE)
 
-**Build interactive web applications with Go, HTML, and HTMX.**
+**Build customer portals, admin tools, and interactive websites with Go, HTML, and HTMX.**
 
 Goldr (Go Layout-Driven Router) is a server-first Go web framework. Keep page
 handlers, templates, and actions together, compose layouts through directories,
@@ -21,10 +21,25 @@ ordinary HTMX attributes.
 
 Your application uses ordinary Go functions and a standard `net/http` server.
 
-[Try it](#try-it) | [Getting Started](docs/user/getting-started.md) |
+[Capabilities](#what-goldr-provides) | [Try it](#try-it) | [Getting Started](docs/user/getting-started.md) |
 [Documentation](docs/user/README.md) | [Examples](examples)
 
 Goldr is v0. APIs and conventions may change before v1.
+
+## Why Goldr
+
+A portal needs more than a collection of request handlers. You need shared
+page shells, forms that update part of a screen, links between related records,
+and consistent behavior across customer and admin areas. As those areas grow,
+you also need to find the code behind a URL and understand which layouts and
+middleware apply to it.
+
+Goldr brings those pieces into one Go workflow: filesystem routes, nested
+layouts, explicit page and fragment responses, generated URL helpers, and
+tools for developing and inspecting the application. You write the business
+logic and HTML; Goldr generates the dispatch and composition code around them.
+You can keep your existing Go libraries and mount the generated handler in a
+standard `net/http` server.
 
 ## See Your Application In The Directory Tree
 
@@ -64,15 +79,86 @@ It generates ordinary Go dispatch and URL helpers: you can inspect the wiring,
 and the Go compiler checks calls to your handlers. The running server uses that
 code, with no runtime route discovery or dynamic handler loading.
 
-For About, Privacy, and other informational pages, write Markdown or HTML
-under `content/`. With Goldr's optional [content package](docs/user/content-pages.md)
-configured, these pages use your application's layouts without a separate Go
-handler for each page.
+## What Goldr Provides
+
+### Shared Shells And Portal Sections
+
+Use nested layouts for the site shell, an admin sidebar, and a section's tabs.
+Pages supply metadata and typed layout data, so a child page can select an
+active tab or provide a toolbar without duplicating the surrounding HTML.
+Keep each workflow's handlers, templates, and actions in its route directory.
+See [Routes And Layouts](docs/user/routes.md).
+
+For sections you need in several places, mount a shared Kit route subtree
+under different live URLs. A reports implementation can serve both
+`/admin/reports` and `/user/reports`, with each owner supplying its dependencies
+and selecting which child routes to expose. See
+[Mounted Kit Route Subtrees](docs/user/mounted-routes.md).
+
+### Forms And Partial Page Updates
+
+Declare pages, fragments, and mutation actions together. Use HTMX to filter a
+table, load a dialog, or submit a form; return the HTML needed for that update
+from Go. Goldr provides explicit page, fragment, redirect, and text responses,
+plus HTMX response-header helpers. Your handlers choose validation rules and
+render field errors beside the inputs.
+
+Custom error hooks let you provide full error pages or HTMX error fragments
+that fit the surrounding workflow. See [HTMX](docs/user/htmx.md) and
+[Error Handling](docs/user/error-handling.md).
+
+### Links And Contextual Navigation
+
+Generated URL helpers cover pages, fragments, and actions, including dynamic
+parameters. Use the same helpers in links, forms, redirects, and `hx-*`
+attributes, and let the Go compiler catch references to removed route helpers.
+
+Goldr also prepares navigation data for breadcrumbs and contextual Back links.
+A customer record reached through a regional report can retain that workflow's
+trail. You supply labels from application data and render the navigation with
+your own HTML. See [Navigation Trails](docs/user/navigation.md).
+
+### Middleware And Request Protection
+
+Place ordinary Go middleware at the root or within a route section to apply
+authentication checks, attach a principal, or supply request context to its
+handlers. Use mux-level middleware for policy shared with other HTTP handlers.
+Goldr's optional CSRF package provides signed-cookie tokens, form and metadata
+helpers, and validation for unsafe requests.
+
+You choose authentication, sessions, permissions, and data access to suit your
+application. See [Composition](docs/user/composition.md),
+[CSRF](docs/user/csrf.md), and [Application Dependencies](docs/user/dependencies.md).
+
+### Markdown And HTML Content Pages
+
+Add help articles, policies, and product documentation through the optional
+content package. Each page has metadata and a Markdown or HTML body, and uses
+the eligible static route-tree layouts and middleware. Generated application
+routes keep priority.
+
+With external content, authors can edit or add pages without a new Go handler,
+route generation, or server restart. Markdown supports GFM tables, task lists,
+and heading IDs. Content authors must be trusted like application template
+authors. See [Content Pages](docs/user/content-pages.md).
+
+### Live Updates And Rich Editors
+
+Use the optional SSE helpers to send rendered HTML from an application-owned
+stream, with event IDs and named-event swaps for HTMX. The
+[chat example](examples/chat) demonstrates the flow; see
+[Server-Sent Events](docs/user/sse.md) for the supported helpers.
+
+For an editor that needs its own client state, embed a bounded React or Svelte
+island inside a Goldr page. The examples show mounting and cleanup around HTMX
+navigation while Goldr owns the surrounding routes and layouts. Your
+application owns the client integration and build. See
+[Client Islands](docs/user/client-islands.md).
 
 ## A Page And An HTMX Update
 
-Here is a small users page in a module named `example.com/hello-goldr`.
-In `app/routes/users/route.go`, declare the page and a table fragment:
+In a module named `example.com/hello-goldr`, a users page and its table fragment
+share `app/routes/users/route.go`:
 
 ```go
 package users
@@ -104,13 +190,8 @@ The `Route` declaration is input to the generator. Here it defines
 The generated handler mounts on your application's mux with
 `mux.Handle("/", routes.Handler())`.
 
-Goldr also generates the `app/urls` package from your declared route tree.
-Its helpers give you compiler-checked references to pages, fragments, and
-actions instead of copied URL strings. Here, `urls.Users.Table.Path()` returns
-the URL for the `/table` fragment declared above.
-
-Import that package in `app/routes/users/page.templ` and use the helper in an
-HTMX button:
+The page template uses the generated `app/urls` helper in an ordinary HTMX
+button:
 
 ```templ
 package users
@@ -130,33 +211,12 @@ templ PageView() {
 }
 ```
 
-In `app/routes/users/frag_table.templ`, render the table:
-
-```templ
-package users
-
-templ TableView(names []string) {
-	<table>
-		<tbody>
-			for _, name := range names {
-				<tr><td>{ name }</td></tr>
-			}
-		</tbody>
-	</table>
-}
-```
-
 With HTMX loaded by the shared layout, clicking **Load users** calls the Go
 handler and replaces the contents of `#users-table` with its HTML response.
-Goldr renders the fragment without page layouts.
-
-Use the same generated helpers for links, forms, and redirects:
-
-```go
-urls.Users.Path()                // /users
-urls.Users.Table.Path()          // /users/table
-urls.Users.ByID.Bind("42").Path() // /users/42
-```
+`TableView` is a colocated templ component that renders the supplied names as
+table rows. Goldr renders the fragment without page layouts. The
+[Getting Started article](docs/user/getting-started.md) walks through a complete
+application, including the templates and server setup.
 
 ## Try It
 
@@ -188,9 +248,12 @@ dynamic route and an HTMX interaction.
 
 - **Edit and see the result.** `go tool goldr dev` handles generation, app
   restart, and browser reload. For external content, add `--reload-path content`
-  to refresh the browser when Markdown or HTML changes.
+  to refresh the browser when Markdown or HTML changes. See
+  [Live Reload](docs/user/live-reload.md).
 - **Trace a URL to its code.** `go tool goldr routes list` shows your endpoints;
   `routes explain` and `routes layouts` show their handlers and layout stacks.
+  `routes refs` inventories direct HTMX references in templates. See the
+  [CLI Reference](docs/user/cli.md).
 - **Find the template behind a page region.** The optional
   [visual inspector](docs/user/template-inspection.md) outlines layouts,
   pages, and fragments in the browser and shows their source paths.
@@ -198,6 +261,10 @@ dynamic route and an HTMX interaction.
   output, and managed assets without rewriting files. Use it locally and in CI.
 - **Package browser assets.** Goldr fingerprints your built CSS and JavaScript
   and generates asset URLs and an embedded filesystem for your static handler.
+  Keep your preferred CSS and JavaScript build tools. See [Assets](docs/user/assets.md).
+- **Give coding agents project context.** The installable
+  [Goldr App skill](docs/user/coding-agents.md) covers route conventions,
+  framework APIs, and validation workflows.
 
 You choose your database, authentication, middleware, and deployment. Mount
 Goldr's generated handler alongside your other `net/http` handlers and keep
@@ -205,6 +272,9 @@ using the Go libraries you need.
 
 ## Explore Further
 
+- [All Documentation](docs/user/README.md) - browse the complete guide and reference.
+- [Coding Agents](docs/user/coding-agents.md) - install the Goldr App skill
+  and guide your coding agent.
 - [Getting Started](docs/user/getting-started.md) - build your first application.
 - [Concepts](docs/user/concepts.md) - understand pages, layouts, fragments,
   and actions.
@@ -215,9 +285,6 @@ using the Go libraries you need.
   configure your development and asset tools.
 - [Examples](examples) - explore forms, SSE chat, shared route subtrees, and
   React or Svelte islands.
-- [Coding Agents](docs/user/coding-agents.md) - install the Goldr App skill
-  and guide your coding agent.
-- [All Documentation](docs/user/README.md) - browse the complete guide and reference.
 
 ## License
 
