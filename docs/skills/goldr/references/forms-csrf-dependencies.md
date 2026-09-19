@@ -51,9 +51,13 @@ func postCreate(r *http.Request) goldr.RouteResponse {
 }
 ```
 
-If a rendered HTMX response uses a non-2xx status such as `422`, the app must
-configure HTMX response handling or use an HTMX extension that swaps that
-response. Goldr does not install a global browser policy.
+HTMX 4 swaps HTML responses for every status except `204` and `304` by default.
+For a narrower validation policy that swaps `422` while suppressing other
+client and server errors, put these rules on the triggering element:
+`hx-status:422="swap:outerHTML"`, `hx-status:4xx="swap:none"`, and
+`hx-status:5xx="swap:none"`. Exact status rules take precedence over wildcard
+rules. See [HTMX response status rules](../../../user/htmx.md#non-2xx-html-responses)
+for the complete example.
 
 For multipart forms, use the standard library:
 
@@ -161,7 +165,7 @@ templ LayoutView(csrfToken string, child templ.Component) {
 	<head>
 		@csrf.Meta(csrfToken)
 	</head>
-	<body hx-headers={ csrf.Headers(csrfToken) }>
+	<body hx-headers:inherited={ csrf.Headers(csrfToken) }>
 		@child
 	</body>
 }
@@ -208,7 +212,7 @@ if err := appDeps.CSRF.Validate(r, r.PostFormValue(csrf.FieldName)); err != nil 
 ```
 
 For unsafe HTMX controls that do not submit a form field, rely on the inherited
-layout `hx-headers` and validate with an empty form token:
+layout `hx-headers:inherited` and validate with an empty form token:
 
 ```go
 appDeps := deps.From(r)

@@ -70,7 +70,7 @@ func LayoutView(metadata goldr.PageMetadata, csrfToken string, child templ.Compo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><script src=\"https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4\" integrity=\"sha384-aWZK1NtOs/aWb/+YZdTM8q2JkWEshlMc9mgZ189numT9bwFhyAyYEoO4nO/2dTXt\" crossorigin=\"anonymous\" defer></script><script type=\"module\" src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><script src=\"https://cdn.jsdelivr.net/npm/htmx.org@4.0.0\" integrity=\"sha384-BvJpBiO8Kh31EqtJe5DRIeWrHWnCGkwytKs9NKFi86Hhw96dEqdEMzZDeK9iEGTc\" crossorigin=\"anonymous\" defer></script><script type=\"module\" src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

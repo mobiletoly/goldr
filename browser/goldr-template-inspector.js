@@ -905,8 +905,8 @@
   window.addEventListener("load", scheduleDraw);
   window.addEventListener("resize", scheduleDraw);
   window.addEventListener("scroll", scheduleDraw, true);
-  document.addEventListener("htmx:afterSwap", scheduleDraw);
-  document.addEventListener("htmx:afterSettle", scheduleDraw);
+  document.addEventListener("htmx:after:swap", scheduleDraw);
+  document.addEventListener("htmx:after:settle", scheduleDraw);
   watchDOMChanges();
   scheduleDraw();
 })();

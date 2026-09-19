@@ -4,7 +4,7 @@
   }
 
   window.htmx.registerExtension("goldr-sse-event", {
-    htmx_before_sse_message: function (element, detail) {
+    htmx_sse_before_message: function (element, detail) {
       if (!element || !detail || !detail.message) {
         return;
       }

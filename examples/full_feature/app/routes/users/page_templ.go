@@ -85,7 +85,7 @@ func DirectoryView(form contactForm, contacts []Contact, csrfToken string) templ
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" hx-target=\"#users-directory\" hx-swap=\"outerHTML\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" hx-target=\"#users-directory\" hx-swap=\"outerHTML\" hx-status:422=\"swap:outerHTML\" hx-status:4xx=\"swap:none\" hx-status:5xx=\"swap:none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

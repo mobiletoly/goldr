@@ -41,7 +41,7 @@ templ PageView(name string, form messageForm, messages []Message) {
 }
 
 templ ComposerView(form messageForm) {
-	<form id="composer" method="post" hx-post={ urls.Chat.Message.Path() } hx-target="#composer" hx-swap="outerHTML" hx-indicator="#send-progress">
+	<form id="composer" method="post" hx-post={ urls.Chat.Message.Path() } hx-target="#composer" hx-swap="outerHTML" hx-status:422="swap:outerHTML" hx-status:4xx="swap:none" hx-status:5xx="swap:none" hx-indicator="#send-progress">
 		<div>
 			<label for="body">Message</label>
 			<textarea id="body" name="body">{ form.Body }</textarea>

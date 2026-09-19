@@ -84,11 +84,11 @@ memory policy application-owned.
 ## HTMX Headers
 
 For unsafe HTMX requests that do not submit a form field, render inherited
-`hx-headers` from the current request token:
+`hx-headers:inherited` from the current request token:
 
 ```templ
 templ LayoutView(csrfToken string, child templ.Component) {
-    <body hx-headers={ csrf.Headers(csrfToken) }>
+    <body hx-headers:inherited={ csrf.Headers(csrfToken) }>
         @child
     </body>
 }

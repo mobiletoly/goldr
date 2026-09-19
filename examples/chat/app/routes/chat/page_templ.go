@@ -154,7 +154,7 @@ func ComposerView(form messageForm) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" hx-target=\"#composer\" hx-swap=\"outerHTML\" hx-indicator=\"#send-progress\"><div><label for=\"body\">Message</label> <textarea id=\"body\" name=\"body\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" hx-target=\"#composer\" hx-swap=\"outerHTML\" hx-status:422=\"swap:outerHTML\" hx-status:4xx=\"swap:none\" hx-status:5xx=\"swap:none\" hx-indicator=\"#send-progress\"><div><label for=\"body\">Message</label> <textarea id=\"body\" name=\"body\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

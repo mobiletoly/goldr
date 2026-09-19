@@ -85,8 +85,8 @@ func TestRunInitCreatesStarterApp(t *testing.T) {
 		}
 	}
 	layoutTempl := readFile(t, filepath.Join(root, "app", "routes", "layout.templ"))
-	if !strings.Contains(layoutTempl, `https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4`) {
-		t.Fatalf("layout.templ = %q, want HTMX script", layoutTempl)
+	if !strings.Contains(layoutTempl, `<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0" integrity="sha384-BvJpBiO8Kh31EqtJe5DRIeWrHWnCGkwytKs9NKFi86Hhw96dEqdEMzZDeK9iEGTc" crossorigin="anonymous" defer></script>`) {
+		t.Fatalf("layout.templ = %q, want the pinned HTMX 4.0.0 script", layoutTempl)
 	}
 
 	files, err := project.GenerateFiles(context.Background(), root)

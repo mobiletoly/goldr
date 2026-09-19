@@ -55,7 +55,21 @@ func TestChatPageRendersMessagesAndSSEConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAll() error = %v", err)
 	}
-	for _, want := range []string{`hx-sse:connect="/chat/events?after=`, `goldr-sse-event="chat-message"`, `src="/goldr/goldr-sse-event.js"`, `hx-indicator="#send-progress"`, "Sign out", "Sending (with 3 seconds day)...", "Grace", body} {
+	for _, want := range []string{
+		`<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0" integrity="sha384-BvJpBiO8Kh31EqtJe5DRIeWrHWnCGkwytKs9NKFi86Hhw96dEqdEMzZDeK9iEGTc" crossorigin="anonymous" defer></script>`,
+		`<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0/dist/ext/hx-sse.min.js" integrity="sha384-VZD0TLKqhJ26ayBUgQg3ud6DsOLMJvtcz0ANpNc9WSbgIuQTnlXI2IfsF5jhBjT6" crossorigin="anonymous" defer></script>`,
+		`hx-sse:connect="/chat/events?after=`,
+		`goldr-sse-event="chat-message"`,
+		`src="/goldr/goldr-sse-event.js"`,
+		`hx-status:422="swap:outerHTML"`,
+		`hx-status:4xx="swap:none"`,
+		`hx-status:5xx="swap:none"`,
+		`hx-indicator="#send-progress"`,
+		"Sign out",
+		"Sending (with 3 seconds day)...",
+		"Grace",
+		body,
+	} {
 		if !strings.Contains(string(page), want) {
 			t.Fatalf("page = %q, want %q", page, want)
 		}

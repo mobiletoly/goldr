@@ -15,7 +15,7 @@ templ PageView(form contactForm, contacts []Contact, csrfToken string) {
 
 templ DirectoryView(form contactForm, contacts []Contact, csrfToken string) {
 	<section id="users-directory">
-		<form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post={ urls.Users.Create.Path() } hx-target="#users-directory" hx-swap="outerHTML">
+		<form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post={ urls.Users.Create.Path() } hx-target="#users-directory" hx-swap="outerHTML" hx-status:422="swap:outerHTML" hx-status:4xx="swap:none" hx-status:5xx="swap:none">
 			@csrf.Input(csrfToken)
 			<div>
 				<label for="contact-name">Name</label>

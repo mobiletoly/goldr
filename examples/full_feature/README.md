@@ -76,8 +76,9 @@ and `/users/42` pages share the users section shell from `users/layout.templ`;
 Generated route dispatch uses app-owned route-tree endpoint middleware in
 `app/routes/middleware.go` to issue signed-cookie CSRF tokens for matched
 endpoints. The outer server still wraps the handler with app-owned security
-headers. The root layout renders the request token into inherited `hx-headers`
-with `csrf.Headers`, exposes a `csrf.Meta` tag for app-owned JavaScript, and
+headers. The root layout renders the request token into inherited
+`hx-headers:inherited` with `csrf.Headers`, exposes a `csrf.Meta` tag for
+app-owned JavaScript, and
 forms render hidden fields with `csrf.Input`. Unsafe actions validate the
 submitted token before mutating example state.
 

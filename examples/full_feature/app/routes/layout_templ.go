@@ -94,7 +94,7 @@ func LayoutView(metadata goldr.PageMetadata, activeNav shelllayout.Nav, csrfToke
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<script src=\"https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4\" integrity=\"sha384-aWZK1NtOs/aWb/+YZdTM8q2JkWEshlMc9mgZ189numT9bwFhyAyYEoO4nO/2dTXt\" crossorigin=\"anonymous\" defer></script><script src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<script src=\"https://cdn.jsdelivr.net/npm/htmx.org@4.0.0\" integrity=\"sha384-BvJpBiO8Kh31EqtJe5DRIeWrHWnCGkwytKs9NKFi86Hhw96dEqdEMzZDeK9iEGTc\" crossorigin=\"anonymous\" defer></script><script src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -107,14 +107,14 @@ func LayoutView(metadata goldr.PageMetadata, activeNav shelllayout.Nav, csrfToke
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" defer></script></head><body hx-headers=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" defer></script></head><body hx-headers:inherited=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf.Headers(csrfToken))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/layout.templ`, Line: 26, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes/layout.templ`, Line: 26, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {

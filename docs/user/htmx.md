@@ -142,24 +142,25 @@ skips the body for `HEAD`.
 
 ## Non-2xx HTML Responses
 
-HTMX does not swap non-2xx responses with its default response handling. Goldr
-does not override that policy.
+HTMX 4 swaps HTML responses for error status codes by default. Only `204` and
+`304` responses are not swapped. Goldr does not override that policy.
 
 When an app wants to return `422 Unprocessable Entity` for validation
-redisplay, configure HTMX in app-owned JavaScript or use an HTMX extension that
-handles that response class. The server-side handler can still return ordinary
-Goldr HTML:
+redisplay while leaving other client and server errors unswapped, configure
+the triggering element with visible `hx-status` attributes. Exact status
+rules take precedence over wildcard rules:
 
-```js
-if (window.htmx) {
-  window.htmx.config.responseHandling = [
-    { code: "204", swap: false },
-    { code: "[23]..", swap: true },
-    { code: "422", swap: true },
-    { code: "[45]..", swap: false, error: true },
-    { code: "...", swap: false }
-  ];
-}
+```templ
+<form
+    hx-post={ urls.Users.Create.Path() }
+    hx-target="#user-form"
+    hx-swap="outerHTML"
+    hx-status:422="swap:outerHTML"
+    hx-status:4xx="swap:none"
+    hx-status:5xx="swap:none"
+>
+    <button type="submit">Save</button>
+</form>
 ```
 
 ```go
@@ -171,9 +172,10 @@ func PostCreate(r *http.Request) goldr.RouteResponse {
 }
 ```
 
-If the app does not want custom HTMX response handling, return `200 OK` for
-HTML redisplay and reserve `422` for non-HTMX clients or APIs. Goldr leaves
-that status policy to the application.
+If the app does not want error responses swapped, add the appropriate
+`hx-status` rules to the triggering element. If it does not want custom status
+handling, return `200 OK` for HTML redisplay and reserve `422` for non-HTMX
+clients or APIs. Goldr leaves that status policy to the application.
 
 When an HTMX action or fragment exists only for one page workflow, keep the
 endpoint under that page route:
@@ -212,7 +214,7 @@ For unsafe HTMX requests that do not submit a form field, put Goldr's CSRF
 header JSON on a shared layout element:
 
 ```templ
-<body hx-headers={ csrf.Headers(csrfToken) }>
+<body hx-headers:inherited={ csrf.Headers(csrfToken) }>
     @child
 </body>
 ```

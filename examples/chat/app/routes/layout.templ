@@ -12,23 +12,9 @@ templ LayoutView(metadata goldr.PageMetadata, child templ.Component) {
 			if metadata.Description != "" {
 				<meta name="description" content={ metadata.Description }/>
 				}
-				<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4" integrity="sha384-aWZK1NtOs/aWb/+YZdTM8q2JkWEshlMc9mgZ189numT9bwFhyAyYEoO4nO/2dTXt" crossorigin="anonymous" defer></script>
-				<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4/dist/ext/hx-sse.min.js" integrity="sha384-hjzxm/dT4rf4fNC5HtgLp0bX4O19nkAq8gt/ZGnGzyB3TuF5R1xsHV3IiN+PqDXc" crossorigin="anonymous" defer></script>
+				<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0" integrity="sha384-BvJpBiO8Kh31EqtJe5DRIeWrHWnCGkwytKs9NKFi86Hhw96dEqdEMzZDeK9iEGTc" crossorigin="anonymous" defer></script>
+				<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0/dist/ext/hx-sse.min.js" integrity="sha384-VZD0TLKqhJ26ayBUgQg3ud6DsOLMJvtcz0ANpNc9WSbgIuQTnlXI2IfsF5jhBjT6" crossorigin="anonymous" defer></script>
 				<script src="/goldr/goldr-sse-event.js" defer></script>
-				<script>
-					window.addEventListener("load", function () {
-						if (!window.htmx) {
-							return;
-						}
-						window.htmx.config.responseHandling = [
-							{ code: "204", swap: false },
-							{ code: "[23]..", swap: true },
-							{ code: "422", swap: true },
-							{ code: "[45]..", swap: false, error: true },
-							{ code: "...", swap: false }
-						];
-					});
-				</script>
 				<style>
 					:root { color-scheme: light; font-family: system-ui, sans-serif; background: #f6f7f9; color: #1f2937; }
 					body { margin: 0; }

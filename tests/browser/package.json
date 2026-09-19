@@ -1,0 +1,14 @@
+{
+  "name": "goldr-htmx-browser-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/node": "26.2.0",
+    "typescript": "5.9.3"
+  }
+}

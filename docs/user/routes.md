@@ -711,9 +711,11 @@ return goldr.NewFragment(UserForm(view)).
 	WithHeader(hx.HeaderReswap, "outerHTML")
 ```
 
-The handler owns request parsing and validation state. If a rendered HTMX
-response uses a non-2xx status such as `422`, configure app-owned HTMX
-response handling as described in [HTMX](htmx.md).
+The handler owns request parsing and validation state. HTMX 4 swaps HTML
+responses for every status except `204` and `304` by default. For a narrower
+validation policy that swaps `422` while suppressing other client and server
+errors, use the triggering-element `hx-status` rules described in
+[HTMX](htmx.md#non-2xx-html-responses).
 
 Return a page when an action needs to render through the matched layout stack:
 

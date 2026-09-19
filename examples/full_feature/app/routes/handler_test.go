@@ -125,6 +125,9 @@ func TestHandlerGetPages(t *testing.T) {
 				`<meta name="description" content="Browse and manage example contacts.">`,
 				`hx-post="/users/create"`,
 				`hx-encoding="multipart/form-data"`,
+				`hx-status:422="swap:outerHTML"`,
+				`hx-status:4xx="swap:none"`,
+				`hx-status:5xx="swap:none"`,
 				`id="users-table-slot"`,
 				`hx-get="/users/table" hx-target="#users-table-slot" hx-swap="innerHTML"`,
 				`hx-get="/users/table?status=active" hx-target="#users-table-slot" hx-swap="innerHTML"`,
@@ -166,7 +169,7 @@ func TestHandlerGetPages(t *testing.T) {
 			body := recorder.Body.String()
 			for _, want := range []string{
 				`<meta name="csrf-token" content="`,
-				`hx-headers="{&#34;` + csrf.HeaderName + `&#34;:`,
+				`hx-headers:inherited="{&#34;` + csrf.HeaderName + `&#34;:`,
 			} {
 				if !strings.Contains(body, want) {
 					t.Fatalf("body = %q, want %q", body, want)
@@ -184,8 +187,8 @@ func TestHandlerGetPages(t *testing.T) {
 			}
 			if test.wantCSS {
 				for _, want := range []string{
-					`src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta4"`,
-					`integrity="sha384-aWZK1NtOs/aWb/+YZdTM8q2JkWEshlMc9mgZ189numT9bwFhyAyYEoO4nO/2dTXt"`,
+					`src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0"`,
+					`integrity="sha384-BvJpBiO8Kh31EqtJe5DRIeWrHWnCGkwytKs9NKFi86Hhw96dEqdEMzZDeK9iEGTc"`,
 					`href="` + assets.Path("app.css") + `"`,
 					`src="` + assets.Path("app.js") + `"`,
 					`data-js-enhance="open-users"`,

@@ -11,6 +11,7 @@ import (
 
 func TestFSContainsSSEEventHelper(t *testing.T) {
 	assertFSContains(t, SSEEventHelperPath, `registerExtension("goldr-sse-event"`)
+	assertFSContains(t, SSEEventHelperPath, "htmx_sse_before_message")
 }
 
 func TestFSContainsTemplateInspectorHelper(t *testing.T) {
