@@ -97,8 +97,15 @@ Use explicit status pages when the page owns the error response shape and
 `goldr.RouteError` when generated route error handling should classify the
 error and choose the response shape.
 
-`goldr.Page`, `goldr.Fragment`, `goldr.Redirect`, and `goldr.Text` can carry
-headers with `WithHeader` and `AddHeader`.
+`goldr.Page`, `goldr.Fragment`, `goldr.Redirect`, `goldr.Text`, and
+`goldr.NoContent` can carry headers with `WithHeader` and `AddHeader`.
+`AddHeader` preserves existing response-writer values, including middleware
+headers. `WithHeader` replaces all values for that case-insensitive header name;
+later `AddHeader` calls append to the replacement. Use an `AddHeader`-first
+chain to preserve middleware cookies. Each `Set-Cookie` value remains a separate
+field. Rendered HTML owns its content type, redirects own their location, and
+fragments default to replacing writer cache policy with `no-store` unless the
+route response supplies a non-empty `Cache-Control` value.
 
 ## Shared Kit Routes
 

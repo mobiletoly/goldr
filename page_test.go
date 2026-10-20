@@ -175,10 +175,10 @@ func TestNewFragmentRouteResponse(t *testing.T) {
 	if response.fragment.Status != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d", response.fragment.Status, http.StatusAccepted)
 	}
-	if got := response.fragment.headers.Get("Hx-Trigger"); got != "fragment-loaded" {
+	if got := response.fragment.headers.values.Get("Hx-Trigger"); got != "fragment-loaded" {
 		t.Fatalf("Hx-Trigger = %q, want fragment-loaded", got)
 	}
-	if got := response.fragment.headers.Get("Cache-Control"); got != "no-store" {
+	if got := response.fragment.headers.values.Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
 }
@@ -190,7 +190,7 @@ func TestFragmentCacheControlCanBeOverridden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if got := response.fragment.headers.Get("Cache-Control"); got != "public, max-age=60" {
+	if got := response.fragment.headers.values.Get("Cache-Control"); got != "public, max-age=60" {
 		t.Fatalf("Cache-Control = %q, want public, max-age=60", got)
 	}
 }
@@ -254,51 +254,48 @@ func TestEndpointResponseInterfaceMembership(_ *testing.T) {
 }
 
 func TestRouteResponseWithHeader(t *testing.T) {
-	response, err := resolveRouteResponse(
-		NewPage(templ.NopComponent, PageMetadata{}).WithHeader("Cache-Control", "no-store"),
-	)
+	original := NewPage(templ.NopComponent, PageMetadata{}).WithHeader("Cache-Control", "no-store")
+	response, err := resolveRouteResponse(original)
 	if err != nil {
 		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if got := response.page.headers.Get("Cache-Control"); got != "no-store" {
+	if got := response.page.headers.values.Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
 
-	response.page.headers.Set("Cache-Control", "mutated")
-	again, err := resolveRouteResponse(
-		NewPage(templ.NopComponent, PageMetadata{}).WithHeader("Cache-Control", "no-store"),
-	)
+	response.page.headers.values["Cache-Control"][0] = "mutated"
+	delete(response.page.headers.replace, "Cache-Control")
+	again, err := resolveRouteResponse(original)
 	if err != nil {
 		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if got := again.page.headers.Get("Cache-Control"); got != "no-store" {
+	if got := again.page.headers.values.Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control after mutation = %q, want no-store", got)
+	}
+	if !again.page.headers.replace["Cache-Control"] {
+		t.Fatal("Cache-Control replacement intent lost after mutating resolved response")
 	}
 }
 
 func TestRouteResponseAddHeader(t *testing.T) {
-	response, err := resolveRouteResponse(
-		NewPage(templ.NopComponent, PageMetadata{}).
-			AddHeader("Set-Cookie", "one=1").
-			AddHeader("Set-Cookie", "two=2"),
-	)
+	original := NewPage(templ.NopComponent, PageMetadata{}).
+		AddHeader("Set-Cookie", "one=1").
+		AddHeader("Set-Cookie", "two=2")
+	response, err := resolveRouteResponse(original)
 	if err != nil {
 		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if got := response.page.headers.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
+	if got := response.page.headers.values.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
 		t.Fatalf("Set-Cookie values = %#v, want [one=1 two=2]", got)
 	}
 
-	response.page.headers.Add("Set-Cookie", "mutated=1")
-	again, err := resolveRouteResponse(
-		NewPage(templ.NopComponent, PageMetadata{}).
-			AddHeader("Set-Cookie", "one=1").
-			AddHeader("Set-Cookie", "two=2"),
-	)
+	response.page.headers.values["Set-Cookie"][0] = "mutated=1"
+	response.page.headers.values.Add("Set-Cookie", "extra=1")
+	again, err := resolveRouteResponse(original)
 	if err != nil {
 		t.Fatalf("resolveRouteResponse() error = %v, want nil", err)
 	}
-	if got := again.page.headers.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
+	if got := again.page.headers.values.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
 		t.Fatalf("Set-Cookie values after mutation = %#v, want [one=1 two=2]", got)
 	}
 }
@@ -328,10 +325,10 @@ func TestNoContentRouteResponse(t *testing.T) {
 			if response.noBody.Status != test.status {
 				t.Fatalf("status = %d, want %d", response.noBody.Status, test.status)
 			}
-			if got := response.noBody.headers.Get("Cache-Control"); got != "no-store" {
+			if got := response.noBody.headers.values.Get("Cache-Control"); got != "no-store" {
 				t.Fatalf("Cache-Control = %q, want no-store", got)
 			}
-			if got := response.noBody.headers.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
+			if got := response.noBody.headers.values.Values("Set-Cookie"); len(got) != 2 || got[0] != "one=1" || got[1] != "two=2" {
 				t.Fatalf("Set-Cookie = %#v, want [one=1 two=2]", got)
 			}
 		})

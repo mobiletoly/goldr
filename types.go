@@ -44,7 +44,7 @@ type Page struct {
 	Component templ.Component
 	Metadata  PageMetadata
 	Data      LayoutData
-	headers   http.Header
+	headers   responseHeaders
 }
 
 func (Page) goldrRouteResponse()     {}
@@ -54,7 +54,7 @@ func (Page) goldrPageRouteResponse() {}
 type Fragment struct {
 	Status    int
 	Component templ.Component
-	headers   http.Header
+	headers   responseHeaders
 }
 
 func (Fragment) goldrRouteResponse()         {}
@@ -64,7 +64,7 @@ func (Fragment) goldrFragmentRouteResponse() {}
 type Redirect struct {
 	Status   int
 	Location string
-	headers  http.Header
+	headers  responseHeaders
 }
 
 func (Redirect) goldrRouteResponse()         {}
@@ -75,7 +75,7 @@ func (Redirect) goldrFragmentRouteResponse() {}
 type Text struct {
 	Status  int
 	Body    string
-	headers http.Header
+	headers responseHeaders
 }
 
 func (Text) goldrRouteResponse()         {}
@@ -85,7 +85,7 @@ func (Text) goldrFragmentRouteResponse() {}
 // NoContent is a response that writes headers and status without a body.
 type NoContent struct {
 	Status  int
-	headers http.Header
+	headers responseHeaders
 }
 
 func (NoContent) goldrRouteResponse() {}
@@ -98,6 +98,11 @@ type RouteError struct {
 func (RouteError) goldrRouteResponse()         {}
 func (RouteError) goldrPageRouteResponse()     {}
 func (RouteError) goldrFragmentRouteResponse() {}
+
+type responseHeaders struct {
+	values  http.Header
+	replace map[string]bool
+}
 
 type routeResponseKind uint8
 
@@ -216,49 +221,57 @@ func (fragment Fragment) WithStatus(status int) Fragment {
 	return fragment
 }
 
-// WithHeader returns page with name set to value.
+// WithHeader returns page with name set to value. When written, it replaces
+// existing response-writer values for name.
 func (page Page) WithHeader(name, value string) Page {
 	page.headers = withResponseHeader(page.headers, name, value)
 	return page
 }
 
-// AddHeader returns page with value added to name.
+// AddHeader returns page with value added to name. When written, it appends to
+// existing response-writer values unless WithHeader replaced that name.
 func (page Page) AddHeader(name, value string) Page {
 	page.headers = addResponseHeader(page.headers, name, value)
 	return page
 }
 
-// WithHeader returns fragment with name set to value.
+// WithHeader returns fragment with name set to value. When written, it replaces
+// existing response-writer values for name.
 func (fragment Fragment) WithHeader(name, value string) Fragment {
 	fragment.headers = withResponseHeader(fragment.headers, name, value)
 	return fragment
 }
 
-// AddHeader returns fragment with value added to name.
+// AddHeader returns fragment with value added to name. When written, it appends
+// to existing response-writer values unless WithHeader replaced that name.
 func (fragment Fragment) AddHeader(name, value string) Fragment {
 	fragment.headers = addResponseHeader(fragment.headers, name, value)
 	return fragment
 }
 
-// WithHeader returns redirect with name set to value.
+// WithHeader returns redirect with name set to value. When written, it replaces
+// existing response-writer values for name.
 func (redirect Redirect) WithHeader(name, value string) Redirect {
 	redirect.headers = withResponseHeader(redirect.headers, name, value)
 	return redirect
 }
 
-// AddHeader returns redirect with value added to name.
+// AddHeader returns redirect with value added to name. When written, it appends
+// to existing response-writer values unless WithHeader replaced that name.
 func (redirect Redirect) AddHeader(name, value string) Redirect {
 	redirect.headers = addResponseHeader(redirect.headers, name, value)
 	return redirect
 }
 
-// WithHeader returns text with name set to value.
+// WithHeader returns text with name set to value. When written, it replaces
+// existing response-writer values for name.
 func (text Text) WithHeader(name, value string) Text {
 	text.headers = withResponseHeader(text.headers, name, value)
 	return text
 }
 
-// AddHeader returns text with value added to name.
+// AddHeader returns text with value added to name. When written, it appends to
+// existing response-writer values unless WithHeader replaced that name.
 func (text Text) AddHeader(name, value string) Text {
 	text.headers = addResponseHeader(text.headers, name, value)
 	return text
@@ -270,13 +283,16 @@ func (noContent NoContent) WithStatus(status int) NoContent {
 	return noContent
 }
 
-// WithHeader returns no-content response with name set to value.
+// WithHeader returns no-content response with name set to value. When written,
+// it replaces existing response-writer values for name.
 func (noContent NoContent) WithHeader(name, value string) NoContent {
 	noContent.headers = withResponseHeader(noContent.headers, name, value)
 	return noContent
 }
 
-// AddHeader returns no-content response with value added to name.
+// AddHeader returns no-content response with value added to name. When written,
+// it appends to existing response-writer values unless WithHeader replaced that
+// name.
 func (noContent NoContent) AddHeader(name, value string) NoContent {
 	noContent.headers = addResponseHeader(noContent.headers, name, value)
 	return noContent
@@ -357,11 +373,8 @@ func resolveFragmentResponse(response Fragment) (resolvedRouteResponse, error) {
 	}
 	response.Status = status
 	response.headers = cloneResponseHeaders(response.headers)
-	if response.headers == nil {
-		response.headers = make(http.Header)
-	}
-	if response.headers.Get("Cache-Control") == "" {
-		response.headers.Set("Cache-Control", fragmentDefaultCacheControl)
+	if response.headers.values.Get("Cache-Control") == "" {
+		response.headers = withResponseHeader(response.headers, "Cache-Control", fragmentDefaultCacheControl)
 	}
 	return resolvedRouteResponse{
 		kind:     routeResponseFragment,
@@ -422,21 +435,25 @@ func resolveRouteErrorResponse(response RouteError) (resolvedRouteResponse, erro
 	}, nil
 }
 
-func withResponseHeader(headers http.Header, name, value string) http.Header {
+func withResponseHeader(headers responseHeaders, name, value string) responseHeaders {
 	next := cloneResponseHeaders(headers)
-	if next == nil {
-		next = make(http.Header)
+	if next.values == nil {
+		next.values = make(http.Header)
 	}
-	next.Set(name, value)
+	next.values.Set(name, value)
+	if next.replace == nil {
+		next.replace = make(map[string]bool)
+	}
+	next.replace[http.CanonicalHeaderKey(name)] = true
 	return next
 }
 
-func addResponseHeader(headers http.Header, name, value string) http.Header {
+func addResponseHeader(headers responseHeaders, name, value string) responseHeaders {
 	next := cloneResponseHeaders(headers)
-	if next == nil {
-		next = make(http.Header)
+	if next.values == nil {
+		next.values = make(http.Header)
 	}
-	next.Add(name, value)
+	next.values.Add(name, value)
 	return next
 }
 
@@ -459,16 +476,11 @@ func cloneLayoutData(data LayoutData) LayoutData {
 	return LayoutData{values: clone}
 }
 
-func cloneResponseHeaders(headers http.Header) http.Header {
-	if len(headers) == 0 {
-		return nil
+func cloneResponseHeaders(headers responseHeaders) responseHeaders {
+	return responseHeaders{
+		values:  headers.values.Clone(),
+		replace: maps.Clone(headers.replace),
 	}
-
-	clone := make(http.Header, len(headers))
-	for name, values := range headers {
-		clone[name] = append([]string(nil), values...)
-	}
-	return clone
 }
 
 func validateRenderResponse(component templ.Component, status int) error {

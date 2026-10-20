@@ -404,18 +404,45 @@ returns a page, generated dispatch renders it through the matched layout stack.
 only final body-carrying statuses: `2xx` except `204 No Content` and `205 Reset
 Content`, plus `4xx` and `5xx`.
 
-`goldr.Page`, `goldr.Fragment`, `goldr.Redirect`, and `goldr.Text` support
-`WithHeader` and `AddHeader`. `WithHeader` replaces existing values for that
-header name, matching `http.Header.Set`. `AddHeader` appends a value, matching
-`http.Header.Add`:
+`goldr.Page`, `goldr.Fragment`, `goldr.Redirect`, `goldr.Text`, and
+`goldr.NoContent` support `WithHeader` and `AddHeader`. These operations compose
+with headers already set on the response writer, including middleware headers.
+`WithHeader` replaces all existing values for that header name, matching
+`http.Header.Set`. `AddHeader` appends a value, matching `http.Header.Add`.
+Header names are case-insensitive, and values retain their order within each
+header.
+
+Use `AddHeader` to preserve middleware cookies while adding route cookies:
 
 ```go
 return goldr.Redirect{
 	Location: "/sign-in",
 	Status:   http.StatusSeeOther,
-}.WithHeader("Set-Cookie", sessionCookie.String()).
+}.AddHeader("Set-Cookie", sessionCookie.String()).
 	AddHeader("Set-Cookie", csrfCookie.String())
 ```
+
+Each cookie remains a separate `Set-Cookie` field. Use `WithHeader` when the
+route must replace existing writer values. A chain starting with
+`WithHeader("Set-Cookie", ...)` deliberately replaces all middleware cookies;
+subsequent `AddHeader` calls append to that replacement.
+
+For one header name, with existing writer values `M`, composition follows:
+
+| Route operations | Composed values |
+| --- | --- |
+| None | M |
+| Add A | M, A |
+| Add A, Add B | M, A, B |
+| With A | A |
+| With A, Add B | A, B |
+| Add A, With B | B |
+| With A, With B | B |
+
+Response-specific writer rules still apply after composition: rendered HTML
+uses `Content-Type: text/html; charset=utf-8`, and redirects set `Location`
+from the response's `Location` field. Fragments replace writer `Cache-Control`
+with `no-store` when the route response does not supply a non-empty value.
 
 ### Page Error Handling
 

@@ -79,7 +79,10 @@
 // explicit headers and status. When an action needs to return a full page
 // through the matched layout stack, return a Page response. Page, fragment,
 // redirect, text, and no-content route responses can carry explicit headers
-// with WithHeader and AddHeader.
+// with WithHeader and AddHeader. WithHeader replaces existing response-writer
+// values for that header name, including middleware values. AddHeader appends
+// to those values unless an earlier WithHeader replaced them. Each Set-Cookie
+// value remains a separate field.
 //
 // Routes may declare canonical navigation metadata with RouteDef.Nav. Generated
 // dispatch attaches the matched route's canonical navigation plan to the

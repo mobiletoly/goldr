@@ -43,10 +43,10 @@ func WithRoutePageRenderer(r *http.Request, render RoutePageRenderer) *http.Requ
 // WriteComponent renders component and writes it as an HTML response with
 // status.
 func WriteComponent(w http.ResponseWriter, r *http.Request, status int, component templ.Component) error {
-	return writeComponentResponse(w, r, status, component, nil)
+	return writeComponentResponse(w, r, status, component, responseHeaders{})
 }
 
-func writeComponentResponse(w http.ResponseWriter, r *http.Request, status int, component templ.Component, headers http.Header) error {
+func writeComponentResponse(w http.ResponseWriter, r *http.Request, status int, component templ.Component, headers responseHeaders) error {
 	if w == nil {
 		return ErrNilResponseWriter
 	}
@@ -141,10 +141,12 @@ func writeRouteResponse(w http.ResponseWriter, r *http.Request, response RouteRe
 	}
 }
 
-func applyResponseHeaders(w http.ResponseWriter, headers http.Header) {
+func applyResponseHeaders(w http.ResponseWriter, headers responseHeaders) {
 	target := w.Header()
-	for name, values := range headers {
-		target.Del(name)
+	for name, values := range headers.values {
+		if headers.replace[name] {
+			target.Del(name)
+		}
 		for _, value := range values {
 			target.Add(name, value)
 		}

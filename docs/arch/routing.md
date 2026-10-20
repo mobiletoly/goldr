@@ -983,11 +983,24 @@ applies the selected layout stack. Generated fragment dispatch calls
 with inspector markers.
 
 The root package validates and writes normal rendered pages, fragments,
-redirects, plain text status responses, and internal error responses. Page,
-fragment, redirect, and text responses may carry explicit headers with
-`WithHeader` and `AddHeader`; the writer applies those headers before writing
-status and body. Nil rendered components and invalid route responses are
-internal server errors. The framework metadata surface is intentionally small:
+redirects, plain text status responses, no-content responses, and internal error
+responses. Page, fragment, redirect, text, and no-content responses may carry
+explicit headers with `WithHeader` and `AddHeader`. Private response header
+state stores an `http.Header` value map and replacement flags keyed by canonical
+header name. Construction and resolution clone both maps and the value slices.
+`WithHeader` sets values and marks replacement; `AddHeader` appends while
+preserving any replacement flag for that name.
+
+The shared writer deletes existing writer values only for replacement headers,
+then adds each value separately, including each `Set-Cookie` field. Untouched
+headers and middleware values for append-only headers survive. Route headers
+are applied before status and body, and only after successful rendering for
+page and fragment responses. The fragment default `Cache-Control: no-store`
+is a replacement. Rendered HTML sets its content type after composition, and
+redirects set their location from the response field after composition.
+
+Nil rendered components and invalid route responses are internal server
+errors. The framework metadata surface is intentionally small:
 `Title` and `Description` are passed through to layouts, while canonical links,
 navigation state, and other shell policy remain application-owned. Page
 responses can also carry app-owned layout data through typed layout keys; this

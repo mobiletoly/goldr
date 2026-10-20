@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/a-h/templ"
@@ -260,11 +261,15 @@ func TestWriteEndpointResponsesDelegateRouteError(t *testing.T) {
 
 func TestWriteRouteResponseWritesRedirectAndText(t *testing.T) {
 	redirect := httptest.NewRecorder()
+	redirect.Header().Set("Location", "/middleware")
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil)
 	if err := WriteRouteResponse(
 		redirect,
 		request,
-		Redirect{Location: "/sign-in", Status: http.StatusSeeOther}.WithHeader("Cache-Control", "no-store"),
+		Redirect{Location: "/sign-in", Status: http.StatusSeeOther}.
+			WithHeader("Cache-Control", "no-store").
+			WithHeader("Location", "/ignored").
+			AddHeader("Location", "/also-ignored"),
 	); err != nil {
 		t.Fatalf("WriteRouteResponse(redirect) error = %v, want nil", err)
 	}
@@ -326,8 +331,153 @@ func TestWriteRouteResponseWritesRedirectAndText(t *testing.T) {
 	}
 }
 
+func TestWriteRouteResponseAddHeaderPreservesMiddlewareCookie(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	http.SetCookie(recorder, &http.Cookie{Name: "middleware_cookie", Value: "synthetic"})
+	response := Redirect{Location: "/next", Status: http.StatusSeeOther}.
+		AddHeader("Set-Cookie", "route_cookie=synthetic; Path=/")
+
+	if err := WriteRouteResponse(recorder, request, response); err != nil {
+		t.Fatalf("WriteRouteResponse() error = %v, want nil", err)
+	}
+	result := recorder.Result()
+	if result.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", result.StatusCode, http.StatusSeeOther)
+	}
+	want := []string{"middleware_cookie=synthetic", "route_cookie=synthetic; Path=/"}
+	if got := result.Header.Values("Set-Cookie"); !slices.Equal(got, want) {
+		t.Fatalf("Set-Cookie = %q, want %q", got, want)
+	}
+}
+
+func TestWriteRouteResponseAddHeaderPreservesOtherResponseCookies(t *testing.T) {
+	const routeCookie = "route_cookie=synthetic; Path=/"
+	tests := []struct {
+		name     string
+		response RouteResponse
+		status   int
+	}{
+		{"page", NewPage(templ.NopComponent, PageMetadata{}).AddHeader("Set-Cookie", routeCookie), http.StatusOK},
+		{"fragment", NewFragment(templ.NopComponent).AddHeader("Set-Cookie", routeCookie), http.StatusOK},
+		{"text", Text{Body: "ok"}.AddHeader("Set-Cookie", routeCookie), http.StatusOK},
+		{"no content", NoContent{}.AddHeader("Set-Cookie", routeCookie), http.StatusNoContent},
+	}
+	request := WithRoutePageRenderer(
+		httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil),
+		func(_ *http.Request, page Page) (templ.Component, error) { return page.Component, nil },
+	)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			http.SetCookie(recorder, &http.Cookie{Name: "middleware_cookie", Value: "synthetic"})
+			recorder.Header().Set("X-Middleware", "keep")
+			if err := WriteRouteResponse(recorder, request, test.response); err != nil {
+				t.Fatalf("WriteRouteResponse() error = %v, want nil", err)
+			}
+			result := recorder.Result()
+			if result.StatusCode != test.status {
+				t.Fatalf("status = %d, want %d", result.StatusCode, test.status)
+			}
+			want := []string{"middleware_cookie=synthetic", routeCookie}
+			if got := result.Header.Values("Set-Cookie"); !slices.Equal(got, want) {
+				t.Fatalf("Set-Cookie = %q, want %q", got, want)
+			}
+			if got := result.Header.Get("X-Middleware"); got != "keep" {
+				t.Fatalf("X-Middleware = %q, want keep", got)
+			}
+		})
+	}
+}
+
+func TestWriteRouteResponseHeaderOperations(t *testing.T) {
+	base := Redirect{Location: "/next", Status: http.StatusSeeOther}
+	tests := []struct {
+		name     string
+		response Redirect
+		want     []string
+	}{
+		{"none", base, []string{"middleware-one", "middleware-two"}},
+		{"add", base.AddHeader("x-values", "a"), []string{"middleware-one", "middleware-two", "a"}},
+		{"add add", base.AddHeader("X-Values", "a").AddHeader("x-values", "b"), []string{"middleware-one", "middleware-two", "a", "b"}},
+		{"with", base.WithHeader("x-values", "a"), []string{"a"}},
+		{"with add", base.WithHeader("X-Values", "a").AddHeader("x-values", "b"), []string{"a", "b"}},
+		{"add with", base.AddHeader("X-Values", "a").WithHeader("x-values", "b"), []string{"b"}},
+		{"with with", base.WithHeader("X-Values", "a").WithHeader("X-VALUES", "b"), []string{"b"}},
+	}
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			recorder.Header().Add("X-Values", "middleware-one")
+			recorder.Header().Add("X-Values", "middleware-two")
+			if err := WriteRouteResponse(recorder, request, test.response); err != nil {
+				t.Fatalf("WriteRouteResponse() error = %v, want nil", err)
+			}
+			if got := recorder.Result().Header.Values("X-Values"); !slices.Equal(got, test.want) {
+				t.Fatalf("X-Values = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestWriteRouteResponseWithHeaderReplacesMiddlewareCookies(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	http.SetCookie(recorder, &http.Cookie{Name: "middleware_one", Value: "1"})
+	http.SetCookie(recorder, &http.Cookie{Name: "middleware_two", Value: "2"})
+	response := Redirect{Location: "/next", Status: http.StatusSeeOther}.
+		AddHeader("Set-Cookie", "discarded=1").
+		WithHeader("set-cookie", "session=1").
+		AddHeader("SET-COOKIE", "csrf=2")
+	if err := WriteRouteResponse(recorder, request, response); err != nil {
+		t.Fatalf("WriteRouteResponse() error = %v, want nil", err)
+	}
+	want := []string{"session=1", "csrf=2"}
+	if got := recorder.Result().Header.Values("Set-Cookie"); !slices.Equal(got, want) {
+		t.Fatalf("Set-Cookie = %q, want %q", got, want)
+	}
+}
+
+func TestWriteRouteResponseHeaderCopies(t *testing.T) {
+	base := Redirect{Location: "/next", Status: http.StatusSeeOther}.
+		WithHeader("X-Existing", "base").
+		AddHeader("X-Values", "base")
+	replaced := base.WithHeader("x-values", "replacement")
+	appended := base.AddHeader("x-values", "appended")
+	tests := []struct {
+		name     string
+		response Redirect
+		want     []string
+	}{
+		{"base", base, []string{"middleware", "base"}},
+		{"replaced", replaced, []string{"replacement"}},
+		{"appended", appended, []string{"middleware", "base", "appended"}},
+	}
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			recorder.Header().Set("X-Values", "middleware")
+			recorder.Header().Set("X-Existing", "middleware")
+			if err := WriteRouteResponse(recorder, request, test.response); err != nil {
+				t.Fatalf("WriteRouteResponse() error = %v, want nil", err)
+			}
+			result := recorder.Result()
+			if got := result.Header.Values("X-Values"); !slices.Equal(got, test.want) {
+				t.Fatalf("X-Values = %q, want %q", got, test.want)
+			}
+			if got := result.Header.Values("X-Existing"); !slices.Equal(got, []string{"base"}) {
+				t.Fatalf("X-Existing = %q, want [base]", got)
+			}
+		})
+	}
+}
+
 func TestWriteRouteResponseWritesFragment(t *testing.T) {
 	recorder := httptest.NewRecorder()
+	recorder.Header().Set("Cache-Control", "public, max-age=60")
+	recorder.Header().Set("Content-Type", "text/plain")
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 
 	err := WriteRouteResponse(
@@ -353,10 +503,14 @@ func TestWriteRouteResponseWritesFragment(t *testing.T) {
 	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
+	if got := recorder.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want text/html; charset=utf-8", got)
+	}
 }
 
 func TestWriteRouteResponseDoesNotApplyFragmentHeadersOnRenderError(t *testing.T) {
 	recorder := httptest.NewRecorder()
+	http.SetCookie(recorder, &http.Cookie{Name: "middleware", Value: "keep"})
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	componentErr := errors.New("render failed")
 
@@ -366,7 +520,9 @@ func TestWriteRouteResponseDoesNotApplyFragmentHeadersOnRenderError(t *testing.T
 		NewFragment(templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
 			_, _ = io.WriteString(writer, "partial")
 			return componentErr
-		})).WithHeader("Hx-Trigger", "fragment-loaded"),
+		})).WithHeader("Hx-Trigger", "fragment-loaded").
+			WithHeader("Set-Cookie", "replacement=1").
+			AddHeader("Set-Cookie", "appended=2"),
 	)
 
 	if !errors.Is(err, componentErr) {
@@ -374,6 +530,9 @@ func TestWriteRouteResponseDoesNotApplyFragmentHeadersOnRenderError(t *testing.T
 	}
 	if got := recorder.Header().Get("Hx-Trigger"); got != "" {
 		t.Fatalf("Hx-Trigger = %q, want empty", got)
+	}
+	if got := recorder.Header().Values("Set-Cookie"); !slices.Equal(got, []string{"middleware=keep"}) {
+		t.Fatalf("Set-Cookie = %q, want [middleware=keep]", got)
 	}
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want implicit 200 because response was not committed", recorder.Code)
