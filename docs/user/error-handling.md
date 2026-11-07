@@ -150,11 +150,69 @@ no-content responses are written as returned by the hook.
 
 ## App-Owned Error Surfaces
 
-Generated error hooks apply only to generated route dispatch. Direct writer
-actions, static asset handlers, SSE endpoints, streaming handlers, recovery
-middleware, logging, and panic policy remain application-owned `net/http`
-behavior.
+Generated error hooks apply only to generated route dispatch. Applications own
+direct writer actions, static asset handlers, SSE endpoints, streaming handlers,
+logging, and panic policy. They can explicitly install Goldr's whole-handler
+recovery boundary for the shared HTTP mechanics described below.
 
 If a custom error hook returns an invalid response, returns `goldr.RouteError`,
 or fails while rendering, generated dispatch writes a plain `500` and does not
 call custom error hooks recursively.
+
+## Whole-Handler Panic Recovery
+
+Install `goldr.Recover` around the application handler that needs protection:
+
+```go
+handler := goldr.Recover(mux, func(r *http.Request, info goldr.PanicInfo) {
+	logger.ErrorContext(r.Context(), "Request handler panicked",
+		"frames", info.Frames, "frames_truncated", info.FramesTruncated,
+		"committed", info.Committed, "status", info.Status,
+		"hijacked", info.Hijacked)
+})
+```
+
+Both the handler and reporter are required. Recovery is opt-in and does not
+change generated error hooks or ordinary responses. A wrapper around the final
+application mux covers generated routes, direct writers, static handlers,
+middleware inside that boundary, and SSE streams. It catches unexpected panics
+only on the serving goroutine, not detached goroutines or fatal runtime errors.
+
+The synchronous reporter receives no panic value or type. `PanicInfo.Frames`
+contains function symbols, file basenames, and positive source lines, with at
+most 16 frames and 4 KiB of JSON-encoded frame-array data. Symbols and basenames
+are limited to 256 and 128 printable ASCII characters respectively. Truncation
+and sanitization set `FramesTruncated`. Reports exclude absolute source paths,
+addresses, arguments, local values, and recovery/runtime-panic plumbing frames.
+Applications own logging, correlation, access and retention policy; do not log
+the callback request indiscriminately.
+
+The callback receives the request passed to the wrapper. A downstream
+`r.WithContext` copy does not change that original request. Establish shared
+request correlation outside the wrapper when the callback needs it. A reporter
+panic is contained without recursive reporting or raw error output, but can
+prevent receipt emission. Keep reporters short and local.
+
+Before final response commitment, recovery clears pending headers, including
+cookies, redirects and HTMX instructions, and writes a plain-text 500 with body
+`Internal server error.` followed by a newline. HEAD has no body. The fallback
+sets `Content-Type: text/plain; charset=utf-8`, `X-Content-Type-Options: nosniff`,
+`Cache-Control: no-store`, and `Referrer-Policy: no-referrer`.
+
+After final headers, a body write, or a successful flush, recovery reports and
+aborts the exchange through `http.ErrAbortHandler`. It never appends an error
+page or replaces the committed status. Informational 1xx responses except 101
+do not commit a final response; 101 does. After successful hijacking, an
+unexpected panic closes the connection without writing fallback bytes. An exact
+`http.ErrAbortHandler` panic passes through without reporting or fallback.
+An attempted flush that fails with an error other than `http.ErrNotSupported`
+is conservatively treated as committed: its implicit status may already have
+been written before the transport failure.
+
+The writer forwards output immediately. Supported flush, hijack, push and
+`io.ReaderFrom` capabilities remain available; unsupported flushing still makes
+`sse.Start` decline. `http.ResponseController` deadline and full-duplex operations
+delegate through `Unwrap`. Recovery does not add custom writer interfaces or
+deprecated `CloseNotifier` support. HTTP-server logs outside the handler, such
+as TLS and accept failures, remain the application's `http.Server.ErrorLog`
+responsibility.

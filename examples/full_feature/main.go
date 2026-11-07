@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -83,7 +84,11 @@ func exampleHandler() http.Handler {
 		TemplateInspection: templateInspectionMode(),
 	})
 	mux.Handle("/", appHeaders(deps.Middleware(appDeps, routesHandler)))
-	return mux
+	return goldr.Recover(mux, func(r *http.Request, info goldr.PanicInfo) {
+		slog.ErrorContext(r.Context(), "Request handler panicked", "event", "http_panic",
+			"committed", info.Committed, "status", info.Status, "hijacked", info.Hijacked,
+			"frames", info.Frames, "frames_truncated", info.FramesTruncated)
+	})
 }
 
 func templateInspectionMode() goldr.TemplateInspectionMode {
