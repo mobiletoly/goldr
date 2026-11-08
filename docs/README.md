@@ -30,6 +30,9 @@ This directory explains internal design, invariants, tradeoffs, generated-code b
 
 Code review patterns belong in `docs/arch/code-review.md`.
 
+The [release process](arch/releases.md) describes automatic CLI companion
+publication and its CI qualification rules.
+
 It should explain the current architecture, not preserve a history of abandoned designs.
 
 Remove stale architecture notes aggressively when the design changes.

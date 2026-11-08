@@ -17,6 +17,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Set up release tooling tests
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Test release automation
+        run: node --test .github/scripts/release-cli.test.cjs
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:

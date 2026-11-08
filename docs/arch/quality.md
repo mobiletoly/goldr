@@ -41,6 +41,14 @@ the root runtime, CLI, and every example with the minimum supported Go release.
 It does not replace the full quality and vulnerability gates, which run with
 the preferred patched toolchain.
 
+The CI check job also runs the CLI release publisher's no-network tests with
+Node 24 before the Go gate. For release-tooling changes, run
+`node --test .github/scripts/release-cli.test.cjs` and validate the workflows
+with `actionlint` locally in addition to `scripts/check-all.sh`. The publisher
+requires a successful CI workflow at the exact released commit before it
+creates CLI tags or releases. See [Releases](releases.md) for the publication
+contract and failure recovery.
+
 The golangci-lint configuration is explicit. It enables only selected linters and does not inherit default linter sets.
 
 Current linter groups:
