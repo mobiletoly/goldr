@@ -57,6 +57,15 @@ actual app root, command package, and scripts.
 Goldr-owned files. Use `go tool templ generate` directly only when the app's
 own workflow needs a templ-specific step.
 
+For archived source copies inside the app root, use the optional root-local
+`.goldrignore` file. For example, a line containing `tmp/` excludes that subtree
+from template processing and templ-controlled dev events. Entries are literal
+app-root-relative paths, not Git patterns; blank lines and full-line `#`
+comments are supported. Goldr's generate, check, and dev commands read the
+file automatically. Raw templ does not. Keep the generation root unchanged
+and prefer Goldr commands when exclusions matter. Routes and asset inputs
+are not removed by these exclusions.
+
 Prefer project wrapper scripts when the app already defines them. If the app's
 Go version or tool policy cannot use `go get -tool`, do not invent a parallel
 tooling setup; follow the app's existing convention or stop and explain the

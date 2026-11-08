@@ -42,6 +42,24 @@ and generated-file plumbing lives in `cmd/goldr/internal/goldrcli/project`.
 Shared templ tool lookup and generation lives in
 `cmd/goldr/internal/goldrcli/templtool`.
 
+The templtool package also owns the optional application-root `.goldrignore`
+file and the loaded template scope. It validates literal relative paths,
+expands individual template source/output companions, and compiles anchored,
+escaped absolute-path exclusions. The same scope filters the template
+existence probe and supplies templ's `-ignore-pattern` for generation and
+checking. This keeps generation-root metadata stable and avoids requiring
+templ when every template is excluded.
+
+Dev combines those exclusions with its existing generated-output ignores.
+Both execution branches share the argument builder; the wrapper invokes
+`goldr generate --app-root` and reads the same configuration through that
+command. Configuration changes require stopping and restarting dev. There is
+no separate override flag, configuration watcher, or runtime API. Explicit
+reload-only content handling does not reinterpret ignored sources as content.
+The file does not filter route discovery, manifests, or asset processing.
+Templ still owns traversal and watcher registration; regex exclusions filter
+processing/events rather than define a filesystem sandbox.
+
 The CLI must keep using standard process behavior:
 - successful commands exit `0`
 - usage or command errors use nonzero exit codes

@@ -57,6 +57,7 @@ type devConfig struct {
 	goldrExecutable string
 	wrapperPath     string
 	reloadPaths     []reloadPath
+	templateScope   templtool.Scope
 }
 
 func Command() *cli.Command {
@@ -117,6 +118,8 @@ func Command() *cli.Command {
 }
 
 const devDescription = `Runs a local development loop using templ watch mode.
+
+Automatically reads .goldrignore at the app root to exclude template inputs and development events. Stop dev before editing this file, then restart it.
 
 goldr dev keeps development on the production asset path: templates keep using assets.Path, apps keep serving assets.FS, and changes under assets/build run goldr generate before the app restarts.
 
@@ -279,6 +282,10 @@ func resolveDevConfig(ctx context.Context, options devOptions) (devConfig, error
 	if err := appfs.RequireDir(appfs.RoutesDir(appRoot)); err != nil {
 		return devConfig{}, err
 	}
+	scope, err := templtool.LoadScope(appRoot)
+	if err != nil {
+		return devConfig{}, err
+	}
 	cmdDir := appRoot
 	if strings.TrimSpace(options.cmdDir) != "" {
 		cmdDir, err = appfs.ResolveExistingDir(options.cmdDir)
@@ -316,6 +323,7 @@ func resolveDevConfig(ctx context.Context, options devOptions) (devConfig, error
 		command:         options.command,
 		goldrExecutable: goldrExecutable,
 		reloadPaths:     reloadPaths,
+		templateScope:   scope,
 	}
 	wrapperPath, err := writeDevWrapper(config)
 	if err != nil {
@@ -355,6 +363,10 @@ func parseDevProxyAddr(raw string) (string, int, error) {
 }
 
 func templArgs(config devConfig) []string {
+	ignore := devIgnorePattern()
+	if pattern := config.templateScope.IgnorePattern(); pattern != "" {
+		ignore += "|" + pattern
+	}
 	return []string{
 		"tool",
 		"templ",
@@ -362,7 +374,7 @@ func templArgs(config devConfig) []string {
 		"-path", config.root,
 		"-watch",
 		"-watch-pattern", devWatchPattern(),
-		"-ignore-pattern", devIgnorePattern(),
+		"-ignore-pattern", ignore,
 		"-proxy", config.appURL,
 		"-proxybind", config.proxyBind,
 		"-proxyport", strconv.Itoa(config.proxyPort),

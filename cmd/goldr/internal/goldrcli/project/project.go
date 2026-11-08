@@ -37,30 +37,6 @@ type Paths struct {
 	RouteImportPath string
 }
 
-func HasTemplFiles(root string) (bool, error) {
-	hasTempl := false
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			if entry.Name() == ".git" {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if filepath.Ext(path) == ".templ" {
-			hasTempl = true
-			return fs.SkipAll
-		}
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-	return hasTempl, nil
-}
-
 func GenerateFiles(ctx context.Context, root string) ([]GeneratedFile, error) {
 	paths, err := PathsForRoot(ctx, root)
 	if err != nil {

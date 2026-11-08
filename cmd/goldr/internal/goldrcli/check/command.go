@@ -61,6 +61,8 @@ func Command() *cli.Command {
 
 const checkDescription = `Read-only validation for app/routes, templ output when present, generated files, and Goldr-managed assets.
 
+Automatically reads .goldrignore at the app root to exclude template inputs.
+
 Checks route naming, page handler signatures, layout/fragment file pairs, action conventions, generated route dispatch readiness, generated URL helper readiness, templ-generated file freshness when .templ files exist, goldr-generated file freshness, and Goldr-managed asset freshness when asset outputs exist.
 
 Run after go tool goldr generate. This command runs templ check mode when .templ files exist but does not run tests, start the app, or write files.`
@@ -69,6 +71,10 @@ func runCheck(ctx context.Context, options checkOptions) error {
 	paths, err := project.PathsForRoot(ctx, options.root)
 	if err != nil {
 		return fmt.Errorf("goldr check: %w", checkCodeError(checkCodeAppRoot, err))
+	}
+	scope, err := templtool.LoadScope(paths.Root)
+	if err != nil {
+		return fmt.Errorf("goldr check: %w", checkCodeError(checkCodeTemplGenerated, err))
 	}
 
 	tree, err := routing.ScanWithMounts(paths.RoutesDir, paths.MountsDir)
@@ -86,12 +92,12 @@ func runCheck(ctx context.Context, options checkOptions) error {
 		return fmt.Errorf("goldr check: %w", err)
 	}
 
-	hasTempl, err := project.HasTemplFiles(paths.Root)
+	hasTempl, err := scope.HasFiles()
 	if err != nil {
 		return fmt.Errorf("goldr check: %w", checkCodeError(checkCodeTemplGenerated, err))
 	}
 	if hasTempl {
-		if err := checkTemplGeneratedFiles(ctx, paths.Root); err != nil {
+		if err := checkTemplGeneratedFiles(ctx, scope); err != nil {
 			return fmt.Errorf("goldr check: %w", err)
 		}
 	}
@@ -135,12 +141,8 @@ func checkGeneratedManifestReadiness(paths project.Paths, manifest routing.Manif
 	return files, nil
 }
 
-func checkTemplGeneratedFiles(ctx context.Context, root string) error {
-	if err := templtool.Require(ctx, root); err != nil {
-		return checkCodeError(checkCodeTemplGenerated, err)
-	}
-
-	if err := templtool.GenerateCheck(ctx, root); err != nil {
+func checkTemplGeneratedFiles(ctx context.Context, scope templtool.Scope) error {
+	if err := scope.GenerateCheck(ctx); err != nil {
 		return checkMultilineCodeError(checkCodeTemplGenerated, err)
 	}
 	return nil

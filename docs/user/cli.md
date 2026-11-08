@@ -23,6 +23,57 @@ expands any mounted route surfaces from `<root>/app/mounts`, and writes
 generated files under `<root>/app/routes`, `<root>/app/urls`, and referenced
 mount roots.
 
+## Template Exclusions
+
+Create `.goldrignore` in the application root to exclude archived source copies
+from template processing and development events:
+
+```text
+# Archived investigation sources
+tmp/
+```
+
+`goldr generate`, `goldr generate --check`, `goldr check`, and `goldr dev`
+automatically read this file. With `--app-root`, Goldr reads only that root's
+`.goldrignore`, regardless of the invocation directory or `--cmd-dir`. It does
+not search ancestor directories, merge nested files, or consult `.gitignore`.
+A missing or empty file adds no exclusions; `tmp/` is not excluded by default.
+
+Each non-comment line is a literal, slash-separated path relative to the app
+root. An entry matches the exact path and all descendants; a trailing slash
+is optional. Paths need not exist yet. Blank lines, surrounding whitespace,
+full-line `#` comments, and CRLF line endings are supported. Other text is
+literal: there is no glob expansion, negation, variable expansion, quoting,
+or inline-comment syntax. Paths must be valid for the local filesystem.
+
+For an individual template, listing either `views/page.templ` or
+`views/page_templ.go` excludes both files. An entry ending in `/` is a
+directory exclusion and does not add a template companion.
+
+Absolute or drive-qualified paths, root entries such as `.`, dot or dot-dot
+components, backslash separators, NUL characters, and malformed paths fail
+validation. Use `tmp/`, not `/tmp/` or `./tmp/`. Parsing errors report the
+filename and line number; read failures report the filename. Errors stop the
+command before templ generation, generated-file writes, or app startup.
+`goldr check` reports these errors as `GOLDR007`.
+
+The generation root stays unchanged, preserving generated source-path
+metadata. Excluded templates do not require generated output, while stale
+maintained templates still fail checks. When all templates are excluded,
+check and generate do not require templ. Dev still requires it for watching.
+
+Stop `goldr dev` before editing `.goldrignore`, then restart it. Its initial
+processing, later templ-controlled events, and generation wrapper honor the
+file alongside Goldr's built-in development ignores. Live configuration
+changes are unsupported. Explicit reload-only content configuration keeps its
+existing behavior; excluded source files do not become reload-only inputs.
+
+These exclusions do not remove routes, change manifests, or remove asset
+inputs. Templ may still traverse excluded directories and register filesystem
+watchers; the feature suppresses processing and events, not filesystem access.
+Raw `go tool templ` commands do not read `.goldrignore`. Use Goldr commands
+when these exclusions matter, without changing templ's generation root.
+
 ## Help And Version
 
 Print help:

@@ -73,6 +73,22 @@ wrapper command for templ to run after generation. The wrapper runs
 `goldr generate`, which updates route files and fingerprinted assets when
 `assets/build` exists, then starts the app.
 
+## Excluding Archived Sources
+
+Place `.goldrignore` in the selected app root to exclude source copies such as
+`tmp/` from initial template processing and subsequent templ-controlled
+development events. The generation wrapper reads the same app-root file, and
+Goldr's built-in generated-output ignores remain in effect. Excluded source
+edits do not trigger app restarts or become fallback reload-only inputs.
+
+Stop `goldr dev` before creating, editing, or removing `.goldrignore`, then
+restart it. Live configuration updates are unsupported. Explicit
+`--reload-path` content configuration retains its existing behavior, and
+asset processing and route discovery are unchanged. Templ can still traverse
+excluded directories and register watchers there. See the
+[template exclusion reference](cli.md#template-exclusions) for syntax, path
+resolution, template companions, and errors.
+
 ## Reload-Only Content
 
 Use repeatable `--reload-path` flags for files that the running application

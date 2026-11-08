@@ -82,6 +82,16 @@ Default shape:
 
 Open the proxy URL printed by `goldr dev`, not the app server URL.
 
+Dev automatically reads `<app-root>/.goldrignore`. Its literal path exclusions
+filter initial template processing and later templ-controlled events alongside
+the built-in ignores; the generation wrapper reads the same app-root file.
+Stop dev before editing the file, then restart. Ignored sources do not become
+fallback reload-only inputs. Explicit runtime-content reload configuration
+retains its existing behavior. Exclusions do not remove routes or asset inputs
+and do not prevent templ from traversing directories or registering watchers.
+Raw templ commands do not honor this file; use Goldr's generate/check/dev
+commands for consistent scope.
+
 Common usage:
 
 ```bash

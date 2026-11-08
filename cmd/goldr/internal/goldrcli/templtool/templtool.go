@@ -25,22 +25,27 @@ func Require(ctx context.Context, root string) error {
 	return nil
 }
 
-func Generate(ctx context.Context, root string) error {
-	return runTemplGenerate(ctx, root, "templ generation failed", "generate", "-path", ".")
+// Generate updates non-excluded templ output using the application root.
+func (s Scope) Generate(ctx context.Context) error {
+	return s.runGenerate(ctx, "templ generation failed", "generate", "-path", ".")
 }
 
-func GenerateCheck(ctx context.Context, root string) error {
-	return runTemplGenerate(ctx, root, "templ generated files are not up to date; run go tool goldr generate", "generate", "-check", "-path", ".")
+// GenerateCheck compares non-excluded templ output without regenerating it.
+func (s Scope) GenerateCheck(ctx context.Context) error {
+	return s.runGenerate(ctx, "templ generated files are not up to date; run go tool goldr generate", "generate", "-check", "-path", ".")
 }
 
-func runTemplGenerate(ctx context.Context, root, failureMessage string, args ...string) error {
-	if err := Require(ctx, root); err != nil {
+func (s Scope) runGenerate(ctx context.Context, failureMessage string, args ...string) error {
+	if err := Require(ctx, s.root); err != nil {
 		return err
+	}
+	if pattern := s.IgnorePattern(); pattern != "" {
+		args = append(args, "-ignore-pattern", pattern)
 	}
 
 	commandArgs := append([]string{"tool", "templ"}, args...)
 	command := exec.CommandContext(ctx, "go", commandArgs...)
-	command.Dir = root
+	command.Dir = s.root
 	output, err := command.CombinedOutput()
 	if err == nil {
 		return nil

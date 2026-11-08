@@ -46,6 +46,15 @@ go tool goldr check
 If the app has `assets/build`, `go tool goldr generate` also refreshes
 Goldr-managed asset output.
 
+Inspect the selected app root's `.goldrignore` when validation encounters
+archived source copies. Its literal file/subtree exclusions apply to template
+discovery, generation, checking, and templ-controlled dev events. A line such
+as `tmp/` can exclude investigation archives; it does not remove routes or
+asset inputs. Individual template exclusions also cover generated companions.
+Use Goldr commands rather than raw templ to honor the file, and do not narrow
+the generation root as a substitute. Stale maintained templates must still
+fail validation. Stop dev before changing the file and restart it afterward.
+
 ## Route Inspection
 
 When route ownership, generated paths, URL helpers, layouts, middleware, or Kit

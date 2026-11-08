@@ -63,6 +63,8 @@ const generateDescription = `Scans app/routes, expands referenced app/mounts sub
 When .templ files exist, this command runs:
   go tool templ generate -path .
 
+Automatically reads .goldrignore at the app root to exclude template inputs.
+
 When assets/build exists, this command also fingerprints assets/build into assets/dist.
 
 Use --check in CI to verify templ files when present and goldr-generated files without writing.`
@@ -73,17 +75,21 @@ func runGenerate(ctx context.Context, options generateOptions) error {
 		return fmt.Errorf("goldr generate: %w", err)
 	}
 
-	hasTempl, err := project.HasTemplFiles(paths.Root)
+	scope, err := templtool.LoadScope(paths.Root)
+	if err != nil {
+		return fmt.Errorf("goldr generate: %w", err)
+	}
+	hasTempl, err := scope.HasFiles()
 	if err != nil {
 		return fmt.Errorf("goldr generate: %w", err)
 	}
 	if hasTempl {
 		if options.check {
-			if err := templtool.GenerateCheck(ctx, paths.Root); err != nil {
+			if err := scope.GenerateCheck(ctx); err != nil {
 				return fmt.Errorf("goldr generate: %w", err)
 			}
 		} else {
-			if err := templtool.Generate(ctx, paths.Root); err != nil {
+			if err := scope.Generate(ctx); err != nil {
 				return fmt.Errorf("goldr generate: %w", err)
 			}
 		}
